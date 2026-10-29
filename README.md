@@ -1,6 +1,11 @@
 # CorePulse
 
-> **Status:** Idea and discovery stage. This repository does not yet contain a working demo, trained model, or verified metric inventory.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/corepulse-logo-dark.svg">
+  <img src="assets/corepulse-logo.svg" alt="CorePulse logo" width="570">
+</picture>
+
+> **Status:** Early development. A read-only lab discovery tool and one guarded fault experiment are implemented. Live metrics, a trained model, and the dashboard are still future work.
 
 CorePulse is an AIOps portfolio project for fault injection and intelligent detection in 5G core networks. It introduces controlled, reversible faults into an Open5GS + UERANSIM lab on Kubernetes, collects telemetry, trains detection models, and displays predictions in a live dashboard.
 
@@ -22,7 +27,40 @@ flowchart LR
   API -- WebSocket --> UI
 ```
 
-The existing `open5gs-ueransim-kubernetes` lab will be the foundation. New components should integrate without breaking its current setup.
+The existing [Open5GS + UERANSIM lab](https://github.com/lazypanic999/open5gs-ueransim-kubernetes) is the foundation. CorePulse is a separate project and does not change that lab's deployment files.
+
+## What works today
+
+- `corepulse discover` reads deployments, pods, services, and Prometheus scrape annotations from the `open5gs` namespace. It reports candidate endpoints without claiming metrics have been verified.
+- `corepulse pod-crash --target amf|upf` prints a dry-run plan. With `--apply`, it validates the context and workload, deletes one deployment-owned pod, waits for its deletion and deployment recovery, and writes a run record.
+- Unit tests and GitHub Actions CI cover the discovery schema and the fault injector's safety guards.
+
+The [lab integration notes](docs/lab-integration.md) distinguish repository-verified facts from checks that still require a running cluster. The [first design decision](docs/decisions/0001-start-with-discovery.md) explains why discovery comes before choosing model features.
+The current [run record schema](docs/run-record.md) documents the first fault label and recovery result.
+
+## Try the first slice
+
+Use Python 3.11 or newer, `kubectl`, and the isolated lab from the linked repository. Run the lab's own `scripts/verify.sh` before an experiment.
+
+```bash
+python -m pip install -e .
+corepulse discover --output reports/discovery.json
+corepulse pod-crash --target amf
+```
+
+The last command only prints a plan. To run the fault against the lab after reviewing that plan:
+
+```bash
+corepulse pod-crash --target amf --apply
+```
+
+The required Kubernetes context is `open5gs-lab`, matching the lab's Minikube profile. Run records are saved under ignored `runs/`. The command reports `recovery_unverified` and exits unsuccessfully if Kubernetes does not confirm recovery. This pod experiment is intended only for the local lab.
+
+Run the tests without a cluster:
+
+```bash
+python -m unittest discover -s tests -v
+```
 
 ## Initial scope
 
@@ -45,11 +83,11 @@ The existing `open5gs-ueransim-kubernetes` lab will be the foundation. New compo
 
 ## First tasks
 
-1. Inspect the existing lab repository: namespaces, pods, services, setup, and verification scripts.
-2. Identify metric endpoints and ports from the running lab; document only verified values.
-3. Design an allowlisted injector restricted to the lab namespace.
-4. Define the `runs.json` and time-series dataset schemas.
-5. Implement the first fault with apply, verify, and rollback flows.
+1. Start the lab and run its end-to-end verification script.
+2. Run CorePulse discovery against the live cluster, then probe candidate endpoints and record real metric names.
+3. Define the `runs.json` and time-series dataset schemas from observed data.
+4. Validate the pod fault in the lab and add packet loss and latency only after checking image privileges and rollback paths.
+5. Build data collection, baseline models, and then the live dashboard.
 
 ## Design rules
 
@@ -65,4 +103,4 @@ The existing `open5gs-ueransim-kubernetes` lab will be the foundation. New compo
 - Should the charts be built entirely in React, or should Grafana also be used?
 - Should large datasets and model files be distributed through releases or separate storage?
 
-This README is an initial project draft. Verified setup instructions, a final architecture diagram, a demo GIF, and measured results will be added as the implementation progresses.
+The final setup flow, demo GIF, and measured model results will be added after a live lab run and end-to-end implementation.

@@ -7,6 +7,7 @@
 
 # Python
 __pycache__/
+*.egg-info/
 *.py[cod]
 .venv/
 .pytest_cache/
@@ -21,6 +22,7 @@ coverage/
 # Generated experiments and data
 data/
 runs/
+reports/
 artifacts/
 models/
 mlruns/

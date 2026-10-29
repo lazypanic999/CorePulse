@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="180" viewBox="0 0 760 180" role="img" aria-labelledby="title desc">
+  <title id="title">CorePulse logo</title>
+  <desc id="desc">A teal pulse crossing a layered network core, beside the CorePulse wordmark.</desc>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101D37"/>
+      <stop offset="1" stop-color="#172D4B"/>
+    </linearGradient>
+    <linearGradient id="pulse" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2DD4BF"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+  </defs>
+  <rect x="12" y="12" width="156" height="156" rx="36" fill="url(#tile)"/>
+  <path d="M48 67 90 43l42 24v47l-42 24-42-24z" fill="none" stroke="#52708E" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M48 90h25l11-23 15 49 12-26h29" fill="none" stroke="url(#pulse)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="48" cy="90" r="5" fill="#2DD4BF"/>
+  <circle cx="140" cy="90" r="5" fill="#38BDF8"/>
+  <text x="202" y="111" fill="#14243D" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="72" font-weight="750" letter-spacing="-3">Core<tspan fill="#0EA5A8">Pulse</tspan></text>
+  <text x="206" y="145" fill="#50647B" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="21" font-weight="500" letter-spacing="2.3">5G CORE OBSERVABILITY</text>
+</svg>
