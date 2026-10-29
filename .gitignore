@@ -1,0 +1,32 @@
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Node / React
+node_modules/
+dist/
+build/
+coverage/
+
+# Generated experiments and data
+data/
+runs/
+artifacts/
+models/
+mlruns/
+*.parquet
+
+# Local tooling
+.DS_Store
+.vscode/
+.idea/
