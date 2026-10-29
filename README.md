@@ -5,7 +5,7 @@
   <img src="assets/corepulse-logo.svg" alt="CorePulse logo" width="570">
 </picture>
 
-> **Status:** Early development. A read-only lab discovery tool and one guarded fault experiment are implemented. Live metrics, a trained model, and the dashboard are still future work.
+> **Status:** Early development. The Go CLI implements read-only lab discovery and one guarded fault experiment. Live metrics, a trained model, and the dashboard are still future work.
 
 CorePulse is an AIOps portfolio project for fault injection and intelligent detection in 5G core networks. It introduces controlled, reversible faults into an Open5GS + UERANSIM lab on Kubernetes, collects telemetry, trains detection models, and displays predictions in a live dashboard.
 
@@ -17,12 +17,12 @@ In a 30-second demo, a user starts a fault, sees its effect on live metrics, com
 
 ```mermaid
 flowchart LR
-  UI[React dashboard] --> API[Node.js API]
+  UI[React dashboard] --> API[Go API]
   API --> INJ[Fault injector]
   INJ --> LAB[Open5GS + UERANSIM lab]
   LAB --> PROM[Prometheus]
   PROM --> COL[Data collection / feature extraction]
-  COL --> ML[Python ML service]
+  COL --> ML[ML service]
   ML --> API
   API -- WebSocket --> UI
 ```
@@ -33,25 +33,25 @@ The existing [Open5GS + UERANSIM lab](https://github.com/lazypanic999/open5gs-ue
 
 - `corepulse discover` reads deployments, pods, services, and Prometheus scrape annotations from the `open5gs` namespace. It reports candidate endpoints without claiming metrics have been verified.
 - `corepulse pod-crash --target amf|upf` prints a dry-run plan. With `--apply`, it validates the context and workload, deletes one deployment-owned pod, waits for its deletion and deployment recovery, and writes a run record.
-- Unit tests and GitHub Actions CI cover the discovery schema and the fault injector's safety guards.
+- Go unit tests and GitHub Actions CI cover the discovery schema and the fault injector's safety guards.
 
 The [lab integration notes](docs/lab-integration.md) distinguish repository-verified facts from checks that still require a running cluster. The [first design decision](docs/decisions/0001-start-with-discovery.md) explains why discovery comes before choosing model features.
+The [Go decision](docs/decisions/0002-go-control-plane.md) records the control plane migration.
 The current [run record schema](docs/run-record.md) documents the first fault label and recovery result.
 
 ## Try the first slice
 
-Use Python 3.11 or newer, `kubectl`, and the isolated lab from the linked repository. Run the lab's own `scripts/verify.sh` before an experiment.
+Use Go 1.22 or newer, `kubectl`, and the isolated lab from the linked repository. Run the lab's own `scripts/verify.sh` before an experiment.
 
 ```bash
-python -m pip install -e .
-corepulse discover --output reports/discovery.json
-corepulse pod-crash --target amf
+go run ./cmd/corepulse discover --output reports/discovery.json
+go run ./cmd/corepulse pod-crash --target amf
 ```
 
 The last command only prints a plan. To run the fault against the lab after reviewing that plan:
 
 ```bash
-corepulse pod-crash --target amf --apply
+go run ./cmd/corepulse pod-crash --target amf --apply
 ```
 
 The required Kubernetes context is `open5gs-lab`, matching the lab's Minikube profile. Run records are saved under ignored `runs/`. The command reports `recovery_unverified` and exits unsuccessfully if Kubernetes does not confirm recovery. This pod experiment is intended only for the local lab.
@@ -59,7 +59,7 @@ The required Kubernetes context is `open5gs-lab`, matching the lab's Minikube pr
 Run the tests without a cluster:
 
 ```bash
-python -m unittest discover -s tests -v
+go test ./...
 ```
 
 ## Initial scope
@@ -67,7 +67,7 @@ python -m unittest discover -s tests -v
 - **Fault injection:** `packet_loss`, `high_latency`, `sctp_drop`, `pod_crash`, plus an untouched `normal` condition. Each fault needs a recorded start time, end time, parameters, and rollback path.
 - **Telemetry:** Prometheus collection for pod, network, and, if available, Open5GS metrics. Actual metric names must be verified during discovery.
 - **Dataset:** CSV/Parquet time series with run IDs and labels; features extracted from 30-second windows.
-- **Models:** Start with normal/anomalous detection, then fault type classification. Split training and test data **by run**, never by individual window.
+- **Models:** Start with normal/anomalous detection, then fault type classification. Keep the control plane in Go; choose a model runtime after benchmarking. Split training and test data **by run**, never by individual window.
 - **Dashboard:** Fault controls, live charts, known labels, and model predictions. Incorrect predictions must remain visible.
 
 ## Roadmap
@@ -101,6 +101,7 @@ python -m unittest discover -s tests -v
 
 - Which Open5GS components expose useful metrics?
 - Should the charts be built entirely in React, or should Grafana also be used?
+- Which model runtime best fits the Go service after baseline evaluation?
 - Should large datasets and model files be distributed through releases or separate storage?
 
 The final setup flow, demo GIF, and measured model results will be added after a live lab run and end-to-end implementation.

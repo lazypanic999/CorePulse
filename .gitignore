@@ -5,13 +5,13 @@
 *.pem
 *.key
 
-# Python
+# Go
+/corepulse
+/corepulse.exe
+
+# Legacy local Python build artifacts
 __pycache__/
 *.egg-info/
-*.py[cod]
-.venv/
-.pytest_cache/
-.ipynb_checkpoints/
 
 # Node / React
 node_modules/

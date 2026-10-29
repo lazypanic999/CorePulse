@@ -20,7 +20,7 @@ The lab README names `open5gs-amf`, `open5gs-upf`, `ueransim-gnb`, and `ueransim
 
 No live `open5gs` cluster was reachable during this repository update. The local Windows `kubectl` had no current context; the Ubuntu WSL context pointed to a stopped Minikube endpoint. Therefore metric endpoints, Prometheus scrape status, metric names, and fault behavior have **not** been verified live.
 
-When the lab is running, first execute its `scripts/verify.sh`, then run `corepulse discover --output reports/discovery.json`. Review the report, probe candidate endpoints, and record actual metric names before designing features or training models. The discovery report deliberately labels annotation-derived endpoints as candidates, not verified metrics.
+When the lab is running, first execute its `scripts/verify.sh`, then run `go run ./cmd/corepulse discover --output reports/discovery.json`. Review the report, probe candidate endpoints, and record actual metric names before designing features or training models. The discovery report deliberately labels annotation-derived endpoints as candidates, not verified metrics.
 
 ## First fault experiment
 
