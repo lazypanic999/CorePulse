@@ -1,68 +1,68 @@
-# 5G Arıza Dedektörü
+# 5G Fault Detector
 
-> **Durum:** Fikir / keşif aşaması. Bu depo henüz çalışan bir demo, eğitilmiş model veya doğrulanmış metrik seti içermez.
+> **Status:** Idea and discovery stage. This repository does not yet contain a working demo, trained model, or verified metric inventory.
 
-Kubernetes üzerindeki Open5GS + UERANSIM laboratuvarında kontrollü ve geri alınabilir arızalar üretip telemetri toplayan, bu verilerle arıza tespiti yapan ve sonucu canlı bir panelde gösteren bir AIOps portföy projesi.
+An AIOps portfolio project that introduces controlled, reversible faults into an Open5GS + UERANSIM lab on Kubernetes, collects telemetry, trains fault detection models, and displays predictions in a live dashboard.
 
-## Hedef
+## Goal
 
-30 saniyelik bir demoda kullanıcı bir arızayı başlatır, metriklerdeki etkiyi görür, modelin tahmini ile gerçek arıza etiketi yan yana gösterilir ve arıza güvenle geri alınır. Hedef ortam tek bir Ubuntu makinesi üzerinde Minikube, Docker ve Helm'dir.
+In a 30-second demo, a user starts a fault, sees its effect on live metrics, compares the model prediction with the known fault label, and safely resets the lab. The target environment is a single Ubuntu machine with Minikube, Docker, and Helm.
 
-## Planlanan mimari
+## Proposed architecture
 
 ```mermaid
 flowchart LR
-  UI[React panel] --> API[Node.js API]
+  UI[React dashboard] --> API[Node.js API]
   API --> INJ[Fault injector]
   INJ --> LAB[Open5GS + UERANSIM lab]
   LAB --> PROM[Prometheus]
-  PROM --> COL[Veri toplama / özellik çıkarma]
-  COL --> ML[Python ML servisi]
+  PROM --> COL[Data collection / feature extraction]
+  COL --> ML[Python ML service]
   ML --> API
   API -- WebSocket --> UI
 ```
 
-Mevcut `open5gs-ueransim-kubernetes` laboratuvarı temel alınacak; bu depoda geliştirilecek parçalar laboratuvarın mevcut kurulumunu bozmadan eklenecek.
+The existing `open5gs-ueransim-kubernetes` lab will be the foundation. New components should integrate without breaking its current setup.
 
-## İlk sürüm kapsamı
+## Initial scope
 
-- **Arıza üretimi:** `packet_loss`, `high_latency`, `sctp_drop`, `pod_crash` ve müdahalesiz `normal` koşulu. Her arıza başlangıç/bitiş zamanı ve parametreleriyle kaydedilecek; geri alma yolu olacak.
-- **Telemetri:** Prometheus ile pod, ağ ve mümkünse Open5GS metrikleri. Gerçek metrik adları keşif aşamasında doğrulanacak.
-- **Veri seti:** Run kimliği ve etiketiyle CSV/Parquet zaman serileri; 30 saniyelik pencerelerden özellik çıkarma.
-- **Model:** Önce normal/anomali ayrımı, ardından arıza türü sınıflandırması. Eğitim ve test ayrımı **run bazında** yapılacak.
-- **Panel:** Arıza kontrolleri, canlı grafikler, gerçek etiket ve model tahmini. Hatalı tahminler de görünür olacak.
+- **Fault injection:** `packet_loss`, `high_latency`, `sctp_drop`, `pod_crash`, plus an untouched `normal` condition. Each fault needs a recorded start time, end time, parameters, and rollback path.
+- **Telemetry:** Prometheus collection for pod, network, and, if available, Open5GS metrics. Actual metric names must be verified during discovery.
+- **Dataset:** CSV/Parquet time series with run IDs and labels; features extracted from 30-second windows.
+- **Models:** Start with normal/anomalous detection, then fault type classification. Split training and test data **by run**, never by individual window.
+- **Dashboard:** Fault controls, live charts, known labels, and model predictions. Incorrect predictions must remain visible.
 
-## Yol haritası
+## Roadmap
 
-| Aşama | Çıktı | Tamamlanma ölçütü |
+| Phase | Deliverable | Acceptance criterion |
 | --- | --- | --- |
-| 0. Keşif | Lab envanteri ve metrik listesi | Namespace, servis, pod ve scrape hedefleri doğrulandı |
-| 1. Injector | Geri alınabilir 3–4 arıza ve run kaydı | Arızalar başlatılıp durdurulabiliyor; etiketler kaydediliyor |
-| 2. Veri | Otomatik toplama ve belgelenmiş şema | Farklı parametrelerle yeterli sayıda run üretildi |
-| 3. Model | Anomali ve sınıflandırma modelleri | Ayrı test run'larında precision, recall, F1 ve confusion matrix raporlandı |
-| 4. Panel | Kontrol, grafik ve tahmin ekranı | Uçtan uca demo çalışıyor |
-| 5. Cila | Tek komutlu kurulum ve demo kaydı | Temiz ortamda tekrar üretilebiliyor |
+| 0. Discovery | Lab inventory and metric list | Namespaces, services, pods, and scrape targets verified |
+| 1. Injector | 3-4 reversible faults and run records | Faults can be started, stopped, and labeled |
+| 2. Dataset | Automated collection and documented schema | Repeated runs with varied parameters are captured |
+| 3. Models | Anomaly and classification baselines | Precision, recall, F1, and confusion matrix on held-out runs |
+| 4. Dashboard | Controls, live charts, and prediction view | End-to-end demo works |
+| 5. Polish | One-command setup and demo recording | Reproducible on a clean machine |
 
-## İlk yapılacaklar
+## First tasks
 
-1. Mevcut lab deposunun namespace, pod, servis, kurulum ve doğrulama akışını incele.
-2. Prometheus'a gerçekten açılan metrikleri ve portları ölçerek listele.
-3. Arıza eylemleri için yalnızca lab namespace'ine ve izin listesine bağlı bir tasarım çıkar.
-4. `runs.json` ve zaman serisi veri şemasını tanımla.
-5. İlk arızayı uygulama, doğrulama ve geri alma akışıyla geliştir.
+1. Inspect the existing lab repository: namespaces, pods, services, setup, and verification scripts.
+2. Identify metric endpoints and ports from the running lab; document only verified values.
+3. Design an allowlisted injector restricted to the lab namespace.
+4. Define the `runs.json` and time-series dataset schemas.
+5. Implement the first fault with apply, verify, and rollback flows.
 
-## Tasarım ilkeleri
+## Design rules
 
-- Arıza eylemleri yalnızca laboratuvar namespace'inde çalışır; kullanıcı metni doğrudan komuta dönüştürülmez.
-- Her arızanın geri alma yolu ve temel testi bulunur.
-- Model sonuçları başarısız sınıflar dahil dürüstçe paylaşılır; aynı run'ın pencereleri eğitim ve teste bölünmez.
-- Token, parola, ham büyük veri seti ve eğitilmiş model dosyaları varsayılan olarak Git'e eklenmez.
-- Metrik adları, portlar ve kurulum komutları çalışan sistemde doğrulanmadan belgelenmez.
+- Run fault actions only in the lab namespace and from an explicit allowlist. Never execute user-supplied text as a command.
+- Give every fault a rollback path and a basic test.
+- Report model results honestly, including confused classes. Windows from the same run must never appear in both training and test sets.
+- Keep tokens, passwords, large raw datasets, and trained model files out of Git by default.
+- Verify metric names, ports, and setup commands against the working system before documenting them as facts.
 
-## Henüz kararlaştırılacaklar
+## Open decisions
 
-- Hangi Open5GS bileşenleri metrik sunuyor?
-- Grafikler tamamen React ile mi çizilecek, Grafana da kullanılacak mı?
-- Büyük veri setleri ve model dosyaları release veya ayrı depolamada mı tutulacak?
+- Which Open5GS components expose useful metrics?
+- Should the charts be built entirely in React, or should Grafana also be used?
+- Should large datasets and model files be distributed through releases or separate storage?
 
-Bu README proje taslağıdır; uygulama ilerledikçe doğrulanmış kurulum adımları, mimari şeması, demo GIF'i ve ölçülmüş sonuçlar eklenecek.
+This README is an initial project draft. Verified setup instructions, a final architecture diagram, a demo GIF, and measured results will be added as the implementation progresses.
