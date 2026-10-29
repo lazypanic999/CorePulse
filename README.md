@@ -1,8 +1,8 @@
-# 5G Fault Detector
+# CorePulse
 
 > **Status:** Idea and discovery stage. This repository does not yet contain a working demo, trained model, or verified metric inventory.
 
-An AIOps portfolio project that introduces controlled, reversible faults into an Open5GS + UERANSIM lab on Kubernetes, collects telemetry, trains fault detection models, and displays predictions in a live dashboard.
+CorePulse is an AIOps portfolio project for fault injection and intelligent detection in 5G core networks. It introduces controlled, reversible faults into an Open5GS + UERANSIM lab on Kubernetes, collects telemetry, trains detection models, and displays predictions in a live dashboard.
 
 ## Goal
 
