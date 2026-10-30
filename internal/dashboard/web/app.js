@@ -46,7 +46,7 @@ function updateOverview(data) {
   banner.classList.toggle('live', Boolean(data.connected));
   $('#status-title').textContent = data.connected ? 'Lab connection established' : 'Lab offline · preview mode';
   $('#status-detail').textContent = data.connected
-    ? `Read-only discovery completed in context ${data.report.context}. Metric endpoints remain unverified.`
+    ? `Read-only discovery completed in context ${data.report.context}. Resource metrics appear below when available.`
     : data.message || 'The local lab is unavailable.';
   $('#status-tag').textContent = data.connected ? 'CONNECTED' : 'PREVIEW';
   $('#status-banner .status-symbol').textContent = data.connected ? '✓' : '!';
@@ -62,18 +62,22 @@ function updateOverview(data) {
   const target = $('#target-select').value;
   const targetName = `open5gs-${target}`;
   const targetReady = report?.inventory?.deployments?.some((item) => item.name === targetName && Number(item.ready_replicas) === 1 && Number(item.replicas) === 1);
-  $('#run-button').disabled = !(correctContext && targetReady);
+  const expectedReady = ['open5gs-amf', 'open5gs-upf', 'ueransim-gnb', 'ueransim-ue'].every((name) => report?.inventory?.deployments?.some((item) => item.name === name && Number(item.ready_replicas) === 1 && Number(item.replicas) === 1));
+  $('#run-button').disabled = !(correctContext && targetReady && expectedReady);
   $('#experiment-note').textContent = !data.connected
     ? 'The run action unlocks only when the exact lab context and workload are reachable.'
     : !correctContext
       ? 'Connected to another context. Experiments require open5gs-lab.'
       : !targetReady
         ? 'The selected deployment must have exactly one ready replica.'
+        : !expectedReady
+          ? 'All four core and simulator workloads must be ready before a demo run.'
         : 'Lab checks passed. The server verifies context, ownership, and readiness again before deletion.';
 }
 
 async function refreshOverview() {
   const button = $('#refresh-button');
+  if (button.disabled) return;
   button.disabled = true;
   button.textContent = 'Checking lab…';
   try {
@@ -114,6 +118,43 @@ async function refreshRuns() {
   }
 }
 
+function drawSeries(selector, values) {
+  const line = $(selector);
+  if (!values.length) { line.setAttribute('points', ''); return; }
+  const maximum = Math.max(1, ...values);
+  const points = values.length === 1 ? [values[0], values[0]] : values;
+  line.setAttribute('points', points.map((value, index) => `${(index / (points.length - 1) * 300).toFixed(1)},${(80 - value / maximum * 70).toFixed(1)}`).join(' '));
+}
+
+async function refreshTelemetry() {
+  try {
+    const response = await fetch('/api/telemetry', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Telemetry returned ${response.status}`);
+    const data = await response.json();
+    const live = Boolean(data.available && data.latest);
+    $('#telemetry-live').hidden = !live;
+    $('#telemetry-empty').hidden = live;
+    $('#telemetry-badge').textContent = live ? 'LIVE RESOURCE METRICS' : 'WAITING';
+    if (!live) {
+      $('#telemetry-message').textContent = data.message || 'The collector will show real Kubernetes resource metrics when the lab and metrics API are available.';
+      return;
+    }
+    const samples = data.samples || [];
+    const latest = data.latest;
+    $('#telemetry-time').textContent = displayTime(latest.timestamp);
+    $('#cpu-value').textContent = `${latest.cpu_millicores.toFixed(1)} m`;
+    $('#memory-value').textContent = `${(latest.memory_bytes / 1048576).toFixed(1)} MiB`;
+    $('#metric-pod-count').textContent = String(latest.pod_count);
+    drawSeries('#cpu-line', samples.map((sample) => Number(sample.cpu_millicores)));
+    drawSeries('#memory-line', samples.map((sample) => Number(sample.memory_bytes)));
+  } catch (error) {
+    $('#telemetry-live').hidden = true;
+    $('#telemetry-empty').hidden = false;
+    $('#telemetry-badge').textContent = 'WAITING';
+    $('#telemetry-message').textContent = error.message;
+  }
+}
+
 function addPlanRow(parent, label, value) {
   const row = document.createElement('div'); row.className = 'plan-row';
   const key = document.createElement('span'); key.textContent = label;
@@ -147,7 +188,8 @@ async function runExperiment() {
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Experiment failed');
-    toast(result.status === 'recovered' ? 'Recovery verified. Run record saved.' : 'Recovery could not be verified. Check the lab and run record.');
+    const datasetNote = result.dataset ? ` Dataset updated: ${result.dataset.samples} samples, ${result.dataset.fault} in the experiment window.` : '';
+    toast(result.status === 'recovered' ? `Recovery verified. Run record saved.${datasetNote}` : 'Recovery could not be verified. Check the lab and run record.');
     await Promise.all([refreshOverview(), refreshRuns()]);
   } catch (error) { toast(error.message); }
   finally { $('#confirm-dialog').close(); $('#confirm-run').textContent = 'Delete one lab pod'; $('#confirm-input').value = ''; }
@@ -174,4 +216,6 @@ $('#run-button').addEventListener('click', () => {
 $('#confirm-input').addEventListener('input', () => { $('#confirm-run').disabled = $('#confirm-input').value.trim().toLowerCase() !== $('#target-select').value; });
 $('#confirm-run').addEventListener('click', runExperiment);
 updateClock(); setInterval(updateClock, 30000);
-Promise.all([refreshOverview(), refreshRuns()]);
+setInterval(refreshOverview, 30000);
+setInterval(refreshTelemetry, 10000);
+Promise.all([refreshOverview(), refreshRuns(), refreshTelemetry()]);

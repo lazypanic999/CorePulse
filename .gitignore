@@ -9,6 +9,7 @@
 /corepulse
 /corepulse.exe
 /corepulse.exe~
+/corepulse-linux
 
 # Legacy local Python build artifacts
 __pycache__/

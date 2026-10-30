@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/lazypanic999/CorePulse/internal/telemetry"
 )
 
 type unavailableClient struct{ actions int }
@@ -83,5 +85,35 @@ func TestDashboardRejectsNonLoopbackHost(t *testing.T) {
 	New(&unavailableClient{}, t.TempDir()).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "http://example.com/api/overview", nil))
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("status %d", response.Code)
+	}
+}
+
+type metricsClient struct{}
+
+func (metricsClient) Run(_ time.Duration, args ...string) (string, error) {
+	if args[0] == "config" {
+		return "open5gs-lab", nil
+	}
+	return `{"items":[{"metadata":{"name":"open5gs-amf-abc"},"containers":[{"usage":{"cpu":"5m","memory":"20Mi"}}]}]}`, nil
+}
+func (metricsClient) GetJSON(_ ...string) (map[string]any, error) { return nil, nil }
+
+func TestTelemetryEndpointServesCapturedMetrics(t *testing.T) {
+	store := telemetry.NewStore(t.TempDir() + "/telemetry.jsonl")
+	if err := store.Capture(metricsClient{}); err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	NewWithTelemetry(metricsClient{}, t.TempDir(), store).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8787/api/telemetry", nil))
+	var payload map[string]any
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload["available"] != true || payload["source"] != telemetry.Source {
+		t.Fatalf("unexpected telemetry: %v", payload)
+	}
+	latest := payload["latest"].(map[string]any)
+	if latest["cpu_millicores"] != float64(5) || latest["memory_bytes"] != float64(20*1024*1024) {
+		t.Fatalf("unexpected latest sample: %v", latest)
 	}
 }

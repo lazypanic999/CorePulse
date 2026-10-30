@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -9,9 +10,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/lazypanic999/CorePulse/internal/corepulse"
 	"github.com/lazypanic999/CorePulse/internal/dashboard"
+	"github.com/lazypanic999/CorePulse/internal/dataset"
+	"github.com/lazypanic999/CorePulse/internal/telemetry"
 )
 
 func printJSON(value any) error {
@@ -33,10 +37,27 @@ func saveJSON(path string, value any) error {
 
 func run(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("usage: corepulse <discover|pod-crash|serve> [options]")
+		return 1, errors.New("usage: corepulse <discover|pod-crash|dataset|serve> [options]")
 	}
 	client := corepulse.Kubectl{}
 	switch args[0] {
+	case "dataset":
+		flags := flag.NewFlagSet("dataset", flag.ContinueOnError)
+		flags.SetOutput(os.Stderr)
+		telemetryPath := flags.String("telemetry", filepath.Join("data", "telemetry.jsonl"), "raw telemetry JSONL")
+		runsDir := flags.String("runs-dir", "runs", "run record directory")
+		output := flags.String("output", filepath.Join("data", "dataset.csv"), "labeled CSV output")
+		if err := flags.Parse(args[1:]); err != nil {
+			return 1, err
+		}
+		if flags.NArg() != 0 {
+			return 1, errors.New("unexpected positional arguments")
+		}
+		summary, err := dataset.Build(*telemetryPath, *runsDir, *output)
+		if err != nil {
+			return 1, err
+		}
+		return 0, printJSON(summary)
 	case "serve":
 		flags := flag.NewFlagSet("serve", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)
@@ -57,7 +78,9 @@ func run(args []string) (int, error) {
 			return 1, errors.New("dashboard must bind to a loopback address")
 		}
 		fmt.Fprintf(os.Stderr, "CorePulse dashboard: http://%s\n", *addr)
-		return 1, http.ListenAndServe(*addr, dashboard.New(client, *runsDir))
+		store := telemetry.NewStore(filepath.Join("data", "telemetry.jsonl"))
+		store.Start(context.Background(), client, 10*time.Second)
+		return 1, http.ListenAndServe(*addr, dashboard.NewWithTelemetry(client, *runsDir, store))
 	case "discover":
 		flags := flag.NewFlagSet("discover", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)
@@ -129,7 +152,7 @@ func run(args []string) (int, error) {
 		}
 		return 0, nil
 	default:
-		return 1, fmt.Errorf("unknown command %q; use discover, pod-crash, or serve", args[0])
+		return 1, fmt.Errorf("unknown command %q; use discover, pod-crash, dataset, or serve", args[0])
 	}
 }
 

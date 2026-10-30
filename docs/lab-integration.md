@@ -1,4 +1,4 @@
-# Lab integration: verified baseline and remaining checks
+# Lab integration: live baseline and remaining checks
 
 CorePulse is a separate repository. It does not copy or modify the [Open5GS + UERANSIM lab](https://github.com/lazypanic999/open5gs-ueransim-kubernetes).
 
@@ -16,11 +16,15 @@ CorePulse is a separate repository. It does not copy or modify the [Open5GS + UE
 
 The lab README names `open5gs-amf`, `open5gs-upf`, `ueransim-gnb`, and `ueransim-ue` deployments. CorePulse checks for these names but does not assume all of them exist in every running cluster.
 
-## What remains unverified
+## Live check on 31 October 2026
 
-No live `open5gs` cluster was reachable during this repository update. The local Windows `kubectl` had no current context; the Ubuntu WSL context pointed to a stopped Minikube endpoint. Therefore metric endpoints, Prometheus scrape status, metric names, and fault behavior have **not** been verified live.
+The `open5gs-lab` Minikube profile ran in Ubuntu WSL with the lab's Open5GS and UERANSIM Helm releases in namespace `open5gs`. All 16 deployments became available. The first UE started before the gNB and did not register; restarting the UE after the gNB was ready produced `Initial Registration is successful`, `PDU Session establishment is successful`, and tunnel interface `uesimtun0` with a `10.45.0.x` address. The same registration and session messages appeared after a later gNB/UE restart.
 
-When the lab is running, first execute its `scripts/verify.sh`, then run `go run ./cmd/corepulse discover --output reports/discovery.json`. Review the report, probe candidate endpoints, and record actual metric names before designing features or training models. The discovery report deliberately labels annotation-derived endpoints as candidates, not verified metrics.
+The Minikube metrics-server addon exposed `metrics.k8s.io/v1beta1`. CorePulse read real per-pod CPU and memory from it; a connected dashboard sample had 16 reporting pods. The discovery report showed zero Prometheus scrape annotation candidates. No Prometheus endpoint or Open5GS protocol KPI has been verified.
+
+The lab's `scripts/verify.sh` did **not** pass end to end. During a UE rollout it selected an older terminating pod and missed the new pod's successful registration log. Direct checks of the new UE confirmed registration, PDU session, and tunnel creation, but `ping -I uesimtun0 8.8.8.8` received 0/5 replies. A direct ping to the UPF tunnel gateway `10.45.0.1` also received no replies. The UPF logged GTP-U Error Indications and `Cannot find FAR by Error-Indication` while the ping ran. The cause of the user-plane failure remains open; pod readiness and a successful PDU establishment do not prove packet forwarding.
+
+CorePulse ran one guarded AMF pod-crash experiment from the dashboard. Kubernetes created a replacement AMF pod and the deployment returned to 1/1 ready. The recorded run status was `recovered`, based on deployment readiness; the run interval produced three `pod_crash` and 31 `normal` resource-metric samples in the first CSV. A gNB/UE restart restored UE registration after the AMF replacement. This is control-plane and workload recovery evidence, not proof of user-plane recovery.
 
 ## First fault experiment
 

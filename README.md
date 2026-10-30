@@ -5,11 +5,11 @@
   <img src="assets/corepulse-logo.svg" alt="CorePulse logo" width="570">
 </picture>
 
-> **Status:** Early development. The Go CLI and local dashboard implement read-only lab discovery and one guarded fault experiment. Live metrics, a trained model, and the full prediction dashboard are still future work.
+> **Status:** Early development. The Go CLI and local dashboard now read the isolated lab, collect real Kubernetes pod CPU/memory metrics, and run one guarded pod experiment. Protocol KPIs, a trained model, and predictions are future work.
 
 CorePulse is an AIOps portfolio project for fault injection and intelligent detection in 5G core networks. It is being built to introduce controlled, reversible faults into an Open5GS + UERANSIM lab on Kubernetes, collect telemetry, train detection models, and display predictions in a live dashboard.
 
-[![CorePulse local dashboard in offline preview mode](assets/dashboard-top.png)](#interface-captures)
+[![CorePulse dashboard connected to the live lab](assets/dashboard-live-full.jpg)](#interface-captures)
 
 ## Goal
 
@@ -36,15 +36,17 @@ The existing [Open5GS + UERANSIM lab](https://github.com/lazypanic999/open5gs-ue
 - `corepulse discover` reads deployments, pods, services, and Prometheus scrape annotations from the `open5gs` namespace. It reports candidate endpoints without claiming metrics have been verified.
 - `corepulse pod-crash --target amf|upf` prints a dry-run plan. With `--apply`, it validates the context and workload, deletes one deployment-owned pod, waits for its deletion and deployment recovery, and writes a run record.
 - `corepulse serve` opens a local dashboard with lab connection state, workload topology, an experiment plan, and recent run records. The run control requires the exact lab context and a second typed confirmation. Offline preview mode does not invent live telemetry.
-- Go unit tests and GitHub Actions CI cover discovery, fault safety guards, and the dashboard API.
+- While the server runs, it samples `metrics.k8s.io/v1beta1` every 10 seconds and displays live aggregate pod CPU and memory. Raw samples are saved in ignored `data/telemetry.jsonl`.
+- `corepulse dataset` joins those samples with recorded experiment intervals into ignored `data/dataset.csv`, with `normal` and `pod_crash` labels. The dashboard rebuilds it after an experiment.
+- Go unit tests and GitHub Actions CI cover discovery, fault safety guards, telemetry parsing, dataset labeling, and the dashboard API.
 
-The [lab integration notes](docs/lab-integration.md) distinguish repository-verified facts from checks that still require a running cluster. The [first design decision](docs/decisions/0001-start-with-discovery.md) explains why discovery comes before choosing model features.
+The [lab integration notes](docs/lab-integration.md) record the live rollout and verification results. [Telemetry and dataset notes](docs/telemetry-and-dataset.md) document the measured fields and labeling limits. The [first design decision](docs/decisions/0001-start-with-discovery.md) explains why discovery comes before choosing model features.
 The [Go decision](docs/decisions/0002-go-control-plane.md) records the control plane migration.
 The current [run record schema](docs/run-record.md) documents the first fault label and recovery result.
 
 ## Try the first slice
 
-Use Go 1.22 or newer, `kubectl`, and the isolated lab from the linked repository. Run the lab's own `scripts/verify.sh` before an experiment.
+Use Go 1.22 or newer, `kubectl`, and the isolated lab from the linked repository. Run CorePulse in the same environment as the `open5gs-lab` Kubernetes context (Ubuntu WSL on this workstation). Check the lab's `scripts/verify.sh` before an experiment; its UE ping check currently fails in this WSL lab, as recorded in the [integration notes](docs/lab-integration.md).
 
 ```bash
 go run ./cmd/corepulse discover --output reports/discovery.json
@@ -55,9 +57,10 @@ The last command only prints a plan. To run the fault against the lab after revi
 
 ```bash
 go run ./cmd/corepulse pod-crash --target amf --apply
+go run ./cmd/corepulse dataset --telemetry data/telemetry.jsonl --runs-dir runs --output data/dataset.csv
 ```
 
-The required Kubernetes context is `open5gs-lab`, matching the lab's Minikube profile. Run records are saved under ignored `runs/`. The command reports `recovery_unverified` and exits unsuccessfully if Kubernetes does not confirm recovery. This pod experiment is intended only for the local lab.
+The required Kubernetes context is `open5gs-lab`, matching the lab's Minikube profile. Run records are saved under ignored `runs/`. The command reports `recovery_unverified` and exits unsuccessfully if Kubernetes does not confirm deployment recovery. That readiness check does not confirm UE traffic or packet forwarding. This pod experiment is intended only for the local lab.
 
 Run the tests without a cluster:
 
@@ -73,9 +76,13 @@ Start the Go server and open `http://127.0.0.1:8787`:
 go run ./cmd/corepulse serve
 ```
 
-The dashboard binds to loopback only. It shows a **preview** state when `kubectl` cannot reach the lab; reference topology is labeled as such, and the run button stays disabled. A connected lab enables read-only discovery. The pod experiment is available only for the `open5gs-lab` context with one ready replica of the selected deployment. The server repeats its safety checks before deleting a pod and saves the outcome under ignored `runs/`. Model predictions and live metric charts are intentionally absent until data sources are verified.
+The dashboard binds to loopback only. It shows a **preview** state when `kubectl` cannot reach the lab; reference topology is labeled as such, and the run button stays disabled. A connected lab shows observed workloads and real pod resource metrics when metrics-server is available. The experiment control requires the `open5gs-lab` context and all four expected demo workloads ready; the server repeats context, ownership, and target readiness checks before deleting one pod. Run records go under ignored `runs/`. The chart is resource telemetry, not a model prediction.
 
 ### Interface captures
+
+![CorePulse dashboard connected to the live Open5GS lab after an AMF experiment recovered](assets/dashboard-live-full.jpg)
+
+The live capture above shows the observed lab topology and Kubernetes resource metrics. The captures below document the offline preview and experiment-plan interaction.
 
 These captures were taken from the running local Go dashboard on 31 October 2026. The Kubernetes lab was offline, so the UI correctly shows **preview mode**; no live metrics or model predictions are represented.
 
@@ -135,4 +142,4 @@ These captures were taken from the running local Go dashboard on 31 October 2026
 - Which model runtime best fits the Go service after baseline evaluation?
 - Should large datasets and model files be distributed through releases or separate storage?
 
-The final setup flow, an end-to-end live demo, and measured model results will be added after a live lab run and end-to-end implementation.
+The final setup flow, protocol-level telemetry, and measured model results remain future work.

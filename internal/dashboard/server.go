@@ -13,22 +13,30 @@ import (
 	"time"
 
 	"github.com/lazypanic999/CorePulse/internal/corepulse"
+	"github.com/lazypanic999/CorePulse/internal/dataset"
+	"github.com/lazypanic999/CorePulse/internal/telemetry"
 )
 
 //go:embed web/*
 var webFiles embed.FS
 
 type Server struct {
-	Client  corepulse.Client
-	RunsDir string
+	Client    corepulse.Client
+	RunsDir   string
+	Telemetry *telemetry.Store
 }
 
 func New(client corepulse.Client, runsDir string) http.Handler {
-	s := &Server{Client: client, RunsDir: runsDir}
+	return NewWithTelemetry(client, runsDir, nil)
+}
+
+func NewWithTelemetry(client corepulse.Client, runsDir string, store *telemetry.Store) http.Handler {
+	s := &Server{Client: client, RunsDir: runsDir, Telemetry: store}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/overview", s.overview)
 	mux.HandleFunc("GET /api/plan", s.plan)
 	mux.HandleFunc("GET /api/runs", s.runs)
+	mux.HandleFunc("GET /api/telemetry", s.telemetry)
 	mux.HandleFunc("POST /api/experiments/pod-crash", s.runPodCrash)
 	web, _ := fs.Sub(webFiles, "web")
 	mux.Handle("/", http.FileServer(http.FS(web)))
@@ -39,6 +47,23 @@ func New(client corepulse.Client, runsDir string) http.Handler {
 		}
 		mux.ServeHTTP(w, r)
 	})
+}
+
+func (s *Server) telemetry(w http.ResponseWriter, _ *http.Request) {
+	if s.Telemetry == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"available": false, "samples": []any{}, "message": "Telemetry collector is not running"})
+		return
+	}
+	samples, lastError := s.Telemetry.Snapshot()
+	if len(samples) > 60 {
+		samples = samples[len(samples)-60:]
+	}
+	available := len(samples) > 0 && time.Since(samples[len(samples)-1].Timestamp) < 30*time.Second && lastError == ""
+	result := map[string]any{"available": available, "source": telemetry.Source, "samples": samples, "message": lastError}
+	if len(samples) > 0 {
+		result["latest"] = samples[len(samples)-1]
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func loopbackHost(address string) bool {
@@ -160,6 +185,9 @@ func (s *Server) runPodCrash(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
+	if s.Telemetry != nil {
+		_ = s.Telemetry.Capture(s.Client)
+	}
 	result, err := corepulse.RunPodCrash(s.Client, request.Target)
 	if err != nil {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
@@ -178,6 +206,15 @@ func (s *Server) runPodCrash(w http.ResponseWriter, r *http.Request) {
 	if err := os.WriteFile(path, append(data, '\n'), 0644); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Could not save run record"})
 		return
+	}
+	if s.Telemetry != nil {
+		_ = s.Telemetry.Capture(s.Client)
+		datasetPath := filepath.Join(filepath.Dir(s.Telemetry.Path()), "dataset.csv")
+		if summary, err := dataset.Build(s.Telemetry.Path(), s.RunsDir, datasetPath); err == nil {
+			result["dataset"] = summary
+		} else {
+			result["dataset_error"] = err.Error()
+		}
 	}
 	result["run_record"] = path
 	status := http.StatusOK
