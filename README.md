@@ -38,6 +38,7 @@ The existing [Open5GS + UERANSIM lab](https://github.com/lazypanic999/open5gs-ue
 - `corepulse serve` opens a local dashboard with lab connection state, workload topology, an experiment plan, and recent run records. The run control requires the exact lab context and a second typed confirmation. Offline preview mode does not invent live telemetry.
 - While the server runs, it samples `metrics.k8s.io/v1beta1` every 10 seconds and displays live aggregate pod CPU and memory. Raw samples are saved in ignored `data/telemetry.jsonl`.
 - `corepulse dataset` joins those samples with recorded experiment intervals into ignored `data/dataset.csv`, with `normal` and `pod_crash` labels. The dashboard rebuilds it after an experiment.
+- `scripts/configure-gnb-n3.sh` corrects the tested UERANSIM chart's gNB N3 address in the isolated lab. With that patch, the lab's end-to-end verification passed, including UE registration, PDU session, and external ping.
 - Go unit tests and GitHub Actions CI cover discovery, fault safety guards, telemetry parsing, dataset labeling, and the dashboard API.
 
 The [lab integration notes](docs/lab-integration.md) record the live rollout and verification results. [Telemetry and dataset notes](docs/telemetry-and-dataset.md) document the measured fields and labeling limits. The [first design decision](docs/decisions/0001-start-with-discovery.md) explains why discovery comes before choosing model features.
@@ -46,7 +47,13 @@ The current [run record schema](docs/run-record.md) documents the first fault la
 
 ## Try the first slice
 
-Use Go 1.22 or newer, `kubectl`, and the isolated lab from the linked repository. Run CorePulse in the same environment as the `open5gs-lab` Kubernetes context (Ubuntu WSL on this workstation). Check the lab's `scripts/verify.sh` before an experiment; its UE ping check currently fails in this WSL lab, as recorded in the [integration notes](docs/lab-integration.md).
+Use Go 1.22 or newer, `kubectl`, and the isolated lab from the linked repository. Run CorePulse in the same environment as the `open5gs-lab` Kubernetes context (Ubuntu WSL on this workstation). After the lab's deployment, configure the gNB N3 address, then run the lab's verifier:
+
+```bash
+bash scripts/configure-gnb-n3.sh
+```
+
+Then run `./scripts/verify.sh` from the lab repository checkout. The [integration notes](docs/lab-integration.md) explain the fix and its test result.
 
 ```bash
 go run ./cmd/corepulse discover --output reports/discovery.json

@@ -1,0 +1,1 @@
+{"spec":{"template":{"spec":{"containers":[{"name":"gnb","env":[{"name":"POD_IP","valueFrom":{"fieldRef":{"fieldPath":"status.podIP"}}}],"command":["/bin/sh","-c"],"args":["cp /ueransim/config/gnb-config.yaml /tmp/gnb-config.yaml && sed -i \"s/^gtpIp: .*/gtpIp: ${POD_IP}/\" /tmp/gnb-config.yaml && exec ./nr-gnb -c /tmp/gnb-config.yaml"]}]}}}}
