@@ -5,9 +5,11 @@
   <img src="assets/corepulse-logo.svg" alt="CorePulse logo" width="570">
 </picture>
 
-> **Status:** Early development. The Go CLI implements read-only lab discovery and one guarded fault experiment. Live metrics, a trained model, and the dashboard are still future work.
+> **Status:** Early development. The Go CLI and local dashboard implement read-only lab discovery and one guarded fault experiment. Live metrics, a trained model, and the full prediction dashboard are still future work.
 
-CorePulse is an AIOps portfolio project for fault injection and intelligent detection in 5G core networks. It introduces controlled, reversible faults into an Open5GS + UERANSIM lab on Kubernetes, collects telemetry, trains detection models, and displays predictions in a live dashboard.
+CorePulse is an AIOps portfolio project for fault injection and intelligent detection in 5G core networks. It is being built to introduce controlled, reversible faults into an Open5GS + UERANSIM lab on Kubernetes, collect telemetry, train detection models, and display predictions in a live dashboard.
+
+[![CorePulse local dashboard in offline preview mode](assets/dashboard-top.png)](#interface-captures)
 
 ## Goal
 
@@ -17,7 +19,7 @@ In a 30-second demo, a user starts a fault, sees its effect on live metrics, com
 
 ```mermaid
 flowchart LR
-  UI[React dashboard] --> API[Go API]
+  UI[Local web dashboard] --> API[Go API]
   API --> INJ[Fault injector]
   INJ --> LAB[Open5GS + UERANSIM lab]
   LAB --> PROM[Prometheus]
@@ -33,6 +35,7 @@ The existing [Open5GS + UERANSIM lab](https://github.com/lazypanic999/open5gs-ue
 
 - `corepulse discover` reads deployments, pods, services, and Prometheus scrape annotations from the `open5gs` namespace. It reports candidate endpoints without claiming metrics have been verified.
 - `corepulse pod-crash --target amf|upf` prints a dry-run plan. With `--apply`, it validates the context and workload, deletes one deployment-owned pod, waits for its deletion and deployment recovery, and writes a run record.
+- `corepulse serve` opens a local dashboard with lab connection state, workload topology, an experiment plan, and recent run records. The run control requires the exact lab context and a second typed confirmation. Offline preview mode does not invent live telemetry.
 - Go unit tests and GitHub Actions CI cover the discovery schema and the fault injector's safety guards.
 
 The [lab integration notes](docs/lab-integration.md) distinguish repository-verified facts from checks that still require a running cluster. The [first design decision](docs/decisions/0001-start-with-discovery.md) explains why discovery comes before choosing model features.
@@ -62,6 +65,34 @@ Run the tests without a cluster:
 go test ./...
 ```
 
+## Local dashboard preview
+
+Start the Go server and open `http://127.0.0.1:8787`:
+
+```bash
+go run ./cmd/corepulse serve
+```
+
+The dashboard binds to loopback only. It shows a **preview** state when `kubectl` cannot reach the lab; reference topology is labeled as such, and the run button stays disabled. A connected lab enables read-only discovery. The pod experiment is available only for the `open5gs-lab` context with one ready replica of the selected deployment. The server repeats its safety checks before deleting a pod and saves the outcome under ignored `runs/`. Model predictions and live metric charts are intentionally absent until data sources are verified.
+
+### Interface captures
+
+These captures were taken from the running local Go dashboard on 31 October 2026. The Kubernetes lab was offline, so the UI correctly shows **preview mode**; no live metrics or model predictions are represented.
+
+![CorePulse dashboard overview in offline preview mode](assets/dashboard-top.png)
+
+![CorePulse AMF experiment plan modal](assets/dashboard-experiment-plan.png)
+
+**Screen walkthroughs:**
+
+![Dashboard navigation through the running local interface](assets/dashboard-tour.gif)
+
+![Switching AMF and UPF targets and opening experiment plans](assets/experiment-plan.gif)
+
+- [Dashboard navigation video (MP4)](assets/dashboard-tour.mp4)
+- [AMF/UPF experiment plan video (MP4)](assets/experiment-plan.mp4)
+- [Full-page dashboard screenshot](assets/dashboard-overview.png)
+
 ## Initial scope
 
 - **Fault injection:** `packet_loss`, `high_latency`, `sctp_drop`, `pod_crash`, plus an untouched `normal` condition. Each fault needs a recorded start time, end time, parameters, and rollback path.
@@ -78,7 +109,7 @@ go test ./...
 | 1. Injector | 3-4 reversible faults and run records | Faults can be started, stopped, and labeled |
 | 2. Dataset | Automated collection and documented schema | Repeated runs with varied parameters are captured |
 | 3. Models | Anomaly and classification baselines | Precision, recall, F1, and confusion matrix on held-out runs |
-| 4. Dashboard | Controls, live charts, and prediction view | End-to-end demo works |
+| 4. Dashboard | Controls, live charts, and prediction view | End-to-end demo works; local UI preview already exists |
 | 5. Polish | One-command setup and demo recording | Reproducible on a clean machine |
 
 ## First tasks

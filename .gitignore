@@ -8,6 +8,7 @@
 # Go
 /corepulse
 /corepulse.exe
+/corepulse.exe~
 
 # Legacy local Python build artifacts
 __pycache__/

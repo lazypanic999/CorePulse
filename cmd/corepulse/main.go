@@ -5,10 +5,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/lazypanic999/CorePulse/internal/corepulse"
+	"github.com/lazypanic999/CorePulse/internal/dashboard"
 )
 
 func printJSON(value any) error {
@@ -30,10 +33,31 @@ func saveJSON(path string, value any) error {
 
 func run(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("usage: corepulse <discover|pod-crash> [options]")
+		return 1, errors.New("usage: corepulse <discover|pod-crash|serve> [options]")
 	}
 	client := corepulse.Kubectl{}
 	switch args[0] {
+	case "serve":
+		flags := flag.NewFlagSet("serve", flag.ContinueOnError)
+		flags.SetOutput(os.Stderr)
+		addr := flags.String("addr", "127.0.0.1:8787", "local dashboard address")
+		runsDir := flags.String("runs-dir", "runs", "run record directory")
+		if err := flags.Parse(args[1:]); err != nil {
+			return 1, err
+		}
+		if flags.NArg() != 0 {
+			return 1, errors.New("unexpected positional arguments")
+		}
+		host, _, err := net.SplitHostPort(*addr)
+		if err != nil {
+			return 1, fmt.Errorf("invalid dashboard address: %w", err)
+		}
+		ip := net.ParseIP(host)
+		if host != "localhost" && (ip == nil || !ip.IsLoopback()) {
+			return 1, errors.New("dashboard must bind to a loopback address")
+		}
+		fmt.Fprintf(os.Stderr, "CorePulse dashboard: http://%s\n", *addr)
+		return 1, http.ListenAndServe(*addr, dashboard.New(client, *runsDir))
 	case "discover":
 		flags := flag.NewFlagSet("discover", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)
@@ -105,7 +129,7 @@ func run(args []string) (int, error) {
 		}
 		return 0, nil
 	default:
-		return 1, fmt.Errorf("unknown command %q; use discover or pod-crash", args[0])
+		return 1, fmt.Errorf("unknown command %q; use discover, pod-crash, or serve", args[0])
 	}
 }
 

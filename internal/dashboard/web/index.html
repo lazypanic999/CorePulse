@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080d18">
+  <meta name="description" content="CorePulse observes a local Open5GS lab and runs guarded fault experiments.">
+  <title>CorePulse — 5G Core Observability</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#overview" aria-label="CorePulse overview">
+        <img src="/logo.svg" alt="" width="40" height="40">
+        <span class="brand-name">Core<span>Pulse</span><small>NETWORK INTELLIGENCE</small></span>
+      </a>
+      <div class="workspace-label">WORKSPACE <span>01</span></div>
+      <nav aria-label="Main navigation" class="side-nav">
+        <a href="#overview" class="nav-link active" data-view="overview"><span class="nav-icon">◫</span> Overview</a>
+        <a href="#topology" class="nav-link" data-view="topology"><span class="nav-icon">◇</span> Topology</a>
+        <a href="#experiments" class="nav-link" data-view="experiments"><span class="nav-icon">⌁</span> Experiments</a>
+        <a href="#runs" class="nav-link" data-view="runs"><span class="nav-icon">▤</span> Run history</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="sidebar-note"><span class="note-pulse"></span><div><strong>Local lab controller</strong><small>Bound to this machine</small></div></div>
+        <a href="https://github.com/lazypanic999/CorePulse" target="_blank" rel="noopener noreferrer" class="repo-link">View repository <span>↗</span></a>
+      </div>
+    </aside>
+
+    <div class="main-wrap">
+      <header class="topbar">
+        <div class="breadcrumb">WORKSPACE <span>/</span> <strong>OVERVIEW</strong></div>
+        <div class="topbar-actions"><span class="top-time" id="clock">—</span><span class="top-divider"></span><span class="avatar">CP</span></div>
+      </header>
+
+      <main id="overview">
+        <section class="hero" aria-labelledby="hero-title">
+          <div class="hero-copy">
+            <div class="eyebrow"><span class="eyebrow-line"></span> 5G CORE OBSERVABILITY <span class="eyebrow-index">/ 001</span></div>
+            <h1 id="hero-title">A clearer signal<br>through the <em>noise.</em></h1>
+            <p>Observe your Open5GS lab, inspect its topology, and run deliberate fault experiments from one focused workspace.</p>
+            <div class="hero-actions">
+              <button id="refresh-button" class="button button-primary" type="button"><span aria-hidden="true">↻</span> Refresh discovery</button>
+              <a class="button button-ghost" href="#experiments">Explore experiments <span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+          <div class="hero-art" aria-hidden="true">
+            <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit orbit-three"></div>
+            <div class="hero-glow"></div><div class="core-hex"><div class="core-hex-inner"><svg viewBox="0 0 148 84"><path d="M2 42h25l11-23 22 48 18-37 11 12h15l10-19 13 19h19"/></svg></div></div>
+            <span class="orbit-point point-a"></span><span class="orbit-point point-b"></span><span class="orbit-point point-c"></span>
+            <div class="art-caption">SIGNAL / CORE <span>↗</span></div>
+          </div>
+        </section>
+
+        <section class="status-banner" id="status-banner" aria-live="polite">
+          <span class="status-symbol">!</span><div><strong id="status-title">Checking lab connection</strong><p id="status-detail">Connecting to the local Kubernetes context…</p></div><span class="status-tag" id="status-tag">CHECKING</span>
+        </section>
+
+        <section class="metrics" aria-label="Lab summary">
+          <article class="metric-card"><div class="metric-head">KUBERNETES CONTEXT <span>01</span></div><div class="metric-value metric-text" id="context-value">—</div><div class="metric-foot" id="context-foot">Awaiting discovery</div></article>
+          <article class="metric-card"><div class="metric-head">WORKLOADS OBSERVED <span>02</span></div><div class="metric-value" id="workloads-value">—<small> / 4</small></div><div class="metric-foot" id="workloads-foot">Expected core workloads</div></article>
+          <article class="metric-card"><div class="metric-head">SCRAPE CANDIDATES <span>03</span></div><div class="metric-value" id="candidates-value">—</div><div class="metric-foot">Annotations only · unverified</div></article>
+          <article class="metric-card"><div class="metric-head">EXPERIMENT RUNS <span>04</span></div><div class="metric-value" id="runs-value">—</div><div class="metric-foot" id="runs-foot">Local run records</div></article>
+        </section>
+
+        <div class="content-grid">
+          <section class="panel topology-panel" id="topology" aria-labelledby="topology-heading">
+            <div class="panel-heading"><div><div class="section-kicker">LAB STRUCTURE <span>/ 01</span></div><h2 id="topology-heading">Network topology</h2></div><span class="outline-badge" id="topology-badge">REFERENCE</span></div>
+            <p class="panel-intro" id="topology-intro">Expected lab components. Their live state has not been verified.</p>
+            <div class="topology-flow" id="topology-flow">
+              <div class="topo-node" data-workload="ueransim-ue"><div class="topo-icon">UE</div><div><strong>User equipment</strong><small>ueransim-ue</small></div><span class="topo-state">—</span></div>
+              <div class="topo-connector"><span></span><small>RADIO</small></div>
+              <div class="topo-node" data-workload="ueransim-gnb"><div class="topo-icon">gNB</div><div><strong>Radio access</strong><small>ueransim-gnb</small></div><span class="topo-state">—</span></div>
+              <div class="topo-connector"><span></span><small>N2 / N3</small></div>
+              <div class="topo-core"><div class="topo-node" data-workload="open5gs-amf"><div class="topo-icon accent">AMF</div><div><strong>Access management</strong><small>open5gs-amf</small></div><span class="topo-state">—</span></div><div class="topo-node" data-workload="open5gs-upf"><div class="topo-icon accent">UPF</div><div><strong>User plane</strong><small>open5gs-upf</small></div><span class="topo-state">—</span></div></div>
+            </div>
+            <div class="panel-bottom"><span class="legend"><i></i> Observed and ready <i class="legend-muted"></i> Not verified</span><span id="topology-updated">Awaiting connection</span></div>
+          </section>
+
+          <section class="panel experiment-panel" id="experiments" aria-labelledby="experiment-heading">
+            <div class="panel-heading"><div><div class="section-kicker">CONTROLLED TESTING <span>/ 02</span></div><h2 id="experiment-heading">Fault experiment</h2></div><div class="experiment-mark">⌁</div></div>
+            <p class="panel-intro">Inspect a safe pod restart plan before running it in the isolated lab.</p>
+            <label class="field-label" for="target-select">TARGET WORKLOAD</label>
+            <div class="select-wrap"><select id="target-select"><option value="amf">AMF · Access management</option><option value="upf">UPF · User plane</option></select><span>⌄</span></div>
+            <div class="experiment-details"><div><span>FAULT TYPE</span><strong>Pod restart</strong></div><div><span>SCOPE</span><strong>1 lab pod</strong></div><div><span>RECOVERY</span><strong>Deployment rollout</strong></div></div>
+            <button class="button button-secondary full-width" id="plan-button" type="button">View experiment plan <span>↗</span></button>
+            <button class="button button-danger full-width" id="run-button" type="button" disabled>Run experiment</button>
+            <p class="safety-note" id="experiment-note">The run action unlocks only when the exact lab context and workload are reachable.</p>
+          </section>
+        </div>
+
+        <div class="content-grid lower-grid">
+          <section class="panel telemetry-panel" aria-labelledby="telemetry-heading"><div class="panel-heading"><div><div class="section-kicker">TELEMETRY <span>/ 03</span></div><h2 id="telemetry-heading">Signal collection</h2></div><span class="outline-badge">NEXT PHASE</span></div><div class="empty-chart"><div class="chart-grid"></div><div class="empty-chart-content"><span class="chart-icon">∿</span><strong>Waiting for verified metrics</strong><p>Discovery identifies possible scrape endpoints. Live charts will appear after endpoints and metric names are confirmed in the running lab.</p></div></div></section>
+          <section class="panel runs-panel" id="runs" aria-labelledby="runs-heading"><div class="panel-heading"><div><div class="section-kicker">AUDIT TRAIL <span>/ 04</span></div><h2 id="runs-heading">Recent runs</h2></div><span class="outline-badge">LOCAL</span></div><div id="runs-list" class="runs-list"><div class="empty-runs"><span>▤</span><strong>No experiment runs yet</strong><p>Completed and unverified recoveries will appear here.</p></div></div></section>
+        </div>
+        <footer>COREPULSE <span>© 2026</span><span class="footer-right">OBSERVE · EXPERIMENT · LEARN</span></footer>
+      </main>
+    </div>
+  </div>
+
+  <dialog id="plan-dialog" class="modal"><div class="modal-head"><div><div class="section-kicker">EXPERIMENT PREVIEW</div><h2>Pod restart plan</h2></div><button class="modal-close" aria-label="Close plan" data-close="plan-dialog">×</button></div><div id="plan-content"></div><div class="modal-actions"><button class="button button-secondary" data-close="plan-dialog">Close</button></div></dialog>
+  <dialog id="confirm-dialog" class="modal"><div class="modal-head"><div><div class="section-kicker">LAB ACTION</div><h2>Confirm experiment</h2></div><button class="modal-close" aria-label="Close confirmation" data-close="confirm-dialog">×</button></div><p id="confirm-copy"></p><label class="field-label" for="confirm-input">TYPE THE TARGET NAME TO CONFIRM</label><input id="confirm-input" autocomplete="off" spellcheck="false"><div class="modal-actions"><button class="button button-secondary" data-close="confirm-dialog">Cancel</button><button class="button button-danger" id="confirm-run" disabled>Delete one lab pod</button></div></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
