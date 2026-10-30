@@ -36,7 +36,7 @@ The existing [Open5GS + UERANSIM lab](https://github.com/lazypanic999/open5gs-ue
 - `corepulse discover` reads deployments, pods, services, and Prometheus scrape annotations from the `open5gs` namespace. It reports candidate endpoints without claiming metrics have been verified.
 - `corepulse pod-crash --target amf|upf` prints a dry-run plan. With `--apply`, it validates the context and workload, deletes one deployment-owned pod, waits for its deletion and deployment recovery, and writes a run record.
 - `corepulse serve` opens a local dashboard with lab connection state, workload topology, an experiment plan, and recent run records. The run control requires the exact lab context and a second typed confirmation. Offline preview mode does not invent live telemetry.
-- Go unit tests and GitHub Actions CI cover the discovery schema and the fault injector's safety guards.
+- Go unit tests and GitHub Actions CI cover discovery, fault safety guards, and the dashboard API.
 
 The [lab integration notes](docs/lab-integration.md) distinguish repository-verified facts from checks that still require a running cluster. The [first design decision](docs/decisions/0001-start-with-discovery.md) explains why discovery comes before choosing model features.
 The [Go decision](docs/decisions/0002-go-control-plane.md) records the control plane migration.
@@ -131,8 +131,8 @@ These captures were taken from the running local Go dashboard on 31 October 2026
 ## Open decisions
 
 - Which Open5GS components expose useful metrics?
-- Should the charts be built entirely in React, or should Grafana also be used?
+- Should the future live charts stay in the lightweight web UI, or should Grafana also be used?
 - Which model runtime best fits the Go service after baseline evaluation?
 - Should large datasets and model files be distributed through releases or separate storage?
 
-The final setup flow, demo GIF, and measured model results will be added after a live lab run and end-to-end implementation.
+The final setup flow, an end-to-end live demo, and measured model results will be added after a live lab run and end-to-end implementation.
