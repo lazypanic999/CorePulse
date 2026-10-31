@@ -40,10 +40,25 @@ func saveJSON(path string, value any) error {
 
 func run(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("usage: corepulse <version|discover|pod-crash|dataset|serve> [options]")
+		return 1, errors.New("usage: corepulse <version|discover|verify-service|pod-crash|dataset|serve> [options]")
 	}
 	client := corepulse.Kubectl{}
 	switch args[0] {
+	case "verify-service":
+		if len(args) != 1 {
+			return 1, errors.New("verify-service takes no arguments")
+		}
+		probe, err := corepulse.ProbeService(client)
+		if err != nil {
+			return 1, err
+		}
+		if err := printJSON(probe); err != nil {
+			return 1, err
+		}
+		if probe.Status != "healthy" {
+			return 2, nil
+		}
+		return 0, nil
 	case "version":
 		if len(args) != 1 {
 			return 1, errors.New("version takes no arguments")
@@ -148,6 +163,13 @@ func run(args []string) (int, error) {
 		if err != nil {
 			return 1, err
 		}
+		if result["status"] == "recovered" {
+			probe, probeErr := corepulse.ProbeService(client)
+			if probeErr != nil {
+				probe.Detail = probeErr.Error()
+			}
+			result["service_probe"] = probe
+		}
 		path := filepath.Join(*runsDir, result["run_id"].(string)+".json")
 		if err := saveJSON(path, result); err != nil {
 			return 1, err
@@ -161,7 +183,7 @@ func run(args []string) (int, error) {
 		}
 		return 0, nil
 	default:
-		return 1, fmt.Errorf("unknown command %q; use version, discover, pod-crash, dataset, or serve", args[0])
+		return 1, fmt.Errorf("unknown command %q; use version, discover, verify-service, pod-crash, dataset, or serve", args[0])
 	}
 }
 

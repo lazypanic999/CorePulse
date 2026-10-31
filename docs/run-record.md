@@ -15,5 +15,6 @@ Each applied `pod-crash` experiment writes one UTF-8 JSON file under `runs/`, na
 | `started_at`, `ended_at` | Experiment bounds |
 | `status` | `recovered` or `recovery_unverified` |
 | `error` | Failure detail, present only when recovery is unverified |
+| `service_probe` | Optional read-only UE-to-UPF gateway check after deployment recovery: status, current UE pod, packet counts, and time. A healthy gateway check does not prove external Internet reachability. |
 
-The run label records the action that CorePulse applied. It is **not** an ML prediction. Future telemetry windows should reference `run_id` and preserve normal periods before and after the fault. Train/test splitting must group all windows from one `run_id` together.
+The run label records the action that CorePulse applied. It is **not** an ML prediction. `recovered` means the replacement deployment became ready; inspect `service_probe` separately for the observed UE path. Older run records may not contain this field. Future telemetry windows should reference `run_id` and preserve normal periods before and after the fault. Train/test splitting must group all windows from one `run_id` together.

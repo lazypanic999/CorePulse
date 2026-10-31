@@ -37,6 +37,7 @@ func NewWithTelemetry(client corepulse.Client, runsDir string, store *telemetry.
 	mux.HandleFunc("GET /api/plan", s.plan)
 	mux.HandleFunc("GET /api/runs", s.runs)
 	mux.HandleFunc("GET /api/telemetry", s.telemetry)
+	mux.HandleFunc("GET /api/service-check", s.serviceCheck)
 	mux.HandleFunc("POST /api/experiments/pod-crash", s.runPodCrash)
 	web, _ := fs.Sub(webFiles, "web")
 	mux.Handle("/", http.FileServer(http.FS(web)))
@@ -64,6 +65,14 @@ func (s *Server) telemetry(w http.ResponseWriter, _ *http.Request) {
 		result["latest"] = samples[len(samples)-1]
 	}
 	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *Server) serviceCheck(w http.ResponseWriter, _ *http.Request) {
+	probe, err := corepulse.ProbeService(s.Client)
+	if err != nil {
+		probe.Detail = err.Error()
+	}
+	writeJSON(w, http.StatusOK, probe)
 }
 
 func loopbackHost(address string) bool {
@@ -192,6 +201,13 @@ func (s *Server) runPodCrash(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 		return
+	}
+	if result["status"] == "recovered" {
+		probe, probeErr := corepulse.ProbeService(s.Client)
+		if probeErr != nil {
+			probe.Detail = probeErr.Error()
+		}
+		result["service_probe"] = probe
 	}
 	path := filepath.Join(s.RunsDir, fmt.Sprint(result["run_id"])+".json")
 	if err := os.MkdirAll(s.RunsDir, 0755); err != nil {

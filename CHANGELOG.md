@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Liquid glass desktop and narrow-screen dashboard with updated live captures.
+- Read-only UE-to-UPF gateway probe in the CLI, dashboard, and new experiment records.
+
 ## v0.1.0 — 2026-10-31 (preview)
 
 - Go CLI for lab discovery, a guarded AMF/UPF pod crash, and labeled CSV generation.

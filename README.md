@@ -48,6 +48,7 @@ The existing [Open5GS + UERANSIM lab](https://github.com/lazypanic999/open5gs-ue
 - `corepulse serve` opens a local dashboard with lab connection state, workload topology, an experiment plan, and recent run records. The run control requires the exact lab context and a second typed confirmation. Offline preview mode does not invent live telemetry.
 - While the server runs, it samples `metrics.k8s.io/v1beta1` every 10 seconds and displays live aggregate pod CPU and memory. Raw samples are saved in ignored `data/telemetry.jsonl`.
 - `corepulse dataset` joins those samples with recorded experiment intervals into ignored `data/dataset.csv`, with `normal` and `pod_crash` labels. The dashboard rebuilds it after an experiment.
+- `corepulse verify-service` checks the current ready UE pod's path to the UPF tunnel gateway (`10.45.0.1`). The dashboard shows this live check separately from pod readiness, and new fault run records include the result after deployment recovery.
 - `scripts/configure-gnb-n3.sh` corrects the tested UERANSIM chart's gNB N3 address in the isolated lab. With that patch, the lab's end-to-end verification passed, including UE registration, PDU session, and external ping.
 - Go unit tests and GitHub Actions CI cover discovery, fault safety guards, telemetry parsing, dataset labeling, and the dashboard API.
 
@@ -67,6 +68,7 @@ Then run `./scripts/verify.sh` from the lab repository checkout. The [integratio
 
 ```bash
 go run ./cmd/corepulse discover --output reports/discovery.json
+go run ./cmd/corepulse verify-service
 go run ./cmd/corepulse pod-crash --target amf
 ```
 
@@ -77,7 +79,7 @@ go run ./cmd/corepulse pod-crash --target amf --apply
 go run ./cmd/corepulse dataset --telemetry data/telemetry.jsonl --runs-dir runs --output data/dataset.csv
 ```
 
-The required Kubernetes context is `open5gs-lab`, matching the lab's Minikube profile. Run records are saved under ignored `runs/`. The command reports `recovery_unverified` and exits unsuccessfully if Kubernetes does not confirm deployment recovery. That readiness check does not confirm UE traffic or packet forwarding. This pod experiment is intended only for the local lab.
+The required Kubernetes context is `open5gs-lab`, matching the lab's Minikube profile. Run records are saved under ignored `runs/`. The command reports `recovery_unverified` and exits unsuccessfully if Kubernetes does not confirm deployment recovery. The separate UE-to-UPF check reports observed packet forwarding to the tunnel gateway; it does not prove external reachability. This pod experiment is intended only for the local lab.
 
 Run the tests without a cluster:
 
@@ -97,7 +99,7 @@ The liquid glass dashboard binds to loopback only. It shows a **preview** state 
 
 ### Interface captures
 
-These captures were taken from the running Go dashboard on 31 October 2026, connected to the local Open5GS lab. The charts display observed Kubernetes resource metrics and the run history displays a recorded AMF experiment. They do not represent model predictions.
+These captures were taken from the running Go dashboard on 31 October 2026, connected to the local Open5GS lab. The charts display observed Kubernetes resource metrics, the topology card shows a live UE-to-UPF gateway probe, and the run history displays a recorded AMF experiment. They do not represent model predictions.
 
 **Desktop**
 

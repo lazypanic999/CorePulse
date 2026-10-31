@@ -140,6 +140,16 @@ main { max-width: 1680px; padding: 22px clamp(8px, 1.5vw, 26px) 0; }
 .topo-connector span::after,
 .topo-connector small { color: #b9dce6; }
 .topo-core { min-width: 0; }
+.service-probe { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-top: 17px; padding: 12px 14px; border: 1px solid #d3edff44; border-radius: 13px; background: #e2f5ff10; }
+.service-probe > div { min-width: 0; }
+.probe-kicker { display: block; color: #bad4e4; font: 700 8px 'Space Grotesk', sans-serif; letter-spacing: 1px; }
+.service-probe strong { display: block; margin-top: 6px; font-size: 11px; }
+.service-probe small { display: block; margin-top: 3px; color: #acc4d5; font-size: 9px; line-height: 1.4; overflow-wrap: anywhere; }
+.probe-badge { flex: none; border: 1px solid #d4eaff63; border-radius: 8px; padding: 6px 8px; color: #dceaf5; font: 700 8px 'Space Grotesk', sans-serif; letter-spacing: .7px; }
+.service-probe.healthy { border-color: #9effdd72; background: #8affda19; }
+.service-probe.healthy .probe-badge { color: #aaffdf; border-color: #aaffdf86; }
+.service-probe.degraded { border-color: #ffb4ae77; background: #ffa4ad19; }
+.service-probe.degraded .probe-badge { color: #ffd1ca; border-color: #ffc6bd84; }
 .panel-bottom { border-color: #c9edff27; color: #abc1d4; }
 
 .experiment-mark { color: #a8fff0; border-color: #b9ffeb70; background: #c4fff41c; border-radius: 10px; }

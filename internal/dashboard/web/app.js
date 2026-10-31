@@ -155,6 +155,29 @@ async function refreshTelemetry() {
   }
 }
 
+async function refreshService() {
+  try {
+    const response = await fetch('/api/service-check', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Service check returned ${response.status}`);
+    const probe = await response.json();
+    const card = $('#service-probe');
+    card.classList.toggle('healthy', probe.status === 'healthy');
+    card.classList.toggle('degraded', probe.status === 'degraded');
+    $('#probe-badge').textContent = probe.status === 'healthy' ? 'PATH HEALTHY' : probe.status === 'degraded' ? 'DEGRADED' : 'UNAVAILABLE';
+    $('#probe-title').textContent = probe.status === 'healthy'
+      ? `${probe.received}/${probe.sent} packets reached the UPF gateway`
+      : probe.status === 'degraded' ? 'UE path did not pass the ping check' : 'UE path could not be checked';
+    $('#probe-detail').textContent = probe.status === 'healthy'
+      ? `Observed from ${probe.ue_pod} · ${displayTime(probe.checked_at)}`
+      : probe.detail || 'The isolated lab or its current UE pod is unavailable.';
+  } catch (error) {
+    $('#service-probe').classList.remove('healthy', 'degraded');
+    $('#probe-badge').textContent = 'UNAVAILABLE';
+    $('#probe-title').textContent = 'UE path could not be checked';
+    $('#probe-detail').textContent = error.message;
+  }
+}
+
 function addPlanRow(parent, label, value) {
   const row = document.createElement('div'); row.className = 'plan-row';
   const key = document.createElement('span'); key.textContent = label;
@@ -189,8 +212,9 @@ async function runExperiment() {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Experiment failed');
     const datasetNote = result.dataset ? ` Dataset updated: ${result.dataset.samples} samples, ${result.dataset.fault} in the experiment window.` : '';
-    toast(result.status === 'recovered' ? `Recovery verified. Run record saved.${datasetNote}` : 'Recovery could not be verified. Check the lab and run record.');
-    await Promise.all([refreshOverview(), refreshRuns()]);
+    const serviceNote = result.service_probe?.status === 'healthy' ? ' UE path verified.' : result.service_probe ? ' UE path needs checking.' : '';
+    toast(result.status === 'recovered' ? `Deployment recovery verified.${serviceNote} Run record saved.${datasetNote}` : 'Recovery could not be verified. Check the lab and run record.');
+    await Promise.all([refreshOverview(), refreshRuns(), refreshService()]);
   } catch (error) { toast(error.message); }
   finally { $('#confirm-dialog').close(); $('#confirm-run').textContent = 'Delete one lab pod'; $('#confirm-input').value = ''; }
 }
@@ -218,4 +242,5 @@ $('#confirm-run').addEventListener('click', runExperiment);
 updateClock(); setInterval(updateClock, 30000);
 setInterval(refreshOverview, 30000);
 setInterval(refreshTelemetry, 10000);
-Promise.all([refreshOverview(), refreshRuns(), refreshTelemetry()]);
+setInterval(refreshService, 30000);
+Promise.all([refreshOverview(), refreshRuns(), refreshTelemetry(), refreshService()]);
