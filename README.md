@@ -1,5 +1,9 @@
 # CorePulse
 
+[![CI](https://github.com/lazypanic999/CorePulse/actions/workflows/ci.yml/badge.svg)](https://github.com/lazypanic999/CorePulse/actions/workflows/ci.yml)
+[![Release](https://github.com/lazypanic999/CorePulse/actions/workflows/release.yml/badge.svg)](https://github.com/lazypanic999/CorePulse/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/corepulse-logo-dark.svg">
   <img src="assets/corepulse-logo.svg" alt="CorePulse logo" width="570">
@@ -8,6 +12,12 @@
 > **Status:** Early development. The Go CLI and local dashboard now read the isolated lab, collect real Kubernetes pod CPU/memory metrics, and run one guarded pod experiment. Protocol KPIs, a trained model, and predictions are future work.
 
 CorePulse is an AIOps portfolio project for fault injection and intelligent detection in 5G core networks. It is being built to introduce controlled, reversible faults into an Open5GS + UERANSIM lab on Kubernetes, collect telemetry, train detection models, and display predictions in a live dashboard.
+
+## Downloads and package
+
+- [GitHub Releases](https://github.com/lazypanic999/CorePulse/releases) provides preview binaries for Linux (amd64/arm64), macOS (amd64/arm64), and Windows (amd64), plus SHA-256 checksums. Extract the archive and run `corepulse version`.
+- [GitHub Packages](https://github.com/lazypanic999/CorePulse/pkgs/container/corepulse) hosts the OCI image `ghcr.io/lazypanic999/corepulse:v0.1.0`. It includes `kubectl`; supply a reachable Kubernetes context and writable working directory for lab commands. For this workstation's WSL Minikube lab, use the native binary in Ubuntu because its API endpoint is local to WSL.
+- The code and release archives use the [MIT License](LICENSE). See [CHANGELOG.md](CHANGELOG.md) for the preview scope and [CONTRIBUTING.md](CONTRIBUTING.md) for development checks.
 
 [![CorePulse dashboard connected to the live lab](assets/dashboard-live-full.jpg)](#interface-captures)
 

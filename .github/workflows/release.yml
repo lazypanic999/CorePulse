@@ -1,0 +1,103 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+      - run: go vet ./...
+
+  binaries:
+    needs: validate
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
+          - { goos: windows, goarch: amd64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build archive
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p build dist
+          suffix=""
+          if [[ "$GOOS" == windows ]]; then suffix=".exe"; fi
+          CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=$VERSION" -o "build/corepulse$suffix" ./cmd/corepulse
+          cp LICENSE build/
+          archive="corepulse_${VERSION}_${GOOS}_${GOARCH}"
+          if [[ "$GOOS" == windows ]]; then
+            (cd build && zip -q "../dist/${archive}.zip" "corepulse.exe" LICENSE)
+          else
+            tar -C build -czf "dist/${archive}.tar.gz" corepulse LICENSE
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: corepulse-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
+          if-no-files-found: error
+
+  package:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/lazypanic999/corepulse:${{ github.ref_name }}
+          build-args: VERSION=${{ github.ref_name }}
+
+  release:
+    needs: [binaries, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: corepulse-*
+          path: dist
+          merge-multiple: true
+      - name: Publish release with checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          (cd dist && sha256sum corepulse_* > SHA256SUMS)
+          gh release create "$TAG" dist/* --verify-tag --notes-from-tag --title "CorePulse $TAG" --prerelease

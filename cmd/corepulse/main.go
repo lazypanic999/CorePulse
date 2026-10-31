@@ -18,6 +18,9 @@ import (
 	"github.com/lazypanic999/CorePulse/internal/telemetry"
 )
 
+// Set by release builds; source builds report dev.
+var version = "dev"
+
 func printJSON(value any) error {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
@@ -37,10 +40,16 @@ func saveJSON(path string, value any) error {
 
 func run(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("usage: corepulse <discover|pod-crash|dataset|serve> [options]")
+		return 1, errors.New("usage: corepulse <version|discover|pod-crash|dataset|serve> [options]")
 	}
 	client := corepulse.Kubectl{}
 	switch args[0] {
+	case "version":
+		if len(args) != 1 {
+			return 1, errors.New("version takes no arguments")
+		}
+		fmt.Println(version)
+		return 0, nil
 	case "dataset":
 		flags := flag.NewFlagSet("dataset", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)
@@ -152,7 +161,7 @@ func run(args []string) (int, error) {
 		}
 		return 0, nil
 	default:
-		return 1, fmt.Errorf("unknown command %q; use discover, pod-crash, dataset, or serve", args[0])
+		return 1, fmt.Errorf("unknown command %q; use version, discover, pod-crash, dataset, or serve", args[0])
 	}
 }
 
