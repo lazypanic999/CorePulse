@@ -19,7 +19,7 @@ CorePulse is an AIOps portfolio project for fault injection and intelligent dete
 - [GitHub Packages](https://github.com/lazypanic999/CorePulse/pkgs/container/corepulse) hosts the OCI image `ghcr.io/lazypanic999/corepulse:v0.1.0`. It includes `kubectl`; supply a reachable Kubernetes context and writable working directory for lab commands. For this workstation's WSL Minikube lab, use the native binary in Ubuntu because its API endpoint is local to WSL.
 - The code and release archives use the [MIT License](LICENSE). See [CHANGELOG.md](CHANGELOG.md) for the preview scope and [CONTRIBUTING.md](CONTRIBUTING.md) for development checks.
 
-[![CorePulse dashboard connected to the live lab](assets/dashboard-live-full.jpg)](#interface-captures)
+[![CorePulse liquid glass dashboard connected to the live lab](assets/dashboard-glass-desktop.png)](#interface-captures)
 
 ## Goal
 
@@ -85,7 +85,7 @@ Run the tests without a cluster:
 go test ./...
 ```
 
-## Local dashboard preview
+## Local dashboard
 
 Start the Go server and open `http://127.0.0.1:8787`:
 
@@ -93,29 +93,19 @@ Start the Go server and open `http://127.0.0.1:8787`:
 go run ./cmd/corepulse serve
 ```
 
-The dashboard binds to loopback only. It shows a **preview** state when `kubectl` cannot reach the lab; reference topology is labeled as such, and the run button stays disabled. A connected lab shows observed workloads and real pod resource metrics when metrics-server is available. The experiment control requires the `open5gs-lab` context and all four expected demo workloads ready; the server repeats context, ownership, and target readiness checks before deleting one pod. Run records go under ignored `runs/`. The chart is resource telemetry, not a model prediction.
+The liquid glass dashboard binds to loopback only. It shows a **preview** state when `kubectl` cannot reach the lab; reference topology is labeled as such, and the run button stays disabled. A connected lab shows observed workloads and real pod resource metrics when metrics-server is available. The experiment control requires the `open5gs-lab` context and all four expected demo workloads ready; the server repeats context, ownership, and target readiness checks before deleting one pod. Run records go under ignored `runs/`. The chart is resource telemetry, not a model prediction.
 
 ### Interface captures
 
-![CorePulse dashboard connected to the live Open5GS lab after an AMF experiment recovered](assets/dashboard-live-full.jpg)
+These captures were taken from the running Go dashboard on 31 October 2026, connected to the local Open5GS lab. The charts display observed Kubernetes resource metrics and the run history displays a recorded AMF experiment. They do not represent model predictions.
 
-The live capture above shows the observed lab topology and Kubernetes resource metrics. The captures below document the offline preview and experiment-plan interaction.
+**Desktop**
 
-These captures were taken from the running local Go dashboard on 31 October 2026. The Kubernetes lab was offline, so the UI correctly shows **preview mode**; no live metrics or model predictions are represented.
+![CorePulse liquid glass dashboard on desktop](assets/dashboard-glass-desktop.png)
 
-![CorePulse dashboard overview in offline preview mode](assets/dashboard-top.png)
+**Narrow layout**
 
-![CorePulse AMF experiment plan modal](assets/dashboard-experiment-plan.png)
-
-**Screen walkthroughs:**
-
-![Dashboard navigation through the running local interface](assets/dashboard-tour.gif)
-
-![Switching AMF and UPF targets and opening experiment plans](assets/experiment-plan.gif)
-
-- [Dashboard navigation video (MP4)](assets/dashboard-tour.mp4)
-- [AMF/UPF experiment plan video (MP4)](assets/experiment-plan.mp4)
-- [Full-page dashboard screenshot](assets/dashboard-overview.png)
+![CorePulse liquid glass dashboard on a narrow screen](assets/dashboard-glass-mobile-full.png)
 
 ## Initial scope
 
