@@ -19,6 +19,11 @@ CorePulse is an AIOps portfolio project for fault injection and intelligent dete
 - [GitHub Packages](https://github.com/lazypanic999/CorePulse/pkgs/container/corepulse) hosts the OCI image `ghcr.io/lazypanic999/corepulse:v0.1.0`. It includes `kubectl`; supply a reachable Kubernetes context and writable working directory for lab commands. For this workstation's WSL Minikube lab, use the native binary in Ubuntu because its API endpoint is local to WSL.
 - The code and release archives use the [MIT License](LICENSE). See [CHANGELOG.md](CHANGELOG.md) for the preview scope and [CONTRIBUTING.md](CONTRIBUTING.md) for development checks.
 
+## Community
+
+- [DEV project introduction](https://dev.to/lazypanic999/building-corepulse-a-guarded-5g-core-fault-lab-in-go-4bpf) explains the guarded experiment, live measurements, and current limits.
+- [r/devops discussion](https://www.reddit.com/r/devops/comments/1xfq7qc/comment/19rzowqvsxmx0/) asks which signal to collect next to distinguish AMF from UPF trouble.
+
 [![CorePulse liquid glass dashboard connected to the live lab](assets/dashboard-glass-desktop.png)](#interface-captures)
 
 ## Goal
