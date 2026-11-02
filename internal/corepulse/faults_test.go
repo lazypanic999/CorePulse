@@ -101,6 +101,18 @@ func TestCrashWaitsForRecovery(t *testing.T) {
 	}
 }
 
+func TestCrashObservesEachFaultStep(t *testing.T) {
+	f := newFake()
+	observed := 0
+	result, err := RunPodCrashWithObserver(f, "amf", func() { observed++ })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result["status"] != "recovered" || observed != 3 {
+		t.Fatalf("observed %d steps, result %v", observed, result)
+	}
+}
+
 func TestFailedRecoveryIsRecorded(t *testing.T) {
 	f := newFake()
 	f.failedAction = "rollout"

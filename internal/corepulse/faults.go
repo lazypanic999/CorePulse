@@ -12,6 +12,20 @@ const LabContext = "open5gs-lab"
 
 var allowedTargets = map[string]string{"amf": "open5gs-amf", "upf": "open5gs-upf"}
 
+// StableLabPods checks the essential registration and user-plane workloads.
+func StableLabPods(client Client) (map[string]string, error) {
+	names := []string{"open5gs-amf", "open5gs-smf", "open5gs-udr", "open5gs-upf", "ueransim-gnb", "ueransim-ue"}
+	pods := make(map[string]string, len(names))
+	for _, name := range names {
+		pod, err := selectedPod(client, name)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", name, err)
+		}
+		pods[name] = pod
+	}
+	return pods, nil
+}
+
 func PlanPodCrash(target string) (map[string]any, error) {
 	deployment, ok := allowedTargets[target]
 	if !ok {
@@ -111,6 +125,11 @@ func newRunID() (string, error) {
 
 // RunPodCrash checks the lab context and workload before any mutation.
 func RunPodCrash(client Client, target string) (map[string]any, error) {
+	return RunPodCrashWithObserver(client, target, nil)
+}
+
+// RunPodCrashWithObserver invokes a read-only sampler after each fault step.
+func RunPodCrashWithObserver(client Client, target string, observe func()) (map[string]any, error) {
 	plan, err := PlanPodCrash(target)
 	if err != nil {
 		return nil, err
@@ -150,6 +169,9 @@ func RunPodCrash(client Client, target string) (map[string]any, error) {
 		if _, err := client.Run(step.timeout, step.args...); err != nil {
 			result["status"], result["error"] = "recovery_unverified", err.Error()
 			return result, nil
+		}
+		if observe != nil {
+			observe()
 		}
 	}
 	replacement, err := selectedPod(client, deployment)

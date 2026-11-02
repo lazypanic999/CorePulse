@@ -16,5 +16,10 @@ Each applied `pod-crash` experiment writes one UTF-8 JSON file under `runs/`, na
 | `status` | `recovered` or `recovery_unverified` |
 | `error` | Failure detail, present only when recovery is unverified |
 | `service_probe` | Optional read-only UE-to-UPF gateway check after deployment recovery: status, current UE pod, packet counts, and time. A healthy gateway check does not prove external Internet reachability. |
+| `pre_service_probe` | Gateway check immediately before fault injection; must be healthy for new fault runs. |
+| `observed_samples` | Number of resource samples captured during the fault interval. |
+| `quality` | `clean` when experiment provenance gates pass; otherwise `excluded`. A degraded post-run service path can still be a clean fault observation. |
 
-The run label records the action that CorePulse applied. It is **not** an ML prediction. `recovered` means the replacement deployment became ready; inspect `service_probe` separately for the observed UE path. Older run records may not contain this field. Future telemetry windows should reference `run_id` and preserve normal periods before and after the fault. Train/test splitting must group all windows from one `run_id` together.
+The run label records the action that CorePulse applied. It is **not** an ML prediction. `recovered` means the replacement deployment became ready; inspect `service_probe` separately for the observed UE path. New runs also record `pre_service_probe`, `observed_samples`, and `quality`. `clean` requires a healthy path and ready essential workloads before the fault, deployment recovery, an observed post-run path outcome, and at least one captured resource sample. A degraded post-run path is a valid fault outcome. Older run records lack this assertion and are excluded from the curated dataset.
+
+`baseline` writes the same core identity and interval fields with `fault: normal`, `status: verified` and `quality: clean` only after every sample passes the UE-to-UPF probe and AMF/UPF pod identity checks. It also writes `samples` and `service_probes`. Failed intervals retain `status: unverified`, `quality: excluded`, and an error. Train/test splitting must group all windows from one `run_id` together.

@@ -49,15 +49,17 @@ The existing [Open5GS + UERANSIM lab](https://github.com/lazypanic999/open5gs-ue
 ## What works today
 
 - `corepulse discover` reads deployments, pods, services, and Prometheus scrape annotations from the `open5gs` namespace. It reports candidate endpoints without claiming metrics have been verified.
-- `corepulse pod-crash --target amf|upf` prints a dry-run plan. With `--apply`, it validates the context and workload, deletes one deployment-owned pod, waits for its deletion and deployment recovery, and writes a run record.
+- `corepulse pod-crash --target amf|upf` prints a dry-run plan. With `--apply`, it requires a healthy UE-to-UPF path, validates the context and workload, deletes one deployment-owned pod, samples metrics after each step, waits for deployment recovery, and writes a run record.
 - `corepulse serve` opens a local dashboard with lab connection state, workload topology, an experiment plan, and recent run records. The run control requires the exact lab context and a second typed confirmation. Offline preview mode does not invent live telemetry.
 - While the server runs, it samples `metrics.k8s.io/v1beta1` every 10 seconds and displays live aggregate pod CPU and memory. Raw samples are saved in ignored `data/telemetry.jsonl`.
-- `corepulse dataset` joins those samples with recorded experiment intervals into ignored `data/dataset.csv`, with `normal` and `pod_crash` labels. The dashboard rebuilds it after an experiment.
+- `corepulse baseline` captures separate, untouched normal runs only when the UE-to-UPF probe stays healthy and the six essential AMF/SMF/UDR/UPF/gNB/UE pods remain ready, unchanged, and present in resource metrics. It defaults to three runs of four samples each.
+- `corepulse dataset` includes only samples inside explicitly clean run intervals in ignored `data/dataset.csv`. Legacy, setup, and unverified samples are counted as excluded. The dashboard rebuilds the curated CSV after an experiment.
 - `corepulse verify-service` checks the current ready UE pod's path to the UPF tunnel gateway (`10.45.0.1`). The dashboard shows this live check separately from pod readiness, and new fault run records include the result after deployment recovery.
+- `corepulse signals` reads registration and PDU-session success events from the current UE pod's last 300 log lines and runs the current UE-to-UPF packet probe. Historical log events and current path health are reported separately.
 - `scripts/configure-gnb-n3.sh` corrects the tested UERANSIM chart's gNB N3 address in the isolated lab. With that patch, the lab's end-to-end verification passed, including UE registration, PDU session, and external ping.
 - Go unit tests and GitHub Actions CI cover discovery, fault safety guards, telemetry parsing, dataset labeling, and the dashboard API.
 
-The [lab integration notes](docs/lab-integration.md) record the live rollout and verification results. [Telemetry and dataset notes](docs/telemetry-and-dataset.md) document the measured fields and labeling limits. The [first design decision](docs/decisions/0001-start-with-discovery.md) explains why discovery comes before choosing model features.
+The [lab integration notes](docs/lab-integration.md) record the live rollout and verification results. The [validated signal inventory](docs/validated-signals.md) separates live packet checks, log events, and resource metrics. [Telemetry and dataset notes](docs/telemetry-and-dataset.md) document the measured fields and labeling limits. The [first design decision](docs/decisions/0001-start-with-discovery.md) explains why discovery comes before choosing model features.
 The [Go decision](docs/decisions/0002-go-control-plane.md) records the control plane migration.
 The current [run record schema](docs/run-record.md) documents the first fault label and recovery result.
 
@@ -73,6 +75,7 @@ Then run `./scripts/verify.sh` from the lab repository checkout. The [integratio
 
 ```bash
 go run ./cmd/corepulse discover --output reports/discovery.json
+go run ./cmd/corepulse signals
 go run ./cmd/corepulse verify-service
 go run ./cmd/corepulse pod-crash --target amf
 ```
@@ -80,11 +83,14 @@ go run ./cmd/corepulse pod-crash --target amf
 The last command only prints a plan. To run the fault against the lab after reviewing that plan:
 
 ```bash
+go run ./cmd/corepulse baseline --runs 3 --samples 4 --interval 10s
 go run ./cmd/corepulse pod-crash --target amf --apply
 go run ./cmd/corepulse dataset --telemetry data/telemetry.jsonl --runs-dir runs --output data/dataset.csv
 ```
 
 The required Kubernetes context is `open5gs-lab`, matching the lab's Minikube profile. Run records are saved under ignored `runs/`. The command reports `recovery_unverified` and exits unsuccessfully if Kubernetes does not confirm deployment recovery. The separate UE-to-UPF check reports observed packet forwarding to the tunnel gateway; it does not prove external reachability. This pod experiment is intended only for the local lab.
+
+Run `baseline` when essential workloads and the UE-to-UPF path are healthy; the command checks both. Each normal run is independently checked and written to `runs/`; a failed probe, missing metric, or changing essential pod marks that run unverified. The raw JSONL is append-only, but the curated CSV excludes samples outside verified runs. New fault runs qualify as clean when the UE-to-UPF probe is healthy before injection, essential workloads are ready, deployment recovery is verified, at least one resource sample was captured during the run, and a post-run path outcome was observed. That outcome may be degraded; it stays visible in the run record. Older fault records are deliberately excluded.
 
 Run the tests without a cluster:
 
@@ -133,13 +139,13 @@ These captures were taken from the running Go dashboard on 31 October 2026, conn
 | 4. Dashboard | Controls, live charts, and prediction view | End-to-end demo works; local UI preview already exists |
 | 5. Polish | One-command setup and demo recording | Reproducible on a clean machine |
 
-## First tasks
+## Next implementation tasks
 
-1. Start the lab and run its end-to-end verification script.
-2. Run CorePulse discovery against the live cluster, then probe candidate endpoints and record real metric names.
-3. Define the `runs.json` and time-series dataset schemas from observed data.
-4. Validate the pod fault in the lab and add packet loss and latency only after checking image privileges and rollback paths.
-5. Build data collection, baseline models, and then the live dashboard.
+1. Repair the lab's repeat-start behavior: the `open5gs-populate` init container must tolerate an existing subscriber, and UPF replacement needs a verified service recovery procedure.
+2. Capture repeated clean AMF and UPF fault runs, including the interval after Kubernetes deployment readiness while the UE data path may still be degraded.
+3. Turn the validated registration, session, and PFCP log events into timestamped features, while keeping event history distinct from current packet health.
+4. Add packet loss and latency only after checking image privileges and rollback paths.
+5. Evaluate baseline detectors with whole-run train/test splits, then show measured predictions in the dashboard.
 
 ## Design rules
 

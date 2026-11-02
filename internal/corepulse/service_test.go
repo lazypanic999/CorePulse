@@ -11,6 +11,7 @@ type probeClient struct {
 	context string
 	execPod string
 	output  string
+	logs    string
 	execErr error
 }
 
@@ -21,6 +22,9 @@ func (p *probeClient) Run(_ time.Duration, args ...string) (string, error) {
 	if args[0] == "exec" {
 		p.execPod = args[1]
 		return p.output, p.execErr
+	}
+	if args[0] == "logs" {
+		return p.logs, nil
 	}
 	return "", errors.New("unexpected kubectl command")
 }
@@ -58,12 +62,23 @@ func TestProbeServiceNeverExecutesOutsideLab(t *testing.T) {
 }
 
 func TestProbeServiceReportsPacketFailure(t *testing.T) {
-	client := &probeClient{context: LabContext, execErr: errors.New("ping lost packets")}
+	client := &probeClient{context: LabContext, output: "2 packets transmitted, 0 received, 100% packet loss", execErr: errors.New("ping lost packets")}
 	probe, err := ProbeService(client)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if probe.Status != "degraded" || probe.Detail == "" {
+	if probe.Status != "degraded" || probe.Detail == "" || probe.Sent != 2 || probe.Received != 0 {
 		t.Fatalf("unexpected probe: %+v", probe)
+	}
+}
+
+func TestInspectSignalsDistinguishesLogEventsFromCurrentProbe(t *testing.T) {
+	client := &probeClient{context: LabContext, logs: "Initial Registration is successful\nPDU Session establishment is successful", output: "2 packets transmitted, 0 received, 100% packet loss"}
+	snapshot, err := InspectSignals(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !snapshot.RegistrationObserved || !snapshot.SessionObserved || snapshot.ServiceProbe.Status != "degraded" {
+		t.Fatalf("unexpected signal snapshot: %+v", snapshot)
 	}
 }

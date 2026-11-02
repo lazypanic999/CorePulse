@@ -35,3 +35,11 @@ CorePulse ran one guarded AMF pod-crash experiment from the dashboard. Kubernete
 The `pod-crash` command accepts only `amf` or `upf`. Without `--apply` it prints a plan. With `--apply`, it checks the exact Kubernetes context, requires one ready replica, checks the pod's ReplicaSet owner, deletes that one pod in `open5gs`, waits for deletion, and then waits for deployment recovery. It writes a run JSON record. A recovery failure is reported as `recovery_unverified`; no success is inferred from the delete command alone.
 
 This is an isolated lab experiment, not a production fault injector. Packet loss, latency, and SCTP scenarios are deferred until the running images, privileges, and rollback mechanisms are verified.
+
+## 2 November 2026: signal inventory and curated runs
+
+After Minikube recovery, `corepulse signals` observed UE registration and PDU-session success events plus 2/2 UE-to-UPF gateway replies. The metrics API returned pod resource samples, and a direct UE external ping returned 2/2 replies. AMF, SMF, and UPF logs exposed event markers for UE count, session count, and PFCP association; no Prometheus protocol metric endpoint was verified. See [validated signals](validated-signals.md).
+
+Three guarded normal intervals passed the six-workload, pod identity, metrics coverage, and gateway probe gates. The curated dataset contains 12 normal rows. One UPF pod-crash interval yielded three resource samples and a verified replacement pod. The post-run gateway probe was degraded despite Kubernetes deployment readiness; PFCP heartbeat and session-establishment failures appeared in logs. The reviewed run was included as a controlled fault interval, bringing the curated dataset to 12 normal and 3 fault rows. Historical/unscoped rows (560) were excluded.
+
+The full lab verifier timed out because `open5gs-populate` repeatedly failed its init container with a duplicate subscriber key after restart. The six essential workloads and packet path were independently verified before the UPF fault. After the fault, SMF/UE restarts did not reliably restore the PDU session; a later Minikube restart ended with WSL stopping unexpectedly. The lab was left offline, and no second fault run was attempted. The WSL shutdown cause remains unknown.

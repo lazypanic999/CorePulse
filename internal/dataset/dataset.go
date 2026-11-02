@@ -25,11 +25,12 @@ type Run struct {
 }
 
 type Summary struct {
-	Samples int    `json:"samples"`
-	Normal  int    `json:"normal"`
-	Fault   int    `json:"fault"`
-	Runs    int    `json:"runs"`
-	Output  string `json:"output"`
+	Samples  int    `json:"samples"`
+	Normal   int    `json:"normal"`
+	Fault    int    `json:"fault"`
+	Excluded int    `json:"excluded"`
+	Runs     int    `json:"runs"`
+	Output   string `json:"output"`
 }
 
 func loadRuns(dir string) ([]Run, error) {
@@ -50,16 +51,23 @@ func loadRuns(dir string) ([]Run, error) {
 			return nil, err
 		}
 		var raw struct {
-			ID      string `json:"run_id"`
-			Fault   string `json:"fault"`
-			Target  string `json:"target"`
-			Started string `json:"started_at"`
-			Ended   string `json:"ended_at"`
+			ID        string `json:"run_id"`
+			Fault     string `json:"fault"`
+			Target    string `json:"target"`
+			Status    string `json:"status"`
+			Quality   string `json:"quality"`
+			Context   string `json:"context"`
+			Namespace string `json:"namespace"`
+			Started   string `json:"started_at"`
+			Ended     string `json:"ended_at"`
 		}
 		if err := json.Unmarshal(data, &raw); err != nil {
 			return nil, fmt.Errorf("run %s: %w", entry.Name(), err)
 		}
-		if raw.ID == "" || raw.Fault == "" || raw.Ended == "" {
+		if raw.ID == "" || raw.Fault == "" || raw.Ended == "" || raw.Quality != "clean" || raw.Context != corepulse.LabContext || raw.Namespace != corepulse.LabNamespace {
+			continue
+		}
+		if (raw.Fault == "normal" && raw.Status != "verified") || (raw.Fault != "normal" && raw.Status != "recovered") {
 			continue
 		}
 		started, err := time.Parse(time.RFC3339Nano, raw.Started)
@@ -80,7 +88,7 @@ func loadRuns(dir string) ([]Run, error) {
 }
 
 func label(sample telemetry.Sample, runs []Run) (string, string, string, error) {
-	label, runID, target := "normal", "", ""
+	label, runID, target := "excluded", "", ""
 	for _, run := range runs {
 		if sample.Timestamp.Before(run.Started) || sample.Timestamp.After(run.Ended) {
 			continue
@@ -147,6 +155,10 @@ func Build(telemetryPath, runsDir, outputPath string) (Summary, error) {
 		if err != nil {
 			temp.Close()
 			return Summary{}, err
+		}
+		if label == "excluded" {
+			summary.Excluded++
+			continue
 		}
 		amfCPU, amfMem := componentUsage(sample.Pods, "open5gs-amf")
 		upfCPU, upfMem := componentUsage(sample.Pods, "open5gs-upf")

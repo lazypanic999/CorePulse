@@ -11,6 +11,41 @@ import (
 const upfGateway = "10.45.0.1"
 
 var pingSummary = regexp.MustCompile(`(\d+) packets transmitted, (\d+) received`)
+var registrationSuccess = regexp.MustCompile(`(?i)registration is successful|registration accept`)
+var sessionSuccess = regexp.MustCompile(`(?i)pdu session.*successful|pdu session establishment accept`)
+
+// SignalSnapshot separates UE log events from a current packet-path probe.
+// Log events prove that a transition occurred in this pod, not that it persists.
+type SignalSnapshot struct {
+	UEPod                string       `json:"ue_pod"`
+	RegistrationObserved bool         `json:"registration_observed"`
+	SessionObserved      bool         `json:"session_observed"`
+	LogSource            string       `json:"log_source"`
+	ServiceProbe         ServiceProbe `json:"service_probe"`
+}
+
+func InspectSignals(client Client) (SignalSnapshot, error) {
+	contextName, err := client.Run(10*time.Second, "config", "current-context")
+	if err != nil {
+		return SignalSnapshot{}, err
+	}
+	if contextName != LabContext {
+		return SignalSnapshot{}, fmt.Errorf("current context %q differs from lab context %q", contextName, LabContext)
+	}
+	pod, err := currentUEPod(client)
+	if err != nil {
+		return SignalSnapshot{}, err
+	}
+	logs, err := client.Run(15*time.Second, "logs", "pod/"+pod, "--namespace", LabNamespace, "--tail=300")
+	if err != nil {
+		return SignalSnapshot{}, err
+	}
+	probe, err := ProbeService(client)
+	if err != nil {
+		return SignalSnapshot{}, err
+	}
+	return SignalSnapshot{UEPod: pod, RegistrationObserved: registrationSuccess.MatchString(logs), SessionObserved: sessionSuccess.MatchString(logs), LogSource: "current UE pod, last 300 log lines", ServiceProbe: probe}, nil
+}
 
 // ServiceProbe reports a real UE-to-UPF gateway check, separate from pod readiness.
 type ServiceProbe struct {
@@ -85,17 +120,19 @@ func ProbeService(client Client) (ServiceProbe, error) {
 	}
 	probe.UEPod = pod
 	output, err := client.Run(15*time.Second, "exec", "pod/"+pod, "--namespace", LabNamespace, "--", "ping", "-I", "uesimtun0", upfGateway, "-c", "2")
+	matches := pingSummary.FindStringSubmatch(output)
+	if len(matches) == 3 {
+		probe.Sent, _ = strconv.Atoi(matches[1])
+		probe.Received, _ = strconv.Atoi(matches[2])
+	}
 	if err != nil {
 		probe.Status, probe.Detail = "degraded", err.Error()
 		return probe, nil
 	}
-	matches := pingSummary.FindStringSubmatch(output)
 	if len(matches) != 3 {
 		probe.Status, probe.Detail = "degraded", "ping returned no recognizable packet summary"
 		return probe, nil
 	}
-	probe.Sent, _ = strconv.Atoi(matches[1])
-	probe.Received, _ = strconv.Atoi(matches[2])
 	if probe.Sent == 2 && probe.Received == 2 {
 		probe.Status = "healthy"
 	} else {

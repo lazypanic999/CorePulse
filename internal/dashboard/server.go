@@ -197,17 +197,37 @@ func (s *Server) runPodCrash(w http.ResponseWriter, r *http.Request) {
 	if s.Telemetry != nil {
 		_ = s.Telemetry.Capture(s.Client)
 	}
-	result, err := corepulse.RunPodCrash(s.Client, request.Target)
+	preProbe, preErr := corepulse.ProbeService(s.Client)
+	if preErr != nil || preProbe.Status != "healthy" {
+		writeJSON(w, http.StatusConflict, map[string]string{"error": "A healthy UE-to-UPF path is required before a fault run"})
+		return
+	}
+	if _, err := corepulse.StableLabPods(s.Client); err != nil {
+		writeJSON(w, http.StatusConflict, map[string]string{"error": "Ready essential lab workloads are required before a fault run"})
+		return
+	}
+	observed := 0
+	result, err := corepulse.RunPodCrashWithObserver(s.Client, request.Target, func() {
+		if s.Telemetry != nil && s.Telemetry.Capture(s.Client) == nil {
+			observed++
+		}
+	})
 	if err != nil {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 		return
 	}
+	result["pre_service_probe"] = preProbe
+	result["observed_samples"] = observed
+	result["quality"] = "excluded"
 	if result["status"] == "recovered" {
 		probe, probeErr := corepulse.ProbeService(s.Client)
 		if probeErr != nil {
 			probe.Detail = probeErr.Error()
 		}
 		result["service_probe"] = probe
+		if (probe.Status == "healthy" || probe.Status == "degraded") && observed > 0 {
+			result["quality"] = "clean"
+		}
 	}
 	path := filepath.Join(s.RunsDir, fmt.Sprint(result["run_id"])+".json")
 	if err := os.MkdirAll(s.RunsDir, 0755); err != nil {

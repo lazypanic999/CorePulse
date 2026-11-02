@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/lazypanic999/CorePulse/internal/collection"
 	"github.com/lazypanic999/CorePulse/internal/corepulse"
 	"github.com/lazypanic999/CorePulse/internal/dashboard"
 	"github.com/lazypanic999/CorePulse/internal/dataset"
@@ -40,10 +41,19 @@ func saveJSON(path string, value any) error {
 
 func run(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("usage: corepulse <version|discover|verify-service|pod-crash|dataset|serve> [options]")
+		return 1, errors.New("usage: corepulse <version|discover|signals|verify-service|pod-crash|baseline|dataset|serve> [options]")
 	}
 	client := corepulse.Kubectl{}
 	switch args[0] {
+	case "signals":
+		if len(args) != 1 {
+			return 1, errors.New("signals takes no arguments")
+		}
+		result, err := corepulse.InspectSignals(client)
+		if err != nil {
+			return 1, err
+		}
+		return 0, printJSON(result)
 	case "verify-service":
 		if len(args) != 1 {
 			return 1, errors.New("verify-service takes no arguments")
@@ -65,6 +75,36 @@ func run(args []string) (int, error) {
 		}
 		fmt.Println(version)
 		return 0, nil
+	case "baseline":
+		flags := flag.NewFlagSet("baseline", flag.ContinueOnError)
+		flags.SetOutput(os.Stderr)
+		runs := flags.Int("runs", 3, "number of separate verified baseline runs")
+		samples := flags.Int("samples", 4, "samples per run")
+		interval := flags.Duration("interval", 10*time.Second, "interval between samples")
+		telemetryPath := flags.String("telemetry", filepath.Join("data", "telemetry.jsonl"), "raw telemetry JSONL")
+		runsDir := flags.String("runs-dir", "runs", "run record directory")
+		output := flags.String("output", filepath.Join("data", "dataset.csv"), "curated CSV output")
+		if err := flags.Parse(args[1:]); err != nil {
+			return 1, err
+		}
+		if flags.NArg() != 0 || *runs < 1 || *runs > 100 {
+			return 1, errors.New("baseline needs 1 to 100 runs and no positional arguments")
+		}
+		store := telemetry.NewStore(*telemetryPath)
+		for i := 0; i < *runs; i++ {
+			record, err := collection.Baseline(client, store, *runsDir, *samples, *interval)
+			if record.RunID != "" {
+				_ = printJSON(record)
+			}
+			if err != nil {
+				return 1, err
+			}
+		}
+		summary, err := dataset.Build(*telemetryPath, *runsDir, *output)
+		if err != nil {
+			return 1, err
+		}
+		return 0, printJSON(summary)
 	case "dataset":
 		flags := flag.NewFlagSet("dataset", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)
@@ -159,16 +199,38 @@ func run(args []string) (int, error) {
 			plan["mode"] = "dry-run"
 			return 0, printJSON(plan)
 		}
-		result, err := corepulse.RunPodCrash(client, *target)
+		preProbe, err := corepulse.ProbeService(client)
 		if err != nil {
 			return 1, err
 		}
+		if preProbe.Status != "healthy" {
+			return 1, fmt.Errorf("fault run requires a healthy UE-to-UPF path before injection: %s", preProbe.Detail)
+		}
+		if _, err := corepulse.StableLabPods(client); err != nil {
+			return 1, fmt.Errorf("fault run requires ready essential workloads: %w", err)
+		}
+		store := telemetry.NewStore(filepath.Join("data", "telemetry.jsonl"))
+		observed := 0
+		result, err := corepulse.RunPodCrashWithObserver(client, *target, func() {
+			if store.Capture(client) == nil {
+				observed++
+			}
+		})
+		if err != nil {
+			return 1, err
+		}
+		result["pre_service_probe"] = preProbe
+		result["observed_samples"] = observed
+		result["quality"] = "excluded"
 		if result["status"] == "recovered" {
 			probe, probeErr := corepulse.ProbeService(client)
 			if probeErr != nil {
 				probe.Detail = probeErr.Error()
 			}
 			result["service_probe"] = probe
+			if (probe.Status == "healthy" || probe.Status == "degraded") && observed > 0 {
+				result["quality"] = "clean"
+			}
 		}
 		path := filepath.Join(*runsDir, result["run_id"].(string)+".json")
 		if err := saveJSON(path, result); err != nil {
@@ -183,7 +245,7 @@ func run(args []string) (int, error) {
 		}
 		return 0, nil
 	default:
-		return 1, fmt.Errorf("unknown command %q; use version, discover, verify-service, pod-crash, dataset, or serve", args[0])
+		return 1, fmt.Errorf("unknown command %q; use version, discover, signals, verify-service, pod-crash, baseline, dataset, or serve", args[0])
 	}
 }
 

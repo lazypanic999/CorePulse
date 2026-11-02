@@ -40,7 +40,7 @@ func (k Kubectl) Run(timeout time.Duration, args ...string) (string, error) {
 		if detail == "" {
 			detail = strings.TrimSpace(stdout.String())
 		}
-		return "", fmt.Errorf("kubectl failed: %s: %w", detail, err)
+		return strings.TrimSpace(stdout.String()), fmt.Errorf("kubectl failed: %s: %w", detail, err)
 	}
 	return strings.TrimSpace(stdout.String()), nil
 }
