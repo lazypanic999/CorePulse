@@ -220,18 +220,7 @@ func run(args []string) (int, error) {
 			return 1, err
 		}
 		result["pre_service_probe"] = preProbe
-		result["observed_samples"] = observed
-		result["quality"] = "excluded"
-		if result["status"] == "recovered" {
-			probe, probeErr := corepulse.ProbeService(client)
-			if probeErr != nil {
-				probe.Detail = probeErr.Error()
-			}
-			result["service_probe"] = probe
-			if (probe.Status == "healthy" || probe.Status == "degraded") && observed > 0 {
-				result["quality"] = "clean"
-			}
-		}
+		collection.FinishFault(client, result, observed, func() error { return store.Capture(client) })
 		path := filepath.Join(*runsDir, result["run_id"].(string)+".json")
 		if err := saveJSON(path, result); err != nil {
 			return 1, err
@@ -240,7 +229,7 @@ func run(args []string) (int, error) {
 		if err := printJSON(result); err != nil {
 			return 1, err
 		}
-		if result["status"] != "recovered" {
+		if result["status"] != "recovered" || result["service_recovery"].(collection.Recovery).Status != "service_recovered" {
 			return 2, nil
 		}
 		return 0, nil

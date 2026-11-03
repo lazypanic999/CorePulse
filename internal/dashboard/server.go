@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lazypanic999/CorePulse/internal/collection"
 	"github.com/lazypanic999/CorePulse/internal/corepulse"
 	"github.com/lazypanic999/CorePulse/internal/dataset"
 	"github.com/lazypanic999/CorePulse/internal/telemetry"
@@ -217,18 +218,11 @@ func (s *Server) runPodCrash(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result["pre_service_probe"] = preProbe
-	result["observed_samples"] = observed
-	result["quality"] = "excluded"
-	if result["status"] == "recovered" {
-		probe, probeErr := corepulse.ProbeService(s.Client)
-		if probeErr != nil {
-			probe.Detail = probeErr.Error()
-		}
-		result["service_probe"] = probe
-		if (probe.Status == "healthy" || probe.Status == "degraded") && observed > 0 {
-			result["quality"] = "clean"
-		}
+	var capture func() error
+	if s.Telemetry != nil {
+		capture = func() error { return s.Telemetry.Capture(s.Client) }
 	}
+	collection.FinishFault(s.Client, result, observed, capture)
 	path := filepath.Join(s.RunsDir, fmt.Sprint(result["run_id"])+".json")
 	if err := os.MkdirAll(s.RunsDir, 0755); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Could not create run directory"})
@@ -254,7 +248,7 @@ func (s *Server) runPodCrash(w http.ResponseWriter, r *http.Request) {
 	}
 	result["run_record"] = path
 	status := http.StatusOK
-	if result["status"] != "recovered" {
+	if result["status"] != "recovered" || result["service_recovery"].(collection.Recovery).Status != "service_recovered" {
 		status = http.StatusAccepted
 	}
 	writeJSON(w, status, result)

@@ -19,6 +19,10 @@ Each applied `pod-crash` experiment writes one UTF-8 JSON file under `runs/`, na
 | `pre_service_probe` | Gateway check immediately before fault injection; must be healthy for new fault runs. |
 | `observed_samples` | Number of resource samples captured during the fault interval. |
 | `quality` | `clean` when experiment provenance gates pass; otherwise `excluded`. A degraded post-run service path can still be a clean fault observation. |
+| `deployment_recovered_at` | Time Kubernetes replacement readiness was verified, before service observation. |
+| `service_recovery` | Up to six packet probes, with five seconds between attempts. Two consecutive healthy probes establish `service_recovered`; otherwise the result is `service_degraded` or `service_unverified`. Probe and sampling execution time adds to the interval. |
+
+New fault runs keep `ended_at` open until service observation finishes and sample resource metrics after every probe. The full interval includes recovery observation; its `pod_crash` label describes the experiment rather than an assertion that every sample is anomalous. `service_probe` is retained as the final probe for compatibility. The CLI exits with code 2 when deployment or service recovery remains unverified. Dashboard history shows the service outcome; older records are labeled as deployment recovery only.
 
 The run label records the action that CorePulse applied. It is **not** an ML prediction. `recovered` means the replacement deployment became ready; inspect `service_probe` separately for the observed UE path. New runs also record `pre_service_probe`, `observed_samples`, and `quality`. `clean` requires a healthy path and ready essential workloads before the fault, deployment recovery, an observed post-run path outcome, and at least one captured resource sample. A degraded post-run path is a valid fault outcome. Older run records lack this assertion and are excluded from the curated dataset.
 

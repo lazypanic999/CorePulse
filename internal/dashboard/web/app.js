@@ -113,7 +113,8 @@ async function refreshRuns() {
     const name = document.createElement('strong'); name.textContent = `${String(run.target || '').toUpperCase()} · ${run.fault || 'experiment'}`;
     const detail = document.createElement('small'); detail.textContent = `${displayTime(run.started_at)} · ${String(run.run_id || '').slice(0, 8)}`;
     info.append(name, detail);
-    const status = document.createElement('span'); status.className = `run-status${run.status === 'recovered' ? '' : ' warning'}`; status.textContent = String(run.status || 'unknown').replaceAll('_', ' ').toUpperCase();
+    const outcome = run.service_recovery?.status || (run.status === 'recovered' ? 'deployment_recovered' : run.status);
+    const status = document.createElement('span'); status.className = `run-status${outcome === 'service_recovered' ? '' : ' warning'}`; status.textContent = String(outcome || 'unknown').replaceAll('_', ' ').toUpperCase();
     row.append(info, status); list.append(row);
   }
 }
@@ -212,7 +213,7 @@ async function runExperiment() {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Experiment failed');
     const datasetNote = result.dataset ? ` Dataset updated: ${result.dataset.samples} samples, ${result.dataset.fault} in the experiment window.` : '';
-    const serviceNote = result.service_probe?.status === 'healthy' ? ' UE path verified.' : result.service_probe ? ' UE path needs checking.' : '';
+    const serviceNote = result.service_recovery?.status === 'service_recovered' ? ' UE path verified by consecutive checks.' : ' UE service recovery remains unverified; inspect the run probes.';
     toast(result.status === 'recovered' ? `Deployment recovery verified.${serviceNote} Run record saved.${datasetNote}` : 'Recovery could not be verified. Check the lab and run record.');
     await Promise.all([refreshOverview(), refreshRuns(), refreshService()]);
   } catch (error) { toast(error.message); }
