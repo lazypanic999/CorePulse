@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -109,12 +110,24 @@ func quantity(value string, suffixes map[string]float64) (float64, error) {
 			if err != nil {
 				return 0, fmt.Errorf("invalid quantity %q", value)
 			}
-			return n * factor, nil
+			return acceptQuantity(value, n*factor)
 		}
 	}
 	n, err := strconv.ParseFloat(value, 64)
 	if err != nil {
 		return 0, fmt.Errorf("invalid quantity %q", value)
+	}
+	return acceptQuantity(value, n)
+}
+
+// acceptQuantity rejects negatives and non-finite values so they never become
+// telemetry samples or CSV features.
+func acceptQuantity(raw string, n float64) (float64, error) {
+	if math.IsNaN(n) || math.IsInf(n, 0) {
+		return 0, fmt.Errorf("non-finite quantity %q", raw)
+	}
+	if n < 0 {
+		return 0, fmt.Errorf("negative quantity %q", raw)
 	}
 	return n, nil
 }
@@ -122,7 +135,11 @@ func quantity(value string, suffixes map[string]float64) (float64, error) {
 func cpuMilli(value string) (float64, error) {
 	if _, err := strconv.ParseFloat(value, 64); err == nil {
 		n, _ := strconv.ParseFloat(value, 64)
-		return n * 1000, nil
+		accepted, err := acceptQuantity(value, n*1000)
+		if err != nil {
+			return 0, err
+		}
+		return accepted, nil
 	}
 	return quantity(value, map[string]float64{"n": 0.000001, "u": 0.001, "m": 1, "k": 1_000_000, "M": 1_000_000_000})
 }
@@ -131,6 +148,9 @@ func memoryBytes(value string) (int64, error) {
 	n, err := quantity(value, map[string]float64{"Ki": 1024, "Mi": 1024 * 1024, "Gi": 1024 * 1024 * 1024, "Ti": 1024 * 1024 * 1024 * 1024, "k": 1000, "M": 1_000_000, "G": 1_000_000_000, "T": 1_000_000_000_000})
 	if err != nil {
 		return 0, err
+	}
+	if n > float64(math.MaxInt64) {
+		return 0, fmt.Errorf("quantity %q overflows int64 bytes", value)
 	}
 	return int64(n), nil
 }
