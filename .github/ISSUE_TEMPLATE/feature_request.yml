@@ -1,0 +1,23 @@
+name: Feature proposal
+description: Propose a scoped improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior and scope
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Acceptance criteria and validation
+      description: Explain whether fixtures are sufficient or a live lab is needed. Fault actions need context/target guards and a recovery path.
+    validations:
+      required: true

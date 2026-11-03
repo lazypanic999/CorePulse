@@ -1,0 +1,22 @@
+name: Bug report
+description: Report a reproducible CorePulse problem
+labels: [bug]
+body:
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and observed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the command, version and whether this is a preview or live lab. Remove credentials, subscriber identifiers and private cluster details.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence
+      description: Small log excerpts or fixture examples are useful. Do not upload raw telemetry or kubeconfigs.

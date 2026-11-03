@@ -48,6 +48,8 @@ The existing [Open5GS + UERANSIM lab](https://github.com/lazypanic999/open5gs-ue
 
 ## What works today
 
+**Contributors welcome:** there are [good first issues](https://github.com/lazypanic999/CorePulse/labels/good%20first%20issue) and [help wanted tasks](https://github.com/lazypanic999/CorePulse/labels/help%20wanted) for Go, documentation and protocol telemetry. Several need no Kubernetes lab. See the [contribution guide](CONTRIBUTING.md) for a starting point.
+
 - `corepulse discover` reads deployments, pods, services, and Prometheus scrape annotations from the `open5gs` namespace. It reports candidate endpoints without claiming metrics have been verified.
 - `corepulse pod-crash --target amf|upf` prints a dry-run plan. With `--apply`, it requires a healthy UE-to-UPF path, validates the context and workload, deletes one deployment-owned pod, and samples metrics through deployment and service recovery observation. Two consecutive healthy packet probes verify service recovery; every probe is saved in the run record.
 - `corepulse serve` opens a local dashboard with lab connection state, workload topology, an experiment plan, and recent run records. The run control requires the exact lab context and a second typed confirmation. Offline preview mode does not invent live telemetry.
