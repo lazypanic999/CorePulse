@@ -1,5 +1,15 @@
 # Lab integration: live baseline and remaining checks
 
+## 4 November 2026: lifecycle and service reset
+
+The lab now has a retained Windows-launched WSL session, a system-drive free-space check, and an idempotent patch for the pinned populate init container. On the existing subscriber, the patch and a subsequent populate rollout both succeeded without inserting a duplicate. The hidden launcher was invoked twice and reused its tracked process. Prior WSL logs showed orderly systemd shutdown; Microsoft's documented WSL idle-lifetime behavior is consistent with that evidence, but other shutdown causes have not been ruled out.
+
+The ordered service reset stopped UE, gNB, SMF and UPF, waited for old pods to disappear, then restored them in reverse dependency order. The current UE registered, established its PDU session and passed two consecutive 2/2 gateway checks. The unchanged lab verifier subsequently passed all 16 deployments, registration, PDU session, tunnel interface and 5/5 external ping replies. See [lab operations](lab-operations.md) for the commands and limits. This is a verified local procedure for the pinned lab, not a general production recovery mechanism.
+
+An initial UPF observation overlapped lab startup and captured no resource samples; its record was excluded. A subsequent isolated UPF run (`1e0de561-bb86-4120-95de-18ff3f2a353a`) began with a healthy path, captured nine resource samples, and observed six failed gateway checks after the replacement deployment became ready. The curated dataset now contains 12 normal and 12 fault rows across five qualifying runs; historical/unscoped rows remain excluded. The reset procedure was then applied outside that recorded fault interval.
+
+Ordered reset using the original virtual PFCP service peer did not reliably restore forwarding: a PDU session was created but PFCP session modification timed out. `configure-pfcp.py` then added a separate headless UPF PFCP service and changed only the pinned SMF peer DNS name. After reapplying the ordered reset, registration and PDU session events appeared and two consecutive 2/2 gateway checks passed. The unchanged full lab verifier passed again, including all 16 deployments and 5/5 external ping replies. This final direct-peer configuration is what the recovery script now applies; the lab was left running and healthy. No claim is made that this single workstation validation proves general PFCP resilience.
+
 CorePulse is a separate repository. It does not copy or modify the [Open5GS + UERANSIM lab](https://github.com/lazypanic999/open5gs-ueransim-kubernetes).
 
 ## Verified from the lab repository

@@ -1,5 +1,7 @@
 # Validated lab signals (2 November 2026)
 
+For the subsequent successful lab restart, subscriber repair and UPF service reset on 4 November, see [the current integration results](lab-integration.md) and [lab operations](lab-operations.md). The offline state described below is historical.
+
 Read-only checks were run against the `open5gs-lab` context and `open5gs` namespace after the Minikube cluster and essential deployments recovered from a restart. The commands below describe observed sources; they do not imply that Open5GS exposes a Prometheus KPI endpoint.
 
 | Signal | Live observation | Interpretation and limit |

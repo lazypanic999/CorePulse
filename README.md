@@ -65,6 +65,8 @@ The current [run record schema](docs/run-record.md) documents the first fault la
 
 ## Try the first slice
 
+For this Windows/Ubuntu WSL workstation, run `.\scripts\start-lab.ps1` from PowerShell to start and retain the lab session. Use `.\scripts\stop-lab.ps1` to stop it. The [lab operations guide](docs/lab-operations.md) documents repeatable subscriber initialization, logs, and verified service reset via `bash scripts/recover-service.sh`.
+
 Use Go 1.22 or newer, `kubectl`, and the isolated lab from the linked repository. Run CorePulse in the same environment as the `open5gs-lab` Kubernetes context (Ubuntu WSL on this workstation). After the lab's deployment, configure the gNB N3 address, then run the lab's verifier:
 
 ```bash
@@ -141,7 +143,7 @@ These captures were taken from the running Go dashboard on 31 October 2026, conn
 
 ## Next implementation tasks
 
-1. Repair the lab's repeat-start behavior: the `open5gs-populate` init container must tolerate an existing subscriber, and UPF replacement needs a verified service recovery procedure.
+1. Exercise the lab lifecycle and service reset scripts across more independent sessions; local repeat-start initialization and ordered service reset are now available in the [operations guide](docs/lab-operations.md).
 2. Capture repeated clean AMF and UPF fault runs, including the interval after Kubernetes deployment readiness while the UE data path may still be degraded.
 3. Turn the validated registration, session, and PFCP log events into timestamped features, while keeping event history distinct from current packet health.
 4. Add packet loss and latency only after checking image privileges and rollback paths.
