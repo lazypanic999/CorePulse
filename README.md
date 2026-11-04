@@ -21,6 +21,8 @@ CorePulse is an AIOps portfolio project for fault injection and intelligent dete
 
 ## Community
 
+Read the [contribution guide](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md), [security policy](SECURITY.md), and [MIT License](LICENSE). Report vulnerabilities through [private security reporting](https://github.com/lazypanic999/CorePulse/security/advisories/new).
+
 - [Contributor call on DEV](https://dev.to/lazypanic999/a-ready-5g-pod-can-still-drop-packets-corepulse-needs-contributors-30f2) covers the service recovery result and six scoped contribution tasks.
 - [Contributor update on r/SideProject](https://www.reddit.com/r/SideProject/comments/1xn7r2c/corepulse_update_a_5g_lab_failure_led_to_six/) invites feedback and contributions, including two tasks that need no Kubernetes cluster.
 

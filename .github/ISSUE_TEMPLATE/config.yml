@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability privately
+    url: https://github.com/lazypanic999/CorePulse/security/advisories/new
+    about: Send vulnerability details to the maintainer privately instead of posting a public issue.
+  - name: Community expectations and conduct concerns
+    url: https://github.com/lazypanic999/CorePulse/blob/main/CODE_OF_CONDUCT.md
+    about: Read the community policy and how to request a private reporting channel.
