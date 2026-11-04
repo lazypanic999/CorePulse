@@ -2,6 +2,7 @@ package corepulse
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -130,6 +131,12 @@ func RunPodCrash(client Client, target string) (map[string]any, error) {
 
 // RunPodCrashWithObserver invokes a read-only sampler after each fault step.
 func RunPodCrashWithObserver(client Client, target string, observe func()) (map[string]any, error) {
+	return RunPodCrashWithCheckpoint(client, target, observe, nil)
+}
+
+// RunPodCrashWithCheckpoint requires the initial checkpoint to succeed before
+// deletion and persists each completed step before starting the next wait.
+func RunPodCrashWithCheckpoint(client Client, target string, observe func(), checkpoint func(map[string]any) error) (result map[string]any, runErr error) {
 	plan, err := PlanPodCrash(target)
 	if err != nil {
 		return nil, err
@@ -150,28 +157,58 @@ func RunPodCrashWithObserver(client Client, target string, observe func()) (map[
 	if err != nil {
 		return nil, err
 	}
-	result := map[string]any{
+	result = map[string]any{
 		"schema_version": 1, "run_id": id, "fault": "pod_crash", "target": target,
 		"context": context, "namespace": LabNamespace, "pod_deleted": pod,
 		"started_at": time.Now().UTC().Format(time.RFC3339Nano), "ended_at": nil, "status": "recovery_pending",
+		"quality": "excluded", "phase": "prepared",
 	}
-	defer func() { result["ended_at"] = time.Now().UTC().Format(time.RFC3339Nano) }()
+	persist := func() error {
+		if checkpoint == nil {
+			return nil
+		}
+		if err := checkpoint(result); err != nil {
+			return fmt.Errorf("save fault checkpoint: %w", err)
+		}
+		return nil
+	}
+	if err := persist(); err != nil {
+		return result, err
+	}
+	defer func() {
+		result["ended_at"] = time.Now().UTC().Format(time.RFC3339Nano)
+		if runErr != nil {
+			result["status"], result["error"] = "recovery_unverified", runErr.Error()
+		}
+		runErr = errors.Join(runErr, persist())
+	}()
 	// Record any failure after the delete attempt so the caller can persist it.
 	steps := []struct {
+		phase   string
 		timeout time.Duration
 		args    []string
 	}{
-		{30 * time.Second, []string{"delete", "pod/" + pod, "--namespace", LabNamespace, "--wait=false"}},
-		{210 * time.Second, []string{"wait", "--for=delete", "pod/" + pod, "--namespace", LabNamespace, "--timeout=180s"}},
-		{210 * time.Second, []string{"rollout", "status", "deployment/" + deployment, "--namespace", LabNamespace, "--timeout=180s"}},
+		{"delete_requested", 30 * time.Second, []string{"delete", "pod/" + pod, "--namespace", LabNamespace, "--wait=false"}},
+		{"delete_observed", 210 * time.Second, []string{"wait", "--for=delete", "pod/" + pod, "--namespace", LabNamespace, "--timeout=180s"}},
+		{"deployment_available", 210 * time.Second, []string{"rollout", "status", "deployment/" + deployment, "--namespace", LabNamespace, "--timeout=180s"}},
 	}
 	for _, step := range steps {
+		if step.phase == "delete_requested" {
+			result["phase"] = "delete_attempted"
+			if err := persist(); err != nil {
+				return result, err
+			}
+		}
 		if _, err := client.Run(step.timeout, step.args...); err != nil {
 			result["status"], result["error"] = "recovery_unverified", err.Error()
 			return result, nil
 		}
 		if observe != nil {
 			observe()
+		}
+		result["phase"] = step.phase
+		if err := persist(); err != nil {
+			return result, err
 		}
 	}
 	replacement, err := selectedPod(client, deployment)
@@ -183,5 +220,6 @@ func RunPodCrashWithObserver(client Client, target string, observe func()) (map[
 		return result, nil
 	}
 	result["replacement_pod"], result["status"] = replacement, "recovered"
+	result["phase"] = "deployment_recovered"
 	return result, nil
 }
