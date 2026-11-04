@@ -16,19 +16,29 @@ type Client interface {
 	GetJSON(args ...string) (map[string]any, error)
 }
 
-type Kubectl struct{ Binary string }
+type Kubectl struct {
+	Binary  string
+	Context context.Context
+}
 
 func (k Kubectl) Run(timeout time.Duration, args ...string) (string, error) {
 	binary := k.Binary
 	if binary == "" {
 		binary = "kubectl"
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	parent := k.Context
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binary, args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	err := cmd.Run()
+	if parent.Err() != nil {
+		return "", parent.Err()
+	}
 	if ctx.Err() == context.DeadlineExceeded {
 		return "", fmt.Errorf("kubectl timed out: %s", strings.Join(args, " "))
 	}

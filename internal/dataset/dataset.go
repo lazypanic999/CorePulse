@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/lazypanic999/CorePulse/internal/corepulse"
+	"github.com/lazypanic999/CorePulse/internal/runrecord"
 	"github.com/lazypanic999/CorePulse/internal/telemetry"
 )
 
@@ -46,7 +47,7 @@ func loadRuns(dir string) ([]Run, error) {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+		data, err := runrecord.Read(filepath.Join(dir, entry.Name()))
 		if err != nil {
 			return nil, err
 		}

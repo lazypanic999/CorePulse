@@ -5,12 +5,59 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/lazypanic999/CorePulse/internal/telemetry"
 )
+
+type checkpointClient struct{ deletes int }
+
+func (c *checkpointClient) Run(_ time.Duration, args ...string) (string, error) {
+	switch args[0] {
+	case "config":
+		return "open5gs-lab", nil
+	case "exec":
+		return "2 packets transmitted, 2 received", nil
+	case "delete":
+		c.deletes++
+	}
+	return "", nil
+}
+
+func (c *checkpointClient) GetJSON(args ...string) (map[string]any, error) {
+	if strings.HasPrefix(args[1], "deployment/") {
+		name := strings.TrimPrefix(args[1], "deployment/")
+		return map[string]any{"spec": map[string]any{"replicas": 1, "selector": map[string]any{"matchLabels": map[string]any{"app": name}}}, "status": map[string]any{"readyReplicas": 1}}, nil
+	}
+	selector := args[len(args)-1]
+	name := strings.TrimPrefix(selector, "app=")
+	if selector == "app=ueransim,component=ue" {
+		name = "ueransim-ue"
+	}
+	return map[string]any{"items": []any{map[string]any{
+		"metadata": map[string]any{"name": name + "-abc-pod", "ownerReferences": []any{map[string]any{"kind": "ReplicaSet", "name": name + "-abc"}}},
+		"status":   map[string]any{"phase": "Running", "conditions": []any{map[string]any{"type": "Ready", "status": "True"}}},
+	}}}, nil
+}
+
+func TestDashboardDoesNotDeleteWhenCheckpointCannotBeSaved(t *testing.T) {
+	blocked := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(blocked, []byte("keep"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	c := &checkpointClient{}
+	r := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8787/api/experiments/pod-crash", strings.NewReader(`{"target":"amf","confirm":"DELETE_ONE_LAB_POD"}`))
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	New(c, blocked).ServeHTTP(w, r)
+	if w.Code != http.StatusInternalServerError || c.deletes != 0 || !strings.Contains(w.Body.String(), "save fault checkpoint") {
+		t.Fatalf("status=%d deletes=%d body=%s", w.Code, c.deletes, w.Body.String())
+	}
+}
 
 type unavailableClient struct{ actions int }
 
