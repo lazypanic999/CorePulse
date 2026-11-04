@@ -68,7 +68,7 @@ func TestServiceObservationCheckpointsRemainExcludedUntilComplete(t *testing.T) 
 		}
 		return nil
 	}, func(time.Duration) {})
-	if err != nil || checkpoints != 4 || r["quality"] != "clean" || r["phase"] != "completed" || r["service_recovery"].(Recovery).Status != "service_recovered" {
+	if err != nil || checkpoints != 6 || r["quality"] != "clean" || r["phase"] != "completed" || r["service_recovery"].(Recovery).Status != "service_recovered" {
 		t.Fatalf("unexpected completion: %v checkpoints=%d err=%v", r, checkpoints, err)
 	}
 }
@@ -81,7 +81,7 @@ func TestServiceCheckpointFailureStopsFurtherProbes(t *testing.T) {
 	}, func(time.Duration) { t.Fatal("wait after failed checkpoint") }, func() { captures++ }, func(Recovery) error {
 		return errors.New("disk full")
 	})
-	if err == nil || probes != 1 || captures != 1 || len(r.Probes) != 1 {
+	if err == nil || probes != 1 || captures != 0 || len(r.Probes) != 1 {
 		t.Fatalf("lost probe or continued after failure: %+v %v", r, err)
 	}
 }

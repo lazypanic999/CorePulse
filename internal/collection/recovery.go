@@ -108,6 +108,10 @@ func watchRecoveryWithCheckpoint(probe func() (corepulse.ServiceProbe, error), w
 			p.Status, p.Detail = "unavailable", err.Error()
 		}
 		r.Probes = append(r.Probes, p)
+		// Keep the probe even if the following metrics command is interrupted.
+		if err := checkpoint(r); err != nil {
+			return r, err
+		}
 		capture()
 		if err := checkpoint(r); err != nil {
 			return r, err

@@ -203,12 +203,15 @@ func RunPodCrashWithCheckpoint(client Client, target string, observe func(), che
 			result["status"], result["error"] = "recovery_unverified", err.Error()
 			return result, nil
 		}
-		if observe != nil {
-			observe()
-		}
 		result["phase"] = step.phase
 		if err := persist(); err != nil {
 			return result, err
+		}
+		if observe != nil {
+			observe()
+			if err := persist(); err != nil {
+				return result, err
+			}
 		}
 	}
 	replacement, err := selectedPod(client, deployment)

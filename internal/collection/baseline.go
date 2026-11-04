@@ -39,7 +39,7 @@ func runID() (string, error) {
 }
 
 // Baseline records an untouched lab interval. Every sample must have a healthy
-// UE-to-UPF probe and the same ready AMF/UPF pods; otherwise it is unverified.
+// UE-to-UPF probe and the same ready essential lab pods; otherwise it is unverified.
 func Baseline(client corepulse.Client, store *telemetry.Store, runsDir string, samples int, interval time.Duration) (BaselineRecord, error) {
 	return BaselineContext(context.Background(), client, store, runsDir, samples, interval)
 }
