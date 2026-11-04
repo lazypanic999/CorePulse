@@ -21,3 +21,17 @@ New pod-crash runs require a healthy pre-fault probe and ready essential workloa
 On 2 November 2026, the local lab produced three verified normal runs (four samples each) and one reviewed UPF fault run (three samples). The curated CSV contains 12 normal and 3 fault rows; 560 historical or unscoped raw rows were excluded. These local files are Git-ignored. Four runs are far too few for a trustworthy model evaluation, and the fault interval does not include the full period of degraded service after deployment readiness.
 
 The metrics API may lag pod creation or deletion, and missing pods do not mean zero resource use. Samples remain raw and append-only; the CSV is reproducible from raw samples and run records. No model accuracy claim should be made from the first demonstration run.
+
+## Missing component metrics in CSV
+
+`amf_cpu_millicores`, `amf_memory_bytes`, `upf_cpu_millicores` and `upf_memory_bytes`
+are nullable numeric fields. When a sample has no reporting pod for a component, both of its
+fields are empty. A reporting pod with zero usage produces `0.000` for CPU and `0` for memory.
+Usage is summed across reporting pod names with the component prefix, including replacement pods.
+Presence refers to the metrics sample and can lag the actual pod lifecycle.
+
+CSV consumers should parse an empty cell as missing. Consumers that require numeric values must
+choose an explicit missing-data policy before training or aggregation. Older exports wrote zeros
+for missing components, so rebuild them from the raw JSONL and run records to recover the
+distinction. The export uses the existing column names and order and continues to group rows by
+`run_id` within clean, provenance-checked run intervals.
