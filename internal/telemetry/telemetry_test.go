@@ -1,8 +1,10 @@
 package telemetry
 
 import (
+	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -37,6 +39,94 @@ func TestCaptureResourceMetrics(t *testing.T) {
 func TestWrongContextRejectsMetrics(t *testing.T) {
 	if _, err := Capture(fakeClient{context: "production"}); err == nil {
 		t.Fatal("expected wrong-context error")
+	}
+}
+
+func TestCPUMilliRejectsInvalidQuantities(t *testing.T) {
+	cases := []struct {
+		in      string
+		wantErr string
+	}{
+		{"-1", "negative"},
+		{"-25m", "negative"},
+		{"NaN", "non-finite"},
+		{"Inf", "non-finite"},
+		{"+Inf", "non-finite"},
+		{"-Inf", "non-finite"},
+	}
+	for _, tc := range cases {
+		_, err := cpuMilli(tc.in)
+		if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+			t.Fatalf("cpuMilli(%q) = %v, want error containing %q", tc.in, err, tc.wantErr)
+		}
+	}
+}
+
+func TestMemoryBytesRejectsInvalidQuantities(t *testing.T) {
+	cases := []struct {
+		in      string
+		wantErr string
+	}{
+		{"-1Ki", "negative"},
+		{"-32Mi", "negative"},
+		{"NaNMi", "non-finite"},
+		{"InfGi", "non-finite"},
+		// Finite but larger than MaxInt64 after scaling.
+		{"1e20Ti", "overflow"},
+		{"9000000000000Mi", "overflow"},
+		// Exactly 2^63 bytes: equal to float64(math.MaxInt64) but not representable.
+		{"8388608Ti", "overflow"},
+		{"9223372036854775808", "overflow"},
+		{"8796093022208Mi", "overflow"},
+		// math.MaxInt64 itself parses to the same float64 (2^63), so it is
+		// rejected too; float64 cannot tell it apart from 2^63.
+		{"9223372036854775807", "overflow"},
+	}
+	for _, tc := range cases {
+		_, err := memoryBytes(tc.in)
+		if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+			t.Fatalf("memoryBytes(%q) = %v, want error containing %q", tc.in, err, tc.wantErr)
+		}
+	}
+}
+
+func TestResourceQuantitiesAcceptValidUnits(t *testing.T) {
+	cpuCases := []struct {
+		in   string
+		want float64
+	}{
+		{"125000000n", 125}, // n → millicores via 1e-6
+		{"25m", 25},
+		{"1", 1000},
+		{"0", 0},
+		{"0.5", 500},
+	}
+	for _, tc := range cpuCases {
+		got, err := cpuMilli(tc.in)
+		if err != nil {
+			t.Fatalf("cpuMilli(%q): %v", tc.in, err)
+		}
+		if math.Abs(got-tc.want) > 1e-9 {
+			t.Fatalf("cpuMilli(%q) = %v, want %v", tc.in, got, tc.want)
+		}
+	}
+	memCases := []struct {
+		in   string
+		want int64
+	}{
+		{"32Mi", 32 * 1024 * 1024},
+		{"1024Ki", 1024 * 1024},
+		{"1Gi", 1024 * 1024 * 1024},
+		{"1000", 1000},
+	}
+	for _, tc := range memCases {
+		got, err := memoryBytes(tc.in)
+		if err != nil {
+			t.Fatalf("memoryBytes(%q): %v", tc.in, err)
+		}
+		if got != tc.want {
+			t.Fatalf("memoryBytes(%q) = %v, want %v", tc.in, got, tc.want)
+		}
 	}
 }
 
