@@ -150,6 +150,9 @@ func memoryBytes(value string) (int64, error) {
 		return 0, err
 	}
 	// float64(math.MaxInt64) rounds up to 2^63, which itself overflows int64.
+	// Values at or above it, including an exact MaxInt64 input that parses to
+	// the same float64, are rejected. The largest accepted float64 is
+	// 2^63-1024, far beyond any real pod memory reading.
 	if n >= float64(math.MaxInt64) {
 		return 0, fmt.Errorf("quantity %q overflows int64 bytes", value)
 	}
