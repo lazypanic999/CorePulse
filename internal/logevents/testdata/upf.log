@@ -1,0 +1,9 @@
+Open5GS daemon v2.7.5
+11/02 10:15:20.500: [upf] INFO: PFCP associated [10.244.0.12]:8805 (../src/upf/pfcp-sm.c:184)
+11/02 10:18:02.010: [upf] WARNING: No Heartbeat from SMF [10.244.0.12]:8805 (../src/upf/pfcp-sm.c:330)
+11/02 10:18:02.011: [upf] INFO: PFCP de-associated [10.244.0.12]:8805 (../src/upf/pfcp-sm.c:197)
+11/02 10:18:40.700: [upf] INFO: PFCP associated [10.244.0.15]:8805 (../src/upf/pfcp-sm.c:184)
+11/02 10:18:41.000: [upf] INFO: [Added] Number of UPF-Sessions is now 1 (../src/upf/context.c:208)
+11/02 25:00:00.000: [upf] INFO: PFCP associated (../src/upf/pfcp-sm.c:184)
+11/02 10:19: [upf] broken
+11/02 10:19:00.000: [amf] INFO: PFCP associated (wrong component for this marker)

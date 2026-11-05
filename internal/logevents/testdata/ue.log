@@ -1,0 +1,13 @@
+UERANSIM v3.2.6
+[2026-11-02 10:15:30.101] [nas] [info] UE switches to state [MM-DEREGISTERED/PLMN-SEARCH]
+[2026-11-02 10:15:30.250] [nas] [error] Initial Registration failed [PLMN_NOT_ALLOWED]
+[2026-11-02 10:15:31.004] [nas] [info] Initial Registration is successful
+[2026-11-02 10:15:31.004] [nas] [info] Initial Registration is successful
+[2026-11-02 10:15:31.320] [nas] [error] PDU Session Establishment Reject received [INSUFFICIENT_RESOURCES]
+[2026-11-02 10:15:32.410] [nas] [info] PDU Session establishment is successful PSI[1]
+[2026-11-02 10:15:32.415] [app] [info] Connection setup for PDU session[1] is successful, TUN interface[uesimtun0, 10.45.0.2] is up.
+[2026-13-02 10:15:33.000] [nas] [info] Initial Registration is successful
+[2026-11-02 10:15] [nas] truncated line
+
+[2026-11-02 10:20:00.000] [nas] [info] Initial Registration is successful
+[32m[2026-11-02 10:21:00.000] [nas] [info] Initial Registration is successful[0m
