@@ -37,3 +37,25 @@ choose an explicit missing-data policy before training or aggregation. Older exp
 for missing components, so rebuild them from the raw JSONL and run records to recover the
 distinction. The export uses the existing column names and order and continues to group rows by
 `run_id` within clean, provenance-checked run intervals.
+
+## Timestamped protocol log events
+
+`internal/logevents` parses UERANSIM UE logs and Open5GS SMF/UPF logs into structured events with a UTC timestamp, component, event kind, 1-based line number, and source provenance (pod, container, log format). It is a pure parser and is not yet wired into `signals`, telemetry, or the CSV.
+
+| Kind | Component | Marker | Observed in this lab |
+| --- | --- | --- | --- |
+| `registration_success` | UE | `Registration is successful` | Yes |
+| `registration_failure` | UE | `Registration failed` / `Registration reject` | Not yet |
+| `pdu_session_success` | UE | `PDU Session establishment is successful` | Yes |
+| `pdu_session_failure` | UE | `PDU Session Establishment ... reject/fail` | Not yet |
+| `pfcp_associated` | SMF, UPF | `PFCP associated` | Yes (UPF) |
+| `pfcp_deassociated` | SMF, UPF | `PFCP de-associated` | Not yet |
+| `pfcp_heartbeat_timeout` | SMF, UPF | `No Heartbeat from UPF/SMF` | Not yet |
+
+Each event carries `marker_observed_live`. Markers marked "not yet" follow upstream log text and must be confirmed against the pinned lab images before they are used as features.
+
+Time handling is explicit. Neither format includes a zone, so the caller must pass the zone the container wrote in; the parser never uses the host's local zone. Open5GS timestamps also omit the year: the caller passes the collection time, and an event more than one day after it is assigned to the previous year. ANSI color escapes and CRLF endings are removed before parsing. Lines that start like a timestamp but do not parse are reported in `skipped` with a reason and no message text, so subscriber identifiers are not copied. Other lines, such as banners, are ignored.
+
+Each matching line is one event, so repeated real events can be counted. `Dedupe` removes events that recur only because two log reads overlapped, using timestamp, component, kind, pod, and container.
+
+The result has no health field. It reports `timestamped_lines` and the covered time `window`; a missing event means only that the marker did not appear in that window. It does not mean the service was healthy or that the failure rate was zero. The fixtures in `internal/logevents/testdata` are synthetic and contain no subscriber identifiers.
