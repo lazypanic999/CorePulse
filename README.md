@@ -29,7 +29,7 @@ Read the [contribution guide](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUC
 - [DEV project introduction](https://dev.to/lazypanic999/building-corepulse-a-guarded-5g-core-fault-lab-in-go-4bpf) explains the guarded experiment, live measurements, and current limits.
 - [r/devops discussion](https://www.reddit.com/r/devops/comments/1xfq7qc/comment/19rzowqvsxmx0/) asks which signal to collect next to distinguish AMF from UPF trouble.
 
-[![CorePulse liquid glass dashboard connected to the live lab](assets/dashboard-glass-desktop.png)](#interface-captures)
+[![CorePulse dashboard (previous design) connected to the live lab](assets/dashboard-glass-desktop.png)](#interface-captures)
 
 ## Goal
 
@@ -116,19 +116,19 @@ Start the Go server and open `http://127.0.0.1:8787`:
 go run ./cmd/corepulse serve
 ```
 
-The liquid glass dashboard binds to loopback only. It shows a **preview** state when `kubectl` cannot reach the lab; reference topology is labeled as such, and the run button stays disabled. A connected lab shows observed workloads and real pod resource metrics when metrics-server is available. The experiment control requires the `open5gs-lab` context and all four expected demo workloads ready; the server repeats context, ownership, and target readiness checks before deleting one pod. Run records go under ignored `runs/`. The chart is resource telemetry, not a model prediction.
+The dashboard binds to loopback only and loads no external fonts or scripts. Its main view is the service path: each network function shows its pod readiness, and a separate bar under UE, gNB, and UPF shows the latest UE-to-UPF packet check, so a ready pod with a failing path is visible at a glance. Without a reachable lab it says so, shows the expected layout as not observed, and keeps the run button disabled. The run button lists its checks: the `open5gs-lab` context, the target deployment at 1/1 ready, all four demo workloads ready, and a passing packet check. The server repeats context, ownership, readiness, and packet checks before deleting one pod. Run records go under ignored `runs/`. The chart is resource telemetry, not a model prediction.
 
 ### Interface captures
 
-These captures were taken from the running Go dashboard on 31 October 2026, connected to the local Open5GS lab. The charts display observed Kubernetes resource metrics, the topology card shows a live UE-to-UPF gateway probe, and the run history displays a recorded AMF experiment. They do not represent model predictions.
+These captures show the **previous design**. New captures will be taken from a live lab session. They were taken from the running Go dashboard on 31 October 2026, connected to the local Open5GS lab. The charts display observed Kubernetes resource metrics, the topology card shows a live UE-to-UPF gateway probe, and the run history displays a recorded AMF experiment. They do not represent model predictions.
 
 **Desktop**
 
-![CorePulse liquid glass dashboard on desktop](assets/dashboard-glass-desktop.png)
+![CorePulse previous dashboard design on desktop](assets/dashboard-glass-desktop.png)
 
 **Narrow layout**
 
-![CorePulse liquid glass dashboard on a narrow screen](assets/dashboard-glass-mobile-full.png)
+![CorePulse previous dashboard design on a narrow screen](assets/dashboard-glass-mobile-full.png)
 
 ## Initial scope
 
