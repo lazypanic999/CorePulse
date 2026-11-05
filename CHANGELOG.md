@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Shared CLI/dashboard fault checkpoints before mutation and throughout recovery, with complete JSON replacement and excluded pending records.
+- Cancellable baseline waits and kubectl commands; interrupted intervals retain their evidence and stay out of curated training data.
+- Missing AMF/UPF measurements export as empty CSV fields while observed zero remains numeric (community contribution #8).
 - Liquid glass desktop and narrow-screen dashboard with updated live captures.
 - Read-only UE-to-UPF gateway probe in the CLI, dashboard, and new experiment records.
 

@@ -9,7 +9,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/lazypanic999/CorePulse/internal/collection"
@@ -76,6 +78,9 @@ func run(args []string) (int, error) {
 		fmt.Println(version)
 		return 0, nil
 	case "baseline":
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		client := corepulse.Kubectl{Context: ctx}
 		flags := flag.NewFlagSet("baseline", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)
 		runs := flags.Int("runs", 3, "number of separate verified baseline runs")
@@ -92,11 +97,14 @@ func run(args []string) (int, error) {
 		}
 		store := telemetry.NewStore(*telemetryPath)
 		for i := 0; i < *runs; i++ {
-			record, err := collection.Baseline(client, store, *runsDir, *samples, *interval)
+			record, err := collection.BaselineContext(ctx, client, store, *runsDir, *samples, *interval)
 			if record.RunID != "" {
 				_ = printJSON(record)
 			}
 			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					return 130, err
+				}
 				return 1, err
 			}
 		}
@@ -210,21 +218,11 @@ func run(args []string) (int, error) {
 			return 1, fmt.Errorf("fault run requires ready essential workloads: %w", err)
 		}
 		store := telemetry.NewStore(filepath.Join("data", "telemetry.jsonl"))
-		observed := 0
-		result, err := corepulse.RunPodCrashWithObserver(client, *target, func() {
-			if store.Capture(client) == nil {
-				observed++
-			}
-		})
+		result, err := collection.RunFault(client, *target, *runsDir, preProbe, func() error { return store.Capture(client) })
 		if err != nil {
 			return 1, err
 		}
-		result["pre_service_probe"] = preProbe
-		collection.FinishFault(client, result, observed, func() error { return store.Capture(client) })
 		path := filepath.Join(*runsDir, result["run_id"].(string)+".json")
-		if err := saveJSON(path, result); err != nil {
-			return 1, err
-		}
 		result["run_record"] = path
 		if err := printJSON(result); err != nil {
 			return 1, err

@@ -1,11 +1,67 @@
 package corepulse
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestCheckpointFailureBeforeDeleteNeverMutates(t *testing.T) {
+	f := newFake()
+	_, err := RunPodCrashWithCheckpoint(f, "amf", nil, func(map[string]any) error {
+		return errors.New("disk full")
+	})
+	if err == nil || containsAction(f.commands, "delete") {
+		t.Fatalf("err=%v, commands=%v", err, f.commands)
+	}
+}
+
+func TestFaultCheckpointExistsBeforeEachBlockingStep(t *testing.T) {
+	f := newFake()
+	lastPhase := ""
+	_, err := RunPodCrashWithCheckpoint(f, "amf", nil, func(r map[string]any) error {
+		phase := r["phase"].(string)
+		if r["quality"] != "excluded" {
+			t.Fatalf("unfinished run marked clean: %v", r)
+		}
+		if phase == "prepared" && containsAction(f.commands, "delete") {
+			t.Fatal("initial checkpoint was too late")
+		}
+		if phase == "delete_requested" {
+			if !containsAction(f.commands, "delete") || containsAction(f.commands, "wait") {
+				t.Fatal("delete checkpoint was not saved before wait")
+			}
+		}
+		lastPhase = phase
+		return nil
+	})
+	if err != nil || lastPhase != "deployment_recovered" {
+		t.Fatalf("phase=%s err=%v", lastPhase, err)
+	}
+}
+
+func TestCheckpointFailureAfterDeleteStopsLifecycle(t *testing.T) {
+	f := newFake()
+	var saved map[string]any
+	_, err := RunPodCrashWithCheckpoint(f, "amf", nil, func(r map[string]any) error {
+		if r["phase"] == "delete_requested" {
+			return errors.New("disk full after deletion")
+		}
+		saved = make(map[string]any)
+		for k, v := range r {
+			saved[k] = v
+		}
+		return nil
+	})
+	if err == nil || !containsAction(f.commands, "delete") || containsAction(f.commands, "wait") {
+		t.Fatalf("err=%v commands=%v", err, f.commands)
+	}
+	if saved["phase"] != "delete_attempted" || saved["status"] != "recovery_pending" || saved["quality"] != "excluded" {
+		t.Fatalf("last readable checkpoint was lost: %v", saved)
+	}
+}
 
 type fakeKubectl struct {
 	context      string

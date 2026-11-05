@@ -1,14 +1,15 @@
 package collection
 
 import (
+	"context"
 	"crypto/rand"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/lazypanic999/CorePulse/internal/corepulse"
+	"github.com/lazypanic999/CorePulse/internal/runrecord"
 	"github.com/lazypanic999/CorePulse/internal/telemetry"
 )
 
@@ -38,8 +39,21 @@ func runID() (string, error) {
 }
 
 // Baseline records an untouched lab interval. Every sample must have a healthy
-// UE-to-UPF probe and the same ready AMF/UPF pods; otherwise it is unverified.
+// UE-to-UPF probe and the same ready essential lab pods; otherwise it is unverified.
 func Baseline(client corepulse.Client, store *telemetry.Store, runsDir string, samples int, interval time.Duration) (BaselineRecord, error) {
+	return BaselineContext(context.Background(), client, store, runsDir, samples, interval)
+}
+
+// BaselineContext retains an excluded record on cancellation. Clients performing
+// blocking I/O should also use ctx (the CLI supplies a context-bound Kubectl).
+func BaselineContext(ctx context.Context, client corepulse.Client, store *telemetry.Store, runsDir string, samples int, interval time.Duration) (record BaselineRecord, runErr error) {
+	return baseline(ctx, client, store, runsDir, samples, interval, waitContext)
+}
+
+func baseline(ctx context.Context, client corepulse.Client, store *telemetry.Store, runsDir string, samples int, interval time.Duration, wait func(context.Context, time.Duration) error) (record BaselineRecord, runErr error) {
+	if err := ctx.Err(); err != nil {
+		return record, err
+	}
 	if samples < 2 || interval < time.Second {
 		return BaselineRecord{}, fmt.Errorf("baseline needs at least two samples and an interval of at least one second")
 	}
@@ -47,7 +61,7 @@ func Baseline(client corepulse.Client, store *telemetry.Store, runsDir string, s
 	if err != nil {
 		return BaselineRecord{}, err
 	}
-	record := BaselineRecord{SchemaVersion: 1, RunID: id, Fault: "normal", Context: corepulse.LabContext, Namespace: corepulse.LabNamespace, Status: "unverified", Quality: "excluded", ServiceProbes: []corepulse.ServiceProbe{}}
+	record = BaselineRecord{SchemaVersion: 1, RunID: id, Fault: "normal", Context: corepulse.LabContext, Namespace: corepulse.LabNamespace, Status: "unverified", Quality: "excluded", ServiceProbes: []corepulse.ServiceProbe{}}
 	contextName, err := client.Run(10*time.Second, "config", "current-context")
 	if err != nil {
 		return record, err
@@ -67,9 +81,26 @@ func Baseline(client corepulse.Client, store *telemetry.Store, runsDir string, s
 		return record, fmt.Errorf("baseline requires a healthy UE-to-UPF probe: %s", probe.Detail)
 	}
 	record.StartedAt = time.Now().UTC()
+	path := filepath.Join(runsDir, record.RunID+".json")
+	if err := runrecord.Save(path, record); err != nil {
+		return record, err
+	}
+	defer func() {
+		record.EndedAt = time.Now().UTC()
+		if runErr != nil {
+			record.Error = runErr.Error()
+			record.Status, record.Quality = "unverified", "excluded"
+		}
+		runErr = errors.Join(runErr, runrecord.Save(path, record))
+	}()
 	for i := 0; i < samples; i++ {
 		if i > 0 {
-			time.Sleep(interval)
+			if err := wait(ctx, interval); err != nil {
+				return record, err
+			}
+		}
+		if err := ctx.Err(); err != nil {
+			return record, err
 		}
 		if err := store.Capture(client); err != nil {
 			record.Error = err.Error()
@@ -118,13 +149,18 @@ func Baseline(client corepulse.Client, store *telemetry.Store, runsDir string, s
 		if record.Error != "" {
 			break
 		}
+		if err := ctx.Err(); err != nil {
+			return record, err
+		}
+		if err := runrecord.Save(path, record); err != nil {
+			return record, err
+		}
 	}
-	record.EndedAt = time.Now().UTC()
+	if err := ctx.Err(); err != nil {
+		return record, err
+	}
 	if record.Error == "" && record.Samples == samples {
 		record.Status, record.Quality = "verified", "clean"
-	}
-	if err := save(filepath.Join(runsDir, record.RunID+".json"), record); err != nil {
-		return record, err
 	}
 	if record.Error != "" {
 		return record, fmt.Errorf("baseline unverified: %s", record.Error)
@@ -132,13 +168,13 @@ func Baseline(client corepulse.Client, store *telemetry.Store, runsDir string, s
 	return record, nil
 }
 
-func save(path string, value any) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return err
+func waitContext(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
 	}
-	data, err := json.MarshalIndent(value, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, append(data, '\n'), 0644)
 }
