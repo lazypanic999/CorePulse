@@ -11,6 +11,73 @@ Fork the repository, create a focused branch and link the issue in your pull req
 
 Check that an issue is still open and read its linked pull requests before starting. Durable checkpoints, cancellable baselines, and missing-metric CSV handling have already been implemented.
 
+## Quickstart without a Kubernetes lab
+
+You can build, test, and preview CorePulse without Open5GS, UERANSIM, or a cluster. Live fault experiments are covered separately in [lab operations](docs/lab-operations.md).
+
+### Prerequisites
+
+- Go 1.22 or newer (the version in `go.mod`).
+- Git.
+- `kubectl` is optional. Without it, or without a reachable `open5gs-lab` context, lab commands fail with an explicit error and the dashboard stays in preview mode.
+
+### Build and test
+
+```bash
+git clone https://github.com/<your-account>/CorePulse.git
+cd CorePulse
+go build -o corepulse ./cmd/corepulse
+./corepulse version
+go test ./...
+go vet ./...
+```
+
+`go test ./...` uses in-memory fakes and small fixtures only. It never contacts Kubernetes. Builds from source print `dev` for `version`.
+
+### Commands that work offline
+
+```bash
+./corepulse pod-crash --target amf
+./corepulse discover --snapshot examples/discovery-snapshot.json
+./corepulse dataset --telemetry <empty.jsonl> --runs-dir <empty-dir> --output <out.csv>
+```
+
+- `pod-crash` without `--apply` only prints a dry-run plan. It never deletes anything.
+- `discover --snapshot` analyzes a saved Kubernetes `List` instead of calling `kubectl`. The example file is synthetic. Annotation candidates are reported with `"verified": false`; no metric is claimed.
+- `dataset` with an empty telemetry file and empty run directory writes a CSV header and a zero summary. It reports an error if the telemetry file does not exist.
+
+`signals`, `verify-service`, `baseline`, and `pod-crash --apply` need the live lab and exit unsuccessfully without it.
+
+### Dashboard preview
+
+```bash
+./corepulse serve
+```
+
+Open `http://127.0.0.1:8787`. The server only binds to loopback addresses and refuses others such as `0.0.0.0`. Without a reachable lab, `/api/overview` returns `"mode": "preview"` with the message *Kubernetes lab is unavailable*, the page shows **Lab offline · preview mode**, reference topology is labeled as such, and the run control stays disabled. No telemetry or predictions are invented. The server also periodically tries to sample pod metrics; those attempts fail harmlessly while offline.
+
+### Package map
+
+| Path | Responsibility |
+| --- | --- |
+| `cmd/corepulse` | CLI entry point and flag parsing for every command |
+| `internal/corepulse` | `kubectl` client, lab discovery, signal checks, UE-to-UPF probe, guarded pod-crash fault |
+| `internal/collection` | Baseline runs, fault lifecycle, checkpoints, and service recovery observation |
+| `internal/telemetry` | `metrics.k8s.io` parsing, resource quantity validation, JSONL sample store |
+| `internal/dataset` | Curated CSV built only from verified run intervals |
+| `internal/runrecord` | Atomic run record writes |
+| `internal/dashboard` | Loopback HTTP API and the embedded web UI in `web/` |
+
+### Areas you can change with fixtures alone
+
+- **Resource quantity parsing** (`internal/telemetry`): CPU/memory unit handling and validation, tested with string inputs.
+- **Dataset labeling and CSV export** (`internal/dataset`): run interval filtering, exclusion counts, and missing-value handling, tested with temporary JSONL and run record files.
+- **Discovery analysis** (`internal/corepulse`): `AnalyzeSnapshot` on synthetic Kubernetes lists like `examples/discovery-snapshot.json`.
+- **Dashboard API and UI** (`internal/dashboard`): handlers are tested with a fake client; the preview state can be checked in a browser.
+- **Protocol log parsing** ([#6](https://github.com/lazypanic999/CorePulse/issues/6)): a pure parser tested against small anonymized log fixtures.
+
+Never commit real kubeconfigs, credentials, subscriber identifiers, raw telemetry, or run records as fixtures. Use synthetic or anonymized data.
+
 ## Community and reporting
 
 Follow the [Code of Conduct](CODE_OF_CONDUCT.md) in project spaces. Use the issue templates for reproducible bugs and scoped feature proposals. Report vulnerabilities through the private process in [SECURITY.md](SECURITY.md), rather than including exploit details in a public issue.
