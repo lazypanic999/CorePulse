@@ -140,6 +140,8 @@ These captures were taken from the running Go dashboard on 31 October 2026, conn
 
 ## Roadmap
 
+The detailed, milestone-level plan with current status and linked issues is in [docs/ROADMAP.md](docs/ROADMAP.md).
+
 | Phase | Deliverable | Acceptance criterion |
 | --- | --- | --- |
 | 0. Discovery | Lab inventory and metric list | Namespaces, services, pods, and scrape targets verified |
