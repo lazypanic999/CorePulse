@@ -1,0 +1,26 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "kind": "Deployment",
+      "metadata": { "name": "open5gs-amf" },
+      "spec": { "replicas": 1 },
+      "status": { "readyReplicas": 1 }
+    },
+    {
+      "kind": "Deployment",
+      "metadata": { "name": "open5gs-upf" },
+      "spec": { "replicas": 1 },
+      "status": { "readyReplicas": 0 }
+    },
+    {
+      "kind": "Service",
+      "metadata": {
+        "name": "example-metrics",
+        "annotations": { "prometheus.io/scrape": "true", "prometheus.io/port": "9090" }
+      },
+      "spec": { "ports": [ { "port": 9090 } ] }
+    }
+  ]
+}
