@@ -74,6 +74,8 @@ func TestMemoryBytesRejectsInvalidQuantities(t *testing.T) {
 		// Finite but larger than MaxInt64 after scaling.
 		{"1e20Ti", "overflow"},
 		{"9000000000000Mi", "overflow"},
+		// Exactly 2^63 bytes: equal to float64(math.MaxInt64) but not representable.
+		{"8388608Ti", "overflow"},
 	}
 	for _, tc := range cases {
 		_, err := memoryBytes(tc.in)
