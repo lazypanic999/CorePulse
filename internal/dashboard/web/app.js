@@ -121,17 +121,32 @@ async function refreshOverview() {
   }
 }
 
-function runOutcome(run) {
-  const deployment = run.status === 'recovered'
-    ? { text: 'Yes', tone: 'good' }
-    : run.status === 'recovery_pending' ? { text: 'Pending', tone: 'partial' } : { text: 'Not verified', tone: 'bad' };
+function packetOutcome(run) {
+  // Baselines keep every probe; newer fault runs keep a recovery series;
+  // older fault runs only kept the final probe.
+  if (Array.isArray(run.service_probes) && run.service_probes.length) {
+    return run.service_probes.every((probe) => probe.status === 'healthy')
+      ? { text: 'Delivered', tone: 'good' } : { text: 'Failing', tone: 'bad' };
+  }
   const service = run.service_recovery?.status;
-  const packets = service === 'service_recovered'
-    ? { text: 'Delivered', tone: 'good' }
-    : service === 'service_degraded' ? { text: 'Failing', tone: 'bad' }
-      : service ? { text: 'Not verified', tone: 'partial' } : { text: 'Not recorded', tone: '' };
+  if (service === 'service_recovered') return { text: 'Delivered', tone: 'good' };
+  if (service === 'service_degraded') return { text: 'Failing', tone: 'bad' };
+  if (service) return { text: 'Not verified', tone: 'partial' };
+  const probe = run.service_probe?.status;
+  if (probe === 'healthy') return { text: 'Delivered', tone: 'good' };
+  if (probe === 'degraded') return { text: 'Failing', tone: 'bad' };
+  return { text: 'Not recorded', tone: '' };
+}
+
+function runOutcome(run) {
+  const baseline = run.fault === 'normal';
+  const deployment = baseline
+    ? { text: 'No fault', tone: '' }
+    : run.status === 'recovered'
+      ? { text: 'Yes', tone: 'good' }
+      : run.status === 'recovery_pending' ? { text: 'Pending', tone: 'partial' } : { text: 'Not verified', tone: 'bad' };
   const quality = run.quality === 'clean' ? { text: 'Included', tone: 'good' } : { text: 'Excluded', tone: '' };
-  return { deployment, packets, quality };
+  return { target: baseline ? 'Baseline' : String(run.target || '').toUpperCase(), deployment, packets: packetOutcome(run), quality };
 }
 
 function cell(row, text, className, tone) {
@@ -163,7 +178,7 @@ async function refreshRuns() {
     const row = document.createElement('tr');
     const outcome = runOutcome(run);
     cell(row, displayTime(run.started_at));
-    cell(row, String(run.target || '').toUpperCase(), 'target-cell');
+    cell(row, outcome.target, 'target-cell');
     cell(row, outcome.deployment.text, '', outcome.deployment.tone);
     cell(row, outcome.packets.text, '', outcome.packets.tone);
     cell(row, outcome.quality.text, '', outcome.quality.tone);
