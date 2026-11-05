@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Dashboard redesign: the service path diagram shows pod readiness and the UE-to-UPF packet check separately, the run control lists its safety checks, runs appear in a table, and kubectl errors are summarized with the raw output on request. No external assets; the glass theme and marketing hero are removed.
 - Shared CLI/dashboard fault checkpoints before mutation and throughout recovery, with complete JSON replacement and excluded pending records.
 - Cancellable baseline waits and kubectl commands; interrupted intervals retain their evidence and stay out of curated training data.
 - Missing AMF/UPF measurements export as empty CSV fields while observed zero remains numeric (community contribution #8).
