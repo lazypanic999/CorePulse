@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/lazypanic999/CorePulse/internal/corepulse"
+	"github.com/lazypanic999/CorePulse/internal/runrecord"
 	"github.com/lazypanic999/CorePulse/internal/telemetry"
 )
 
@@ -46,7 +47,7 @@ func loadRuns(dir string) ([]Run, error) {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+		data, err := runrecord.Read(filepath.Join(dir, entry.Name()))
 		if err != nil {
 			return nil, err
 		}
@@ -101,16 +102,21 @@ func label(sample telemetry.Sample, runs []Run) (string, string, string, error) 
 	return label, runID, target, nil
 }
 
-func componentUsage(pods []telemetry.PodUsage, component string) (float64, int64) {
+func componentFields(pods []telemetry.PodUsage, component string) (string, string) {
 	var cpu float64
 	var memory int64
+	present := false
 	for _, pod := range pods {
 		if strings.HasPrefix(pod.Name, component+"-") {
+			present = true
 			cpu += pod.CPUMilli
 			memory += pod.MemoryBytes
 		}
 	}
-	return cpu, memory
+	if !present {
+		return "", ""
+	}
+	return strconv.FormatFloat(cpu, 'f', 3, 64), strconv.FormatInt(memory, 10)
 }
 
 // Build joins immutable raw samples with run intervals and writes a compact CSV.
@@ -160,12 +166,12 @@ func Build(telemetryPath, runsDir, outputPath string) (Summary, error) {
 			summary.Excluded++
 			continue
 		}
-		amfCPU, amfMem := componentUsage(sample.Pods, "open5gs-amf")
-		upfCPU, upfMem := componentUsage(sample.Pods, "open5gs-upf")
+		amfCPU, amfMem := componentFields(sample.Pods, "open5gs-amf")
+		upfCPU, upfMem := componentFields(sample.Pods, "open5gs-upf")
 		row := []string{
 			sample.Timestamp.UTC().Format(time.RFC3339Nano), runID, label, target, sample.Context, sample.Namespace, sample.Source,
 			strconv.Itoa(sample.PodCount), strconv.FormatFloat(sample.CPUMilli, 'f', 3, 64), strconv.FormatInt(sample.MemoryBytes, 10),
-			strconv.FormatFloat(amfCPU, 'f', 3, 64), strconv.FormatInt(amfMem, 10), strconv.FormatFloat(upfCPU, 'f', 3, 64), strconv.FormatInt(upfMem, 10),
+			amfCPU, amfMem, upfCPU, upfMem,
 		}
 		if err := writer.Write(row); err != nil {
 			temp.Close()

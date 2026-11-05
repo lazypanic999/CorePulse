@@ -21,6 +21,8 @@ CorePulse is an AIOps portfolio project for fault injection and intelligent dete
 
 ## Community
 
+Read the [contribution guide](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md), [security policy](SECURITY.md), and [MIT License](LICENSE). Report vulnerabilities through [private security reporting](https://github.com/lazypanic999/CorePulse/security/advisories/new).
+
 - [Contributor call on DEV](https://dev.to/lazypanic999/a-ready-5g-pod-can-still-drop-packets-corepulse-needs-contributors-30f2) covers the service recovery result and six scoped contribution tasks.
 - [Contributor update on r/SideProject](https://www.reddit.com/r/SideProject/comments/1xn7r2c/corepulse_update_a_5g_lab_failure_led_to_six/) invites feedback and contributions, including two tasks that need no Kubernetes cluster.
 
@@ -58,6 +60,7 @@ The existing [Open5GS + UERANSIM lab](https://github.com/lazypanic999/open5gs-ue
 - `corepulse serve` opens a local dashboard with lab connection state, workload topology, an experiment plan, and recent run records. The run control requires the exact lab context and a second typed confirmation. Offline preview mode does not invent live telemetry.
 - While the server runs, it samples `metrics.k8s.io/v1beta1` every 10 seconds and displays live aggregate pod CPU and memory. Raw samples are saved in ignored `data/telemetry.jsonl`.
 - `corepulse baseline` captures separate, untouched normal runs only when the UE-to-UPF probe stays healthy and the six essential AMF/SMF/UDR/UPF/gNB/UE pods remain ready, unchanged, and present in resource metrics. It defaults to three runs of four samples each.
+- Fault experiments save checkpoints before deletion and through recovery using the same CLI/dashboard lifecycle. Interrupted experiments remain excluded; baseline collection supports cancellation with `Ctrl+C` and preserves the interrupted run record.
 - `corepulse dataset` includes only samples inside explicitly clean run intervals in ignored `data/dataset.csv`. Legacy, setup, and unverified samples are counted as excluded. The dashboard rebuilds the curated CSV after an experiment.
 - `corepulse verify-service` checks the current ready UE pod's path to the UPF tunnel gateway (`10.45.0.1`). The dashboard shows this live check separately from pod readiness, and new fault run records include the result after deployment recovery.
 - `corepulse signals` reads registration and PDU-session success events from the current UE pod's last 300 log lines and runs the current UE-to-UPF packet probe. Historical log events and current path health are reported separately.

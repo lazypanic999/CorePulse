@@ -15,6 +15,7 @@ import (
 	"github.com/lazypanic999/CorePulse/internal/collection"
 	"github.com/lazypanic999/CorePulse/internal/corepulse"
 	"github.com/lazypanic999/CorePulse/internal/dataset"
+	"github.com/lazypanic999/CorePulse/internal/runrecord"
 	"github.com/lazypanic999/CorePulse/internal/telemetry"
 )
 
@@ -141,7 +142,7 @@ func (s *Server) runs(w http.ResponseWriter, _ *http.Request) {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(s.RunsDir, entry.Name()))
+		data, err := runrecord.Read(filepath.Join(s.RunsDir, entry.Name()))
 		if err != nil {
 			continue
 		}
@@ -207,36 +208,20 @@ func (s *Server) runPodCrash(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "Ready essential lab workloads are required before a fault run"})
 		return
 	}
-	observed := 0
-	result, err := corepulse.RunPodCrashWithObserver(s.Client, request.Target, func() {
-		if s.Telemetry != nil && s.Telemetry.Capture(s.Client) == nil {
-			observed++
-		}
-	})
-	if err != nil {
-		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
-		return
-	}
-	result["pre_service_probe"] = preProbe
 	var capture func() error
 	if s.Telemetry != nil {
 		capture = func() error { return s.Telemetry.Capture(s.Client) }
 	}
-	collection.FinishFault(s.Client, result, observed, capture)
-	path := filepath.Join(s.RunsDir, fmt.Sprint(result["run_id"])+".json")
-	if err := os.MkdirAll(s.RunsDir, 0755); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Could not create run directory"})
-		return
-	}
-	data, err := json.MarshalIndent(result, "", "  ")
+	result, err := collection.RunFault(s.Client, request.Target, s.RunsDir, preProbe, capture)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Could not encode run record"})
+		status := http.StatusConflict
+		if result != nil {
+			status = http.StatusInternalServerError
+		}
+		writeJSON(w, status, map[string]string{"error": err.Error()})
 		return
 	}
-	if err := os.WriteFile(path, append(data, '\n'), 0644); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Could not save run record"})
-		return
-	}
+	path := filepath.Join(s.RunsDir, fmt.Sprint(result["run_id"])+".json")
 	if s.Telemetry != nil {
 		_ = s.Telemetry.Capture(s.Client)
 		datasetPath := filepath.Join(filepath.Dir(s.Telemetry.Path()), "dataset.csv")
