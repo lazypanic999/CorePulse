@@ -149,7 +149,8 @@ func memoryBytes(value string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	if n > float64(math.MaxInt64) {
+	// float64(math.MaxInt64) rounds up to 2^63, which itself overflows int64.
+	if n >= float64(math.MaxInt64) {
 		return 0, fmt.Errorf("quantity %q overflows int64 bytes", value)
 	}
 	return int64(n), nil
