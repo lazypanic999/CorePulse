@@ -6,7 +6,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/corepulse-logo-dark.svg">
-  <img src="assets/corepulse-logo.svg" alt="CorePulse logo" width="570">
+  <img src="assets/corepulse-logo.svg" alt="CorePulse logo" width="420">
 </picture>
 
 CorePulse breaks a small 5G core on purpose and records what happens. It runs against an Open5GS and UERANSIM lab on Kubernetes, deletes one network function at a time under strict guards, and measures whether the service comes back, not just the pod. The long-term goal is a dataset and models that can tell which part of the core is failing.
