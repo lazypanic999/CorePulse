@@ -90,7 +90,7 @@ func TestOfflineOverviewIsExplicit(t *testing.T) {
 
 func TestPlanAndStaticDashboard(t *testing.T) {
 	handler := New(&unavailableClient{}, t.TempDir())
-	for _, path := range []string{"/", "/styles.css", "/app.js", "/icon.svg", "/api/plan?target=amf", "/api/service-check"} {
+	for _, path := range []string{"/", "/styles.css", "/app.js", "/icon.svg", "/api/plan?target=amf", "/api/service-check", "/api/protocol"} {
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8787"+path, nil))
 		if response.Code != http.StatusOK {

@@ -141,3 +141,46 @@ func DetectPFCPPeerMismatch(components []ComponentEvents) *PFCPPeerMismatch {
 	}
 	return &PFCPPeerMismatch{RetryingPeer: lastRetry.Peer, UPFPodIP: upf.PodIP, LastRetryAt: lastRetry.Timestamp}
 }
+
+// Link states derived from the latest relevant log event. "unknown" means
+// the log was not read or showed no event for that link, never "fine".
+const (
+	LinkUp        = "up"
+	LinkDown      = "down"
+	LinkStalePeer = "stale_peer"
+	LinkUnknown   = "unknown"
+)
+
+// LinkStatus summarises N2 (gNB to AMF) and N4 (SMF to UPF, PFCP) from the
+// latest events in each component's recent log.
+type LinkStatus struct {
+	N2 string `json:"n2"`
+	N4 string `json:"n4"`
+}
+
+// Links derives N2 from the gNB log and N4 from the SMF log. A stale PFCP
+// peer takes precedence over a plain "down" for N4.
+func Links(components []ComponentEvents) LinkStatus {
+	status := LinkStatus{N2: LinkUnknown, N4: LinkUnknown}
+	for _, c := range components {
+		if c.Error != "" {
+			continue
+		}
+		for _, e := range c.Events {
+			switch {
+			case c.Deployment == "ueransim-gnb" && e.Kind == logevents.NGSetupSuccess:
+				status.N2 = LinkUp
+			case c.Deployment == "ueransim-gnb" && e.Kind == logevents.N2AssociationTerminated:
+				status.N2 = LinkDown
+			case c.Deployment == "open5gs-smf" && e.Kind == logevents.PFCPAssociated:
+				status.N4 = LinkUp
+			case c.Deployment == "open5gs-smf" && (e.Kind == logevents.PFCPDeassociated || e.Kind == logevents.PFCPHeartbeatTimeout || e.Kind == logevents.PFCPRetryFailed || e.Kind == logevents.PFCPNoUPF):
+				status.N4 = LinkDown
+			}
+		}
+	}
+	if status.N4 == LinkDown && DetectPFCPPeerMismatch(components) != nil {
+		status.N4 = LinkStalePeer
+	}
+	return status
+}

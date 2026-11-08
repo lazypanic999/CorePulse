@@ -71,3 +71,24 @@ func TestCollectProtocolEventsRecordsPodIP(t *testing.T) {
 		}
 	}
 }
+
+func TestLinksFromLatestEvents(t *testing.T) {
+	smf := smfFixtureEvents(t)
+	setup := logevents.Event{Kind: logevents.NGSetupSuccess}
+	lost := logevents.Event{Kind: logevents.N2AssociationTerminated}
+	cases := []struct {
+		name       string
+		components []ComponentEvents
+		want       LinkStatus
+	}{
+		{"healthy", []ComponentEvents{{Deployment: "ueransim-gnb", Events: []logevents.Event{setup}}, {Deployment: "open5gs-smf", Events: smf[:1]}, {Deployment: "open5gs-upf", PodIP: "10.244.0.209"}}, LinkStatus{N2: LinkUp, N4: LinkUp}},
+		{"after AMF and UPF faults", []ComponentEvents{{Deployment: "ueransim-gnb", Events: []logevents.Event{setup, lost}}, {Deployment: "open5gs-smf", Events: smf}, {Deployment: "open5gs-upf", PodIP: "10.244.0.211"}}, LinkStatus{N2: LinkDown, N4: LinkStalePeer}},
+		{"PFCP down, UPF address unknown", []ComponentEvents{{Deployment: "open5gs-smf", Events: smf}, {Deployment: "open5gs-upf"}}, LinkStatus{N2: LinkUnknown, N4: LinkDown}},
+		{"logs unreadable", []ComponentEvents{{Deployment: "ueransim-gnb", Error: "x", Events: []logevents.Event{lost}}, {Deployment: "open5gs-smf", Error: "x"}}, LinkStatus{N2: LinkUnknown, N4: LinkUnknown}},
+	}
+	for _, tc := range cases {
+		if got := Links(tc.components); got != tc.want {
+			t.Errorf("%s: got %+v, want %+v", tc.name, got, tc.want)
+		}
+	}
+}

@@ -274,6 +274,34 @@ async function refreshService() {
   }
 }
 
+const LINK_LABELS = {
+  n2: { up: 'N2', down: 'N2 lost', unknown: 'N2' },
+  n4: { up: 'N4 (PFCP)', down: 'N4 (PFCP) down', stale_peer: 'N4: old UPF address', unknown: 'N4 (PFCP)' },
+};
+
+function showLinks(data) {
+  for (const name of ['n2', 'n4']) {
+    const link = document.querySelector(`[data-area="${name}"]`);
+    const state = data?.links?.[name] || 'unknown';
+    link.dataset.link = state;
+    link.querySelector('span').textContent = LINK_LABELS[name][state] || LINK_LABELS[name].unknown;
+  }
+  const mismatch = data?.pfcp_peer_mismatch;
+  document.querySelector('[data-area="n4"]').title = mismatch
+    ? `SMF is retrying ${mismatch.retrying_peer}, but the UPF pod is ${mismatch.upf_pod_ip}. Restarting SMF (scripts/recover-service.sh) cleared this in the lab.`
+    : '';
+}
+
+async function refreshProtocol() {
+  try {
+    const response = await fetch('/api/protocol', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Protocol check failed with HTTP ${response.status}.`);
+    showLinks(await response.json());
+  } catch {
+    showLinks(null);
+  }
+}
+
 async function showPlan() {
   try {
     const response = await fetch(`/api/plan?target=${encodeURIComponent(selectedTarget())}`);
@@ -322,7 +350,7 @@ async function runExperiment() {
 
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => $(`#${button.dataset.close}`).close()));
 document.querySelectorAll('input[name="target"]').forEach((input) => input.addEventListener('change', updateGates));
-$('#refresh-button').addEventListener('click', () => { refreshOverview(); refreshService(); });
+$('#refresh-button').addEventListener('click', () => { refreshOverview(); refreshService(); refreshProtocol(); });
 $('#plan-button').addEventListener('click', showPlan);
 $('#run-button').addEventListener('click', () => {
   if ($('#run-button').disabled) return;
@@ -341,4 +369,5 @@ $('#confirm-run').addEventListener('click', runExperiment);
 setInterval(refreshOverview, 30000);
 setInterval(refreshTelemetry, 10000);
 setInterval(refreshService, 30000);
-Promise.all([refreshOverview(), refreshRuns(), refreshTelemetry(), refreshService()]);
+setInterval(refreshProtocol, 30000);
+Promise.all([refreshOverview(), refreshRuns(), refreshTelemetry(), refreshService(), refreshProtocol()]);

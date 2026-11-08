@@ -40,6 +40,7 @@ func NewWithTelemetry(client corepulse.Client, runsDir string, store *telemetry.
 	mux.HandleFunc("GET /api/runs", s.runs)
 	mux.HandleFunc("GET /api/telemetry", s.telemetry)
 	mux.HandleFunc("GET /api/service-check", s.serviceCheck)
+	mux.HandleFunc("GET /api/protocol", s.protocol)
 	mux.HandleFunc("POST /api/experiments/pod-crash", s.runPodCrash)
 	web, _ := fs.Sub(webFiles, "web")
 	mux.Handle("/", http.FileServer(http.FS(web)))
@@ -75,6 +76,25 @@ func (s *Server) serviceCheck(w http.ResponseWriter, _ *http.Request) {
 		probe.Detail = err.Error()
 	}
 	writeJSON(w, http.StatusOK, probe)
+}
+
+// protocol reports N2 and N4 link states from recent UE, gNB, SMF and UPF
+// logs. It only reads; "unknown" means not observed.
+func (s *Server) protocol(w http.ResponseWriter, _ *http.Request) {
+	checkedAt := time.Now().UTC().Format(time.RFC3339)
+	components, err := corepulse.CollectProtocolEvents(s.Client)
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"available": false, "detail": err.Error(), "checked_at": checkedAt,
+			"links": corepulse.LinkStatus{N2: corepulse.LinkUnknown, N4: corepulse.LinkUnknown},
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"available": true, "checked_at": checkedAt,
+		"links":              corepulse.Links(components),
+		"pfcp_peer_mismatch": corepulse.DetectPFCPPeerMismatch(components),
+	})
 }
 
 func loopbackHost(address string) bool {
