@@ -20,7 +20,9 @@ func TestBuildAddsProbeAndEventEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 	start := time.Date(2026, 11, 8, 0, 4, 37, 0, time.UTC)
-	at := func(seconds int) string { return start.Add(time.Duration(seconds) * time.Second).Format(time.RFC3339Nano) }
+	at := func(seconds int) string {
+		return start.Add(time.Duration(seconds) * time.Second).Format(time.RFC3339Nano)
+	}
 	var lines []byte
 	for _, offset := range []int{5, 25, 45} {
 		sample := telemetry.Sample{SchemaVersion: 1, Timestamp: start.Add(time.Duration(offset) * time.Second), Source: telemetry.Source, Context: "open5gs-lab", Namespace: "open5gs", PodCount: 1}
