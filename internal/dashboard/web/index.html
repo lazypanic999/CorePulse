@@ -84,8 +84,10 @@
         <ul class="gates" id="gates" aria-label="Checks before a run">
           <li data-gate="context">Kubernetes context is open5gs-lab</li>
           <li data-gate="target">Target deployment has 1 of 1 pods ready</li>
-          <li data-gate="workloads">UE, gNB, AMF and UPF pods are ready</li>
+          <li data-gate="workloads">UE, gNB, AMF, SMF, UDR and UPF pods are ready</li>
           <li data-gate="path">Packet check to the UPF passes</li>
+          <li data-gate="n2">N2 setup is up in the current gNB log</li>
+          <li data-gate="n4">PFCP association is up in the current SMF log</li>
         </ul>
         <p class="gates-note">The server repeats these checks before it deletes anything.</p>
 

@@ -1,5 +1,11 @@
 # Fault run record v1
 
+## Protocol starting conditions
+
+New baseline and fault runs require both `N2=up` and `N4=up` in fresh reads of the current gNB and SMF pod logs, in addition to workload readiness and the packet probe. Down, stale-peer, unreadable and unobserved links refuse the run before mutation or capture. The same fault gate is shared by CLI and dashboard; cached dashboard topology cannot authorize a deletion.
+
+`pre_protocol_check` records the observation time, link states, current source pods, latest relevant event timestamps/kinds and component errors. Baselines additionally retain `protocol_checks` after each sample and exclude the whole interval if either link stops qualifying. These are log-derived transitions in a bounded tail, not active N2/PFCP handshake probes or proof that an old setup event remains current. Missing history is unknown and fails closed. Older runs without these fields remain readable; they do not retroactively acquire verified starting conditions. In particular, the mixed-condition UPF run identified in issue #27 should not be used as an independent UPF-only evaluation case.
+
 Each applied `pod-crash` experiment writes one UTF-8 JSON file under `runs/`, named by `run_id`. The directory is Git-ignored because local runs may contain environment details. Times use UTC ISO 8601 strings.
 
 | Field | Meaning |

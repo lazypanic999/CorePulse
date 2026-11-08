@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,6 +25,14 @@ func (f labClient) Run(_ time.Duration, args ...string) (string, error) {
 		return `{"items":[{"metadata":{"name":"open5gs-amf-abc-pod"},"containers":[{"usage":{"cpu":"1m","memory":"1Mi"}}]},{"metadata":{"name":"open5gs-smf-abc-pod"},"containers":[{"usage":{"cpu":"1m","memory":"1Mi"}}]},{"metadata":{"name":"open5gs-udr-abc-pod"},"containers":[{"usage":{"cpu":"1m","memory":"1Mi"}}]},{"metadata":{"name":"open5gs-upf-abc-pod"},"containers":[{"usage":{"cpu":"1m","memory":"1Mi"}}]},{"metadata":{"name":"ueransim-gnb-abc-pod"},"containers":[{"usage":{"cpu":"1m","memory":"1Mi"}}]},{"metadata":{"name":"ueransim-ue-abc-pod"},"containers":[{"usage":{"cpu":"1m","memory":"1Mi"}}]}]}`, nil
 	case "exec":
 		return f.probe, nil
+	case "logs":
+		at := time.Now().UTC().Format(time.RFC3339Nano)
+		if strings.Contains(args[1], "gnb") {
+			return fmt.Sprintf("%s [2026-11-09 01:00:00.000] [ngap] [info] NG Setup procedure is successful\n", at), nil
+		}
+		if strings.Contains(args[1], "smf") {
+			return fmt.Sprintf("%s 11/09 01:00:00.000: [smf] INFO: PFCP associated [10.244.0.211]:8805\n", at), nil
+		}
 	}
 	return "", nil
 }

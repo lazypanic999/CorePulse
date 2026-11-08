@@ -1,6 +1,6 @@
 const $ = (selector) => document.querySelector(selector);
-const state = { overview: null, probe: null, runs: [], toastTimer: null };
-const EXPECTED = ['open5gs-amf', 'open5gs-upf', 'ueransim-gnb', 'ueransim-ue'];
+const state = { overview: null, probe: null, protocol: null, runs: [], toastTimer: null };
+const EXPECTED = ['open5gs-amf', 'open5gs-smf', 'open5gs-udr', 'open5gs-upf', 'ueransim-gnb', 'ueransim-ue'];
 
 function toast(message) {
   const el = $('#toast');
@@ -84,9 +84,13 @@ function updateGates() {
   setGate('workloads', known ? expectedReady : null);
   const probeRan = state.probe?.status === 'healthy' || state.probe?.status === 'degraded';
   setGate('path', known && probeRan ? pathHealthy : null);
+  const n2Up = state.protocol?.links?.n2 === 'up';
+  const n4Up = state.protocol?.links?.n4 === 'up';
+  setGate('n2', known && state.protocol ? n2Up : null);
+  setGate('n4', known && state.protocol ? n4Up : null);
   const name = target.toUpperCase();
   $('#run-button').textContent = `Delete ${name} pod`;
-  $('#run-button').disabled = !(correctContext && targetReady && expectedReady && pathHealthy);
+  $('#run-button').disabled = !(correctContext && targetReady && expectedReady && pathHealthy && n2Up && n4Up);
 }
 
 function updateOverview(data) {
@@ -281,6 +285,8 @@ const LINK_LABELS = {
 };
 
 function showLinks(data) {
+  state.protocol = data;
+  updateGates();
   for (const name of ['n2', 'n4']) {
     const link = document.querySelector(`[data-area="${name}"]`);
     const state = data?.links?.[name] || 'unknown';
@@ -340,7 +346,7 @@ async function runExperiment() {
     toast(result.status === 'recovered'
       ? `${target.toUpperCase()} pod replaced. ${service}${n2}`
       : 'Kubernetes did not confirm a replacement pod. Check the lab before another run.');
-    await Promise.all([refreshOverview(), refreshRuns(), refreshService()]);
+    await Promise.all([refreshOverview(), refreshRuns(), refreshService(), refreshProtocol()]);
   } catch (error) { toast(error.message); }
   finally {
     $('#confirm-dialog').close();

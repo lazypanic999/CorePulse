@@ -48,6 +48,9 @@ func TestFaultProcessInterruptionRetainsCheckpoint(t *testing.T) {
 	if err != nil || json.Unmarshal(data, &r) != nil || r["phase"] != "delete_requested" || r["status"] != "recovery_pending" || r["quality"] != "excluded" || r["ended_at"] != nil {
 		t.Fatalf("incomplete diagnostic snapshot: %s %v", data, err)
 	}
+	if r["pre_protocol_check"] == nil {
+		t.Fatal("starting protocol evidence was not checkpointed")
+	}
 	raw := filepath.Join(dir, "raw.jsonl")
 	if err := os.WriteFile(raw, nil, 0644); err != nil {
 		t.Fatal(err)
