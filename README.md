@@ -29,7 +29,7 @@ Discovery reads deployments, pods, services, and Prometheus scrape annotations f
 
 `baseline` collects normal runs only while the packet check passes and the six essential pods (AMF, SMF, UDR, UPF, gNB, UE) stay ready and unchanged. `dataset` builds a CSV from clean runs only. Setup noise, interrupted runs, and unverified samples are counted and left out.
 
-`verify-service` and `signals` check the current UE pod: the ping to the UPF gateway `10.45.0.1`, and registration and PDU session events in its recent logs. Log history and current packet health are reported separately.
+`verify-service` and `signals` check the current UE pod: the ping to the UPF gateway `10.45.0.1`, and registration and PDU session events in its recent logs. `signals` also lists timestamped N2, registration, session, and PFCP events from the UE, gNB, SMF, and UPF pods. Log history and current packet health are reported separately.
 
 The `internal/logevents` package parses registration, PDU session, and PFCP events from UERANSIM and Open5GS logs into timestamped events. It is tested against fixtures and is not wired into collection yet.
 
