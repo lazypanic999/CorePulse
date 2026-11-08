@@ -64,9 +64,9 @@ func loadRuns(dir string) ([]Run, error) {
 			Ended     string `json:"ended_at"`
 			// Evidence written by baseline and fault runs. Older records
 			// may lack any of these; their columns are then left empty.
-			ServiceProbes   []probeJSON                 `json:"service_probes"`
-			PreProbe        *probeJSON                  `json:"pre_service_probe"`
-			ServiceProbe    *probeJSON                  `json:"service_probe"`
+			ServiceProbes   []probeJSON `json:"service_probes"`
+			PreProbe        *probeJSON  `json:"pre_service_probe"`
+			ServiceProbe    *probeJSON  `json:"service_probe"`
 			ServiceRecovery *struct {
 				Probes []probeJSON `json:"probes"`
 			} `json:"service_recovery"`
