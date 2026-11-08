@@ -1,6 +1,6 @@
 # CorePulse roadmap
 
-_Last updated: 5 November 2026_
+_Last updated: 8 November 2026_
 
 This roadmap turns the phase table in the [README](../README.md#roadmap) into concrete milestones. Each milestone lists what it delivers, how we know it is done, and which open issues feed into it. Dates are intentionally omitted: a milestone ships when its acceptance criteria pass against the live lab, not on a calendar.
 
@@ -21,14 +21,16 @@ The key finding so far: **a ready Kubernetes pod does not mean a working 5G serv
 
 Goal: collect control-plane and user-plane health alongside resource metrics, so the dataset can tell "pod is back" from "service is back".
 
-- [ ] Merge resource quantity validation ([#1](https://github.com/lazypanic999/CorePulse/issues/1), PR [#7](https://github.com/lazypanic999/CorePulse/pull/7)).
-- [ ] Offline contributor quickstart ([#2](https://github.com/lazypanic999/CorePulse/issues/2)).
-- [ ] Timestamped parser for registration, PDU session, and PFCP log events using fixtures ([#6](https://github.com/lazypanic999/CorePulse/issues/6)).
-- [ ] Sample AMF/SMF/UPF log events and the UE-to-UPF probe into `data/telemetry.jsonl` on the same cadence as resource metrics.
-- [ ] Add those signals as nullable columns in the curated CSV, keeping "not observed" distinct from zero.
-- [ ] Repeat the UPF pod-crash experiment at least twice and document whether `scripts/recover-service.sh` restores the PFCP path reliably.
+- [x] Merge resource quantity validation ([#1](https://github.com/lazypanic999/CorePulse/issues/1), PRs [#7](https://github.com/lazypanic999/CorePulse/pull/7), [#11](https://github.com/lazypanic999/CorePulse/pull/11)).
+- [x] Offline contributor quickstart ([#2](https://github.com/lazypanic999/CorePulse/issues/2)).
+- [x] Timestamped parser for registration, PDU session, and PFCP log events using fixtures ([#6](https://github.com/lazypanic999/CorePulse/issues/6)).
+- [ ] Read real `kubectl logs --timestamps` output and confirm markers against live logs (PR [#19](https://github.com/lazypanic999/CorePulse/pull/19), in review).
+- [ ] Report UE, gNB, SMF, and UPF events from `corepulse signals` (PR [#20](https://github.com/lazypanic999/CorePulse/pull/20), in review).
+- [ ] Record protocol events in every run and add probe and event columns to the curated CSV, keeping "not observed" distinct from zero (PR [#23](https://github.com/lazypanic999/CorePulse/pull/23), in review). Events are read once per run rather than on the 10 s resource cadence; a continuous event stream can follow if models need it.
+- [ ] Report N2 control-plane recovery separately from the packet path ([#21](https://github.com/lazypanic999/CorePulse/issues/21), PR [#24](https://github.com/lazypanic999/CorePulse/pull/24), in review).
+- [x] Repeat the UPF pod-crash experiment and document whether `scripts/recover-service.sh` restores the PFCP path. All seven clean UPF runs left the user plane down; the reset restored it each time it was used on 8 November (9 of 9). Cause under investigation in [#22](https://github.com/lazypanic999/CorePulse/issues/22).
 
-**Done when:** a fault run record and its CSV rows show resource, event, and packet-path signals side by side, and the degraded UPF case is reproducible.
+**Done when:** a fault run record and its CSV rows show resource, event, and packet-path signals side by side, and the degraded UPF case is reproducible. The degraded case is reproducible; the rest lands with PRs #19, #20, #23, and #24.
 
 ## v0.3.0 — Fault catalog
 
@@ -49,7 +51,7 @@ Goal: a dataset a model can honestly be evaluated on.
 
 - [ ] 30-second window feature extraction (mean, max, delta, missing-ratio per signal).
 - [ ] Parameter sweeps per fault (several loss/latency levels) to avoid one-value-per-class leakage.
-- [ ] Target size: at least 10 verified baseline runs and 5 clean runs per fault class.
+- [x] Target size: at least 10 verified baseline runs and 5 clean runs per fault class. Reached locally on 8 November: 12 baselines, 7 UPF, 5 AMF (267 rows). The data stays out of Git.
 - [ ] Run-level train/test split helper; windows from one run never cross the split.
 - [ ] Dataset card in `docs/` describing collection conditions, class balance, and known biases (single node, single UE).
 - [ ] Optional Parquet export next to CSV.
