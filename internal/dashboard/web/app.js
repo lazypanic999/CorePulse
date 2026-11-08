@@ -142,7 +142,8 @@ function n2Outcome(run) {
   const status = run.control_plane_recovery?.status;
   if (status === 'n2_lost') return { text: 'Lost', tone: 'bad' };
   if (status === 'n2_restored') return { text: 'Restored', tone: 'good' };
-  if (status === 'n2_no_change_observed') return { text: 'Up', tone: 'good' };
+  // No termination during the run; N2 may already have been down before it.
+  if (status === 'n2_no_change_observed') return { text: 'No change', tone: '' };
   if (status === 'n2_unobserved') return { text: 'Not observed', tone: '' };
   return { text: 'Not recorded', tone: '' };
 }

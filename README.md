@@ -47,6 +47,12 @@ Open `http://127.0.0.1:8787`. The server only binds to loopback and loads nothin
 
 This capture is from the live lab on 6 November 2026. The service path at the top shows each network function's pod readiness, with the latest packet check drawn as a separate bar under UE, gNB, and UPF. When pods are ready but pings fail, the bar turns red and dashed. The run history below has two UPF runs where exactly that happened: the pod was replaced, and packets still failed afterwards.
 
+When things break, the same view looks like this. This capture is from 8 November after an AMF pod crash followed by a UPF pod crash, with no reset in between:
+
+![Service path with every pod ready, N2 lost, N4 pointing at the old UPF address, and 0 of 2 pings reaching the UPF](assets/dashboard-degraded.png)
+
+Every pod reports ready. N2 is lost because the gNB never set up N2 with the replacement AMF. N4 shows the old UPF address because SMF keeps retrying the IP of the deleted UPF pod. Pings to the UPF fail. The N2 and N4 links come from the latest gNB and SMF log events; `scripts/recover-service.sh` cleared all three.
+
 The delete button lists the four checks it needs and stays disabled until all of them pass. The server repeats them before it touches anything. CPU and memory come from `metrics.k8s.io`. They are Kubernetes resource metrics, not 5G protocol counters and not model predictions. When the lab is offline, the page says so and shows the expected layout as not observed instead of inventing data.
 
 ## Try it
