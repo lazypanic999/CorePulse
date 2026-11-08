@@ -14,17 +14,19 @@ import (
 )
 
 type BaselineRecord struct {
-	SchemaVersion int                      `json:"schema_version"`
-	RunID         string                   `json:"run_id"`
-	Fault         string                   `json:"fault"`
-	Context       string                   `json:"context"`
-	Namespace     string                   `json:"namespace"`
-	StartedAt     time.Time                `json:"started_at"`
-	EndedAt       time.Time                `json:"ended_at"`
-	Status        string                   `json:"status"`
-	Quality       string                   `json:"quality"`
-	Samples       int                      `json:"samples"`
-	ServiceProbes []corepulse.ServiceProbe `json:"service_probes"`
+	SchemaVersion    int                       `json:"schema_version"`
+	RunID            string                    `json:"run_id"`
+	Fault            string                    `json:"fault"`
+	Context          string                    `json:"context"`
+	Namespace        string                    `json:"namespace"`
+	StartedAt        time.Time                 `json:"started_at"`
+	EndedAt          time.Time                 `json:"ended_at"`
+	Status           string                    `json:"status"`
+	Quality          string                    `json:"quality"`
+	Samples          int                       `json:"samples"`
+	ServiceProbes    []corepulse.ServiceProbe  `json:"service_probes"`
+	PreProtocolCheck *corepulse.ProtocolCheck  `json:"pre_protocol_check,omitempty"`
+	ProtocolChecks   []corepulse.ProtocolCheck `json:"protocol_checks,omitempty"`
 	// ProtocolEvents is read once at the end of the run; see CollectedAt and
 	// Window on each component for what it covers.
 	ProtocolEvents      []corepulse.ComponentEvents `json:"protocol_events,omitempty"`
@@ -84,6 +86,11 @@ func baseline(ctx context.Context, client corepulse.Client, store *telemetry.Sto
 	if probe.Status != "healthy" {
 		return record, fmt.Errorf("baseline requires a healthy UE-to-UPF probe: %s", probe.Detail)
 	}
+	preProtocol, err := corepulse.CheckProtocolReadiness(client)
+	if err != nil {
+		return record, fmt.Errorf("baseline preflight: %w", err)
+	}
+	record.PreProtocolCheck = &preProtocol
 	record.StartedAt = time.Now().UTC()
 	path := filepath.Join(runsDir, record.RunID+".json")
 	if err := runrecord.Save(path, record); err != nil {
@@ -158,6 +165,12 @@ func baseline(ctx context.Context, client corepulse.Client, store *telemetry.Sto
 		}
 		if err := ctx.Err(); err != nil {
 			return record, err
+		}
+		protocol, err := corepulse.CheckProtocolReadiness(client)
+		record.ProtocolChecks = append(record.ProtocolChecks, protocol)
+		if err != nil {
+			record.Error = err.Error()
+			break
 		}
 		if err := runrecord.Save(path, record); err != nil {
 			return record, err

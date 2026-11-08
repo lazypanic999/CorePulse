@@ -23,9 +23,17 @@ func FinishFault(client corepulse.Client, result map[string]any, samples int, ca
 // RunFault shares the same durable lifecycle between the CLI and dashboard.
 // The caller must validate the healthy pre-probe and essential workloads first.
 func RunFault(client corepulse.Client, target, runsDir string, preProbe corepulse.ServiceProbe, capture func() error) (map[string]any, error) {
+	if _, err := corepulse.PlanPodCrash(target); err != nil {
+		return nil, err
+	}
+	preProtocol, err := corepulse.CheckProtocolReadiness(client)
+	if err != nil {
+		return nil, fmt.Errorf("fault preflight: %w", err)
+	}
 	samples := 0
 	checkpoint := func(result map[string]any) error {
 		result["pre_service_probe"] = preProbe
+		result["pre_protocol_check"] = preProtocol
 		result["quality"] = "excluded"
 		result["observed_samples"] = samples
 		return runrecord.Save(filepath.Join(runsDir, fmt.Sprint(result["run_id"])+".json"), result)

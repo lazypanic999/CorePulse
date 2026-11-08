@@ -14,7 +14,10 @@ import (
 	"github.com/lazypanic999/CorePulse/internal/telemetry"
 )
 
-type checkpointClient struct{ deletes int }
+type checkpointClient struct {
+	deletes      int
+	protocolDown bool
+}
 
 func (c *checkpointClient) Run(_ time.Duration, args ...string) (string, error) {
 	switch args[0] {
@@ -24,6 +27,16 @@ func (c *checkpointClient) Run(_ time.Duration, args ...string) (string, error) 
 		return "2 packets transmitted, 2 received", nil
 	case "delete":
 		c.deletes++
+	case "logs":
+		if c.protocolDown {
+			return "", nil
+		}
+		if strings.Contains(args[1], "gnb") {
+			return "2026-11-09T01:00:00Z [2026-11-09 01:00:00.000] [ngap] [info] NG Setup procedure is successful\n", nil
+		}
+		if strings.Contains(args[1], "smf") {
+			return "2026-11-09T01:00:00Z 11/09 01:00:00.000: [smf] INFO: PFCP associated [10.244.0.211]:8805\n", nil
+		}
 	}
 	return "", nil
 }
@@ -55,6 +68,17 @@ func TestDashboardDoesNotDeleteWhenCheckpointCannotBeSaved(t *testing.T) {
 	w := httptest.NewRecorder()
 	New(c, blocked).ServeHTTP(w, r)
 	if w.Code != http.StatusInternalServerError || c.deletes != 0 || !strings.Contains(w.Body.String(), "save fault checkpoint") {
+		t.Fatalf("status=%d deletes=%d body=%s", w.Code, c.deletes, w.Body.String())
+	}
+}
+
+func TestDashboardRejectsUnobservedProtocolDespiteHealthyPackets(t *testing.T) {
+	c := &checkpointClient{protocolDown: true}
+	r := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8787/api/experiments/pod-crash", strings.NewReader(`{"target":"amf","confirm":"DELETE_ONE_LAB_POD"}`))
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	New(c, t.TempDir()).ServeHTTP(w, r)
+	if w.Code != http.StatusConflict || c.deletes != 0 || !strings.Contains(w.Body.String(), "N2=unknown") {
 		t.Fatalf("status=%d deletes=%d body=%s", w.Code, c.deletes, w.Body.String())
 	}
 }
