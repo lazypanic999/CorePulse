@@ -30,8 +30,12 @@ var protocolSources = []protocolSource{
 // pod could not be read has Error set and no events; that means "not
 // observed", not "no events happened".
 type ComponentEvents struct {
-	Deployment       string            `json:"deployment"`
-	Pod              string            `json:"pod,omitempty"`
+	Deployment string `json:"deployment"`
+	Pod        string `json:"pod,omitempty"`
+	// CollectedAt is when the log was read. Events between Window.Last and
+	// CollectedAt did not happen in this pod's log; events before
+	// Window.First were not observed.
+	CollectedAt      time.Time         `json:"collected_at"`
 	LogTail          int               `json:"log_tail"`
 	Events           []logevents.Event `json:"events"`
 	TimestampedLines int               `json:"timestamped_lines"`
@@ -65,6 +69,7 @@ func collectComponent(client Client, source protocolSource) ComponentEvents {
 		return result
 	}
 	result.Pod = pod
+	result.CollectedAt = time.Now().UTC()
 	logs, err := client.Run(15*time.Second, "logs", "pod/"+pod, "--namespace", LabNamespace, "--timestamps", fmt.Sprintf("--tail=%d", protocolLogTail))
 	if err != nil {
 		result.Error = err.Error()

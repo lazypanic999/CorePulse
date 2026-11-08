@@ -40,6 +40,19 @@ for missing components, so rebuild them from the raw JSONL and run records to re
 distinction. The export uses the existing column names and order and continues to group rows by
 `run_id` within clean, provenance-checked run intervals.
 
+## Packet and protocol evidence columns
+
+Seven columns follow the resource columns. They come from the run record, not from the telemetry samples, and keep the same rule as the component metrics: an empty cell means not observed, `0` means observed and absent.
+
+| Column | Value for each sample |
+| --- | --- |
+| `probe_status`, `probe_sent`, `probe_received` | The latest UE-to-UPF probe at or before the sample: baseline probes, the pre-fault probe, then the recovery probes. Empty before the first probe. |
+| `smf_pfcp_failures` | SMF events since the run started: heartbeat timeout, no UPF available, de-association, and association retry failure. |
+| `gnb_n2_terminations` | gNB `n2_association_terminated` events since the run started. |
+| `ue_registrations`, `ue_pdu_sessions` | UE registration and PDU session successes since the run started. |
+
+Runs written from 8 November 2026 store `protocol_events`, read once with `--timestamps --tail=300` after the run ends. A count is filled only when that component's log was read without error, its window starts at or before the run start, and it was read after the sample. Otherwise the cell is empty: a replacement pod's log, a truncated log, or a failed read cannot show what happened before it. Older runs have probes but no events, so only the probe columns are filled for them. Counts are cumulative within a run; differences between rows give per-interval counts.
+
 ## Timestamped protocol log events
 
 `internal/logevents` parses UERANSIM UE and gNB logs and Open5GS SMF and UPF logs into structured events with a UTC timestamp, its source, the component, the event kind, a 1-based line number, and provenance (pod, container, log format).
