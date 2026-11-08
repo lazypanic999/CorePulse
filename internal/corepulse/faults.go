@@ -40,25 +40,31 @@ func PlanPodCrash(target string) (map[string]any, error) {
 }
 
 func selectedPod(client Client, deployment string) (string, error) {
+	name, _, err := selectedPodInfo(client, deployment)
+	return name, err
+}
+
+// selectedPodInfo is selectedPod that also returns the pod IP it read.
+func selectedPodInfo(client Client, deployment string) (string, string, error) {
 	data, err := client.GetJSON("get", "deployment/"+deployment, "--namespace", LabNamespace)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	spec, status := object(data["spec"]), object(data["status"])
 	selector := object(spec["selector"])
 	labels := object(selector["matchLabels"])
 	if len(labels) == 0 || len(array(selector["matchExpressions"])) > 0 {
-		return "", fmt.Errorf("deployment selector is missing or has unsupported expressions")
+		return "", "", fmt.Errorf("deployment selector is missing or has unsupported expressions")
 	}
 	replicas := spec["replicas"]
 	if replicas == nil {
 		replicas = float64(1)
 	}
 	if replicas != float64(1) && replicas != 1 {
-		return "", fmt.Errorf("target deployment must have exactly one ready replica")
+		return "", "", fmt.Errorf("target deployment must have exactly one ready replica")
 	}
 	if status["readyReplicas"] != float64(1) && status["readyReplicas"] != 1 {
-		return "", fmt.Errorf("target deployment must have exactly one ready replica")
+		return "", "", fmt.Errorf("target deployment must have exactly one ready replica")
 	}
 	keys := make([]string, 0, len(labels))
 	for key := range labels {
@@ -69,22 +75,22 @@ func selectedPod(client Client, deployment string) (string, error) {
 	for _, key := range keys {
 		value, ok := labels[key].(string)
 		if !ok || key == "" || value == "" || strings.ContainsAny(key+value, ",= ") {
-			return "", fmt.Errorf("deployment selector has invalid labels")
+			return "", "", fmt.Errorf("deployment selector has invalid labels")
 		}
 		parts = append(parts, key+"="+value)
 	}
 	pods, err := client.GetJSON("get", "pods", "--namespace", LabNamespace, "--selector", strings.Join(parts, ","))
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	items := array(pods["items"])
 	if len(items) != 1 {
-		return "", fmt.Errorf("expected exactly one matching pod")
+		return "", "", fmt.Errorf("expected exactly one matching pod")
 	}
 	pod := object(items[0])
 	podStatus := object(pod["status"])
 	if podStatus["phase"] != "Running" {
-		return "", fmt.Errorf("target pod is not running")
+		return "", "", fmt.Errorf("target pod is not running")
 	}
 	ready := false
 	for _, raw := range array(podStatus["conditions"]) {
@@ -94,12 +100,12 @@ func selectedPod(client Client, deployment string) (string, error) {
 		}
 	}
 	if !ready {
-		return "", fmt.Errorf("target pod is not ready")
+		return "", "", fmt.Errorf("target pod is not ready")
 	}
 	metadata := object(pod["metadata"])
 	name := stringValue(metadata["name"])
 	if name == "" {
-		return "", fmt.Errorf("target pod has no name")
+		return "", "", fmt.Errorf("target pod has no name")
 	}
 	owned := false
 	for _, raw := range array(metadata["ownerReferences"]) {
@@ -109,9 +115,9 @@ func selectedPod(client Client, deployment string) (string, error) {
 		}
 	}
 	if !owned {
-		return "", fmt.Errorf("matching pod is not owned by the expected deployment")
+		return "", "", fmt.Errorf("matching pod is not owned by the expected deployment")
 	}
-	return name, nil
+	return name, stringValue(podStatus["podIP"]), nil
 }
 
 func newRunID() (string, error) {

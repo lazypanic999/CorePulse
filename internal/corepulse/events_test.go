@@ -30,9 +30,6 @@ func (c *eventsClient) Run(_ time.Duration, args ...string) (string, error) {
 }
 
 func (c *eventsClient) GetJSON(args ...string) (map[string]any, error) {
-	if strings.HasPrefix(args[1], "pod/") {
-		return map[string]any{"status": map[string]any{"podIP": "10.244.0.211"}}, nil
-	}
 	if strings.HasPrefix(args[1], "deployment/") {
 		name := strings.TrimPrefix(args[1], "deployment/")
 		ready := float64(1)
@@ -48,7 +45,7 @@ func (c *eventsClient) GetJSON(args ...string) (map[string]any, error) {
 	name := strings.TrimPrefix(selector, "app=")
 	return map[string]any{"items": []any{map[string]any{
 		"metadata": map[string]any{"name": name + "-pod", "ownerReferences": []any{map[string]any{"kind": "ReplicaSet", "name": name + "-rs"}}},
-		"status":   map[string]any{"phase": "Running", "conditions": []any{map[string]any{"type": "Ready", "status": "True"}}},
+		"status":   map[string]any{"phase": "Running", "podIP": "10.244.0.211", "conditions": []any{map[string]any{"type": "Ready", "status": "True"}}},
 	}}}, nil
 }
 

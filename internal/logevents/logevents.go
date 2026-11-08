@@ -343,11 +343,12 @@ func Dedupe(events []Event) []Event {
 		ts                        int64
 		component, pod, container string
 		kind                      Kind
+		peer                      string
 	}
 	seen := map[key]bool{}
 	out := make([]Event, 0, len(events))
 	for _, e := range events {
-		k := key{e.Timestamp.UnixNano(), e.Component, e.Source.Pod, e.Source.Container, e.Kind}
+		k := key{e.Timestamp.UnixNano(), e.Component, e.Source.Pod, e.Source.Container, e.Kind, e.Peer}
 		if seen[k] {
 			continue
 		}

@@ -64,15 +64,12 @@ func CollectProtocolEvents(client Client) ([]ComponentEvents, error) {
 
 func collectComponent(client Client, source protocolSource) ComponentEvents {
 	result := ComponentEvents{Deployment: source.deployment, LogTail: protocolLogTail, Events: []logevents.Event{}}
-	pod, err := selectedPod(client, source.deployment)
+	pod, podIP, err := selectedPodInfo(client, source.deployment)
 	if err != nil {
 		result.Error = err.Error()
 		return result
 	}
-	result.Pod = pod
-	if data, err := client.GetJSON("get", "pod/"+pod, "--namespace", LabNamespace); err == nil {
-		result.PodIP = stringValue(object(data["status"])["podIP"])
-	}
+	result.Pod, result.PodIP = pod, podIP
 	result.CollectedAt = time.Now().UTC()
 	logs, err := client.Run(15*time.Second, "logs", "pod/"+pod, "--namespace", LabNamespace, "--timestamps", fmt.Sprintf("--tail=%d", protocolLogTail))
 	if err != nil {
