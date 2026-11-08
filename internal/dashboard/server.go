@@ -233,7 +233,7 @@ func (s *Server) runPodCrash(w http.ResponseWriter, r *http.Request) {
 	}
 	result["run_record"] = path
 	status := http.StatusOK
-	if result["status"] != "recovered" || result["service_recovery"].(collection.Recovery).Status != "service_recovered" {
+	if result["status"] != "recovered" || result["service_recovery"].(collection.Recovery).Status != "service_recovered" || collection.ControlPlaneLost(result) {
 		status = http.StatusAccepted
 	}
 	writeJSON(w, status, result)
