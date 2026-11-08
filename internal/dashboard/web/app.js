@@ -138,6 +138,16 @@ function packetOutcome(run) {
   return { text: 'Not recorded', tone: '' };
 }
 
+function n2Outcome(run) {
+  const status = run.control_plane_recovery?.status;
+  if (status === 'n2_lost') return { text: 'Lost', tone: 'bad' };
+  if (status === 'n2_restored') return { text: 'Restored', tone: 'good' };
+  // No termination during the run; N2 may already have been down before it.
+  if (status === 'n2_no_change_observed') return { text: 'No change', tone: '' };
+  if (status === 'n2_unobserved') return { text: 'Not observed', tone: '' };
+  return { text: 'Not recorded', tone: '' };
+}
+
 function runOutcome(run) {
   const baseline = run.fault === 'normal';
   const deployment = baseline
@@ -146,7 +156,7 @@ function runOutcome(run) {
       ? { text: 'Yes', tone: 'good' }
       : run.status === 'recovery_pending' ? { text: 'Pending', tone: 'partial' } : { text: 'Not verified', tone: 'bad' };
   const quality = run.quality === 'clean' ? { text: 'Included', tone: 'good' } : { text: 'Excluded', tone: '' };
-  return { target: baseline ? 'Baseline' : String(run.target || '').toUpperCase(), deployment, packets: packetOutcome(run), quality };
+  return { target: baseline ? 'Baseline' : String(run.target || '').toUpperCase(), deployment, packets: packetOutcome(run), n2: n2Outcome(run), quality };
 }
 
 function cell(row, text, className, tone) {
@@ -181,6 +191,7 @@ async function refreshRuns() {
     cell(row, outcome.target, 'target-cell');
     cell(row, outcome.deployment.text, '', outcome.deployment.tone);
     cell(row, outcome.packets.text, '', outcome.packets.tone);
+    cell(row, outcome.n2.text, '', outcome.n2.tone);
     cell(row, outcome.quality.text, '', outcome.quality.tone);
     cell(row, String(run.run_id || '').slice(0, 8), 'id-cell');
     body.append(row);
@@ -264,6 +275,34 @@ async function refreshService() {
   }
 }
 
+const LINK_LABELS = {
+  n2: { up: 'N2', down: 'N2 lost', unknown: 'N2' },
+  n4: { up: 'N4 (PFCP)', down: 'N4 (PFCP) down', stale_peer: 'N4: old UPF address', unknown: 'N4 (PFCP)' },
+};
+
+function showLinks(data) {
+  for (const name of ['n2', 'n4']) {
+    const link = document.querySelector(`[data-area="${name}"]`);
+    const state = data?.links?.[name] || 'unknown';
+    link.dataset.link = state;
+    link.querySelector('span').textContent = LINK_LABELS[name][state] || LINK_LABELS[name].unknown;
+  }
+  const mismatch = data?.pfcp_peer_mismatch;
+  document.querySelector('[data-area="n4"]').title = mismatch
+    ? `SMF is retrying ${mismatch.retrying_peer}, but the UPF pod is ${mismatch.upf_pod_ip}. Restarting SMF (scripts/recover-service.sh) cleared this in the lab.`
+    : '';
+}
+
+async function refreshProtocol() {
+  try {
+    const response = await fetch('/api/protocol', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Protocol check failed with HTTP ${response.status}.`);
+    showLinks(await response.json());
+  } catch {
+    showLinks(null);
+  }
+}
+
 async function showPlan() {
   try {
     const response = await fetch(`/api/plan?target=${encodeURIComponent(selectedTarget())}`);
@@ -295,8 +334,11 @@ async function runExperiment() {
     const service = result.service_recovery?.status === 'service_recovered'
       ? 'Packets reach the UPF again.'
       : 'Packets to the UPF have not recovered. See the run record.';
+    const n2 = result.control_plane_recovery?.status === 'n2_lost'
+      ? ' The gNB lost N2 to the AMF, so new registrations would fail.'
+      : '';
     toast(result.status === 'recovered'
-      ? `${target.toUpperCase()} pod replaced. ${service}`
+      ? `${target.toUpperCase()} pod replaced. ${service}${n2}`
       : 'Kubernetes did not confirm a replacement pod. Check the lab before another run.');
     await Promise.all([refreshOverview(), refreshRuns(), refreshService()]);
   } catch (error) { toast(error.message); }
@@ -309,7 +351,7 @@ async function runExperiment() {
 
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => $(`#${button.dataset.close}`).close()));
 document.querySelectorAll('input[name="target"]').forEach((input) => input.addEventListener('change', updateGates));
-$('#refresh-button').addEventListener('click', () => { refreshOverview(); refreshService(); });
+$('#refresh-button').addEventListener('click', () => { refreshOverview(); refreshService(); refreshProtocol(); });
 $('#plan-button').addEventListener('click', showPlan);
 $('#run-button').addEventListener('click', () => {
   if ($('#run-button').disabled) return;
@@ -328,4 +370,5 @@ $('#confirm-run').addEventListener('click', runExperiment);
 setInterval(refreshOverview, 30000);
 setInterval(refreshTelemetry, 10000);
 setInterval(refreshService, 30000);
-Promise.all([refreshOverview(), refreshRuns(), refreshTelemetry(), refreshService()]);
+setInterval(refreshProtocol, 30000);
+Promise.all([refreshOverview(), refreshRuns(), refreshTelemetry(), refreshService(), refreshProtocol()]);

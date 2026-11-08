@@ -22,6 +22,13 @@ type SignalSnapshot struct {
 	SessionObserved      bool         `json:"session_observed"`
 	LogSource            string       `json:"log_source"`
 	ServiceProbe         ServiceProbe `json:"service_probe"`
+	// ProtocolEvents are timestamped registration, session and PFCP events
+	// from the current UE, SMF and UPF pods. Event history is not current
+	// health; ServiceProbe is the current packet result.
+	ProtocolEvents []ComponentEvents `json:"protocol_events"`
+	// PFCPPeerMismatch is set when SMF keeps retrying an address that is not
+	// the current UPF pod; null otherwise.
+	PFCPPeerMismatch *PFCPPeerMismatch `json:"pfcp_peer_mismatch"`
 }
 
 func InspectSignals(client Client) (SignalSnapshot, error) {
@@ -44,7 +51,11 @@ func InspectSignals(client Client) (SignalSnapshot, error) {
 	if err != nil {
 		return SignalSnapshot{}, err
 	}
-	return SignalSnapshot{UEPod: pod, RegistrationObserved: registrationSuccess.MatchString(logs), SessionObserved: sessionSuccess.MatchString(logs), LogSource: "current UE pod, last 300 log lines", ServiceProbe: probe}, nil
+	events, err := CollectProtocolEvents(client)
+	if err != nil {
+		return SignalSnapshot{}, err
+	}
+	return SignalSnapshot{UEPod: pod, RegistrationObserved: registrationSuccess.MatchString(logs), SessionObserved: sessionSuccess.MatchString(logs), LogSource: "current UE pod, last 300 log lines", ServiceProbe: probe, ProtocolEvents: events, PFCPPeerMismatch: DetectPFCPPeerMismatch(events)}, nil
 }
 
 // ServiceProbe reports a real UE-to-UPF gateway check, separate from pod readiness.

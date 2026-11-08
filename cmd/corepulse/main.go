@@ -227,7 +227,7 @@ func run(args []string) (int, error) {
 		if err := printJSON(result); err != nil {
 			return 1, err
 		}
-		if result["status"] != "recovered" || result["service_recovery"].(collection.Recovery).Status != "service_recovered" {
+		if result["status"] != "recovered" || result["service_recovery"].(collection.Recovery).Status != "service_recovered" || collection.ControlPlaneLost(result) {
 			return 2, nil
 		}
 		return 0, nil

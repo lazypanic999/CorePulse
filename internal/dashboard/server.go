@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/lazypanic999/CorePulse/internal/collection"
@@ -26,7 +27,15 @@ type Server struct {
 	Client    corepulse.Client
 	RunsDir   string
 	Telemetry *telemetry.Store
+
+	// The protocol view reads four pod logs; several tabs polling every
+	// 30 s share one read per protocolCacheTTL.
+	protocolMu      sync.Mutex
+	protocolAt      time.Time
+	protocolPayload map[string]any
 }
+
+const protocolCacheTTL = 25 * time.Second
 
 func New(client corepulse.Client, runsDir string) http.Handler {
 	return NewWithTelemetry(client, runsDir, nil)
@@ -40,6 +49,7 @@ func NewWithTelemetry(client corepulse.Client, runsDir string, store *telemetry.
 	mux.HandleFunc("GET /api/runs", s.runs)
 	mux.HandleFunc("GET /api/telemetry", s.telemetry)
 	mux.HandleFunc("GET /api/service-check", s.serviceCheck)
+	mux.HandleFunc("GET /api/protocol", s.protocol)
 	mux.HandleFunc("POST /api/experiments/pod-crash", s.runPodCrash)
 	web, _ := fs.Sub(webFiles, "web")
 	mux.Handle("/", http.FileServer(http.FS(web)))
@@ -75,6 +85,35 @@ func (s *Server) serviceCheck(w http.ResponseWriter, _ *http.Request) {
 		probe.Detail = err.Error()
 	}
 	writeJSON(w, http.StatusOK, probe)
+}
+
+// protocol reports N2 and N4 link states from recent UE, gNB, SMF and UPF
+// logs. It only reads; "unknown" means not observed.
+func (s *Server) protocol(w http.ResponseWriter, _ *http.Request) {
+	s.protocolMu.Lock()
+	defer s.protocolMu.Unlock()
+	if s.protocolPayload != nil && time.Since(s.protocolAt) < protocolCacheTTL {
+		writeJSON(w, http.StatusOK, s.protocolPayload)
+		return
+	}
+	s.protocolPayload, s.protocolAt = s.readProtocol(), time.Now()
+	writeJSON(w, http.StatusOK, s.protocolPayload)
+}
+
+func (s *Server) readProtocol() map[string]any {
+	checkedAt := time.Now().UTC().Format(time.RFC3339)
+	components, err := corepulse.CollectProtocolEvents(s.Client)
+	if err != nil {
+		return map[string]any{
+			"available": false, "detail": err.Error(), "checked_at": checkedAt,
+			"links": corepulse.LinkStatus{N2: corepulse.LinkUnknown, N4: corepulse.LinkUnknown},
+		}
+	}
+	return map[string]any{
+		"available": true, "checked_at": checkedAt,
+		"links":              corepulse.Links(components),
+		"pfcp_peer_mismatch": corepulse.DetectPFCPPeerMismatch(components),
+	}
 }
 
 func loopbackHost(address string) bool {
@@ -233,7 +272,7 @@ func (s *Server) runPodCrash(w http.ResponseWriter, r *http.Request) {
 	}
 	result["run_record"] = path
 	status := http.StatusOK
-	if result["status"] != "recovered" || result["service_recovery"].(collection.Recovery).Status != "service_recovered" {
+	if result["status"] != "recovered" || result["service_recovery"].(collection.Recovery).Status != "service_recovered" || collection.ControlPlaneLost(result) {
 		status = http.StatusAccepted
 	}
 	writeJSON(w, status, result)

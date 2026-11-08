@@ -68,7 +68,13 @@ func TestServiceObservationCheckpointsRemainExcludedUntilComplete(t *testing.T) 
 		}
 		return nil
 	}, func(time.Duration) {})
-	if err != nil || checkpoints != 6 || r["quality"] != "clean" || r["phase"] != "completed" || r["service_recovery"].(Recovery).Status != "service_recovered" {
+	// 5 during observation, 1 for the completed run before the N2 settle
+	// wait, and 1 after the protocol events are attached.
+	if err != nil || checkpoints != 7 || r["quality"] != "clean" || r["phase"] != "completed" || r["service_recovery"].(Recovery).Status != "service_recovered" {
+		t.Fatalf("unexpected completion: %v checkpoints=%d err=%v", r, checkpoints, err)
+	}
+	// Without a parseable start time the N2 result must not guess.
+	if r["control_plane_recovery"].(ControlPlaneRecovery).Status != "n2_unobserved" {
 		t.Fatalf("unexpected completion: %v checkpoints=%d err=%v", r, checkpoints, err)
 	}
 }

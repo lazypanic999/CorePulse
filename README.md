@@ -29,7 +29,7 @@ Discovery reads deployments, pods, services, and Prometheus scrape annotations f
 
 `baseline` collects normal runs only while the packet check passes and the six essential pods (AMF, SMF, UDR, UPF, gNB, UE) stay ready and unchanged. `dataset` builds a CSV from clean runs only. Setup noise, interrupted runs, and unverified samples are counted and left out.
 
-`verify-service` and `signals` check the current UE pod: the ping to the UPF gateway `10.45.0.1`, and registration and PDU session events in its recent logs. Log history and current packet health are reported separately.
+`verify-service` and `signals` check the current UE pod: the ping to the UPF gateway `10.45.0.1`, and registration and PDU session events in its recent logs. `signals` also lists timestamped N2, registration, session, and PFCP events from the UE, gNB, SMF, and UPF pods. Log history and current packet health are reported separately.
 
 The `internal/logevents` package parses registration, PDU session, and PFCP events from UERANSIM and Open5GS logs into timestamped events. It is tested against fixtures and is not wired into collection yet.
 
@@ -46,6 +46,12 @@ Open `http://127.0.0.1:8787`. The server only binds to loopback and loads nothin
 ![CorePulse dashboard connected to the live lab on 6 November 2026](assets/dashboard-desktop.png)
 
 This capture is from the live lab on 6 November 2026. The service path at the top shows each network function's pod readiness, with the latest packet check drawn as a separate bar under UE, gNB, and UPF. When pods are ready but pings fail, the bar turns red and dashed. The run history below has two UPF runs where exactly that happened: the pod was replaced, and packets still failed afterwards.
+
+When things break, the same view looks like this. This capture is from 8 November after an AMF pod crash followed by a UPF pod crash, with no reset in between:
+
+![Service path with every pod ready, N2 lost, N4 pointing at the old UPF address, and 0 of 2 pings reaching the UPF](assets/dashboard-degraded.png)
+
+Every pod reports ready. N2 is lost because the gNB never set up N2 with the replacement AMF. N4 shows the old UPF address because SMF keeps retrying the IP of the deleted UPF pod. Pings to the UPF fail. The N2 and N4 links come from the latest gNB and SMF log events; `scripts/recover-service.sh` cleared all three.
 
 The delete button lists the four checks it needs and stays disabled until all of them pass. The server repeats them before it touches anything. CPU and memory come from `metrics.k8s.io`. They are Kubernetes resource metrics, not 5G protocol counters and not model predictions. When the lab is offline, the page says so and shows the expected layout as not observed instead of inventing data.
 

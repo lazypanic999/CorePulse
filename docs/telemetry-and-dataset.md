@@ -6,6 +6,8 @@ The verified fields in each raw sample are UTC `timestamp`, source, context, nam
 
 `corepulse signals` exposes three read-only lab observations: registration and PDU-session success events in the current ready UE pod's recent logs, and a current UE-to-UPF gateway packet probe. The log booleans indicate that those transitions appeared in the pod log; they are not continuous success rates or proof of present session state. The gateway probe gives the current packet result. No PFCP, GTP-U, or AMF protocol counter has been verified as a live metric.
 
+`protocol_events` in the same output lists timestamped events from the current UE, gNB, SMF, and UPF pods, read with `kubectl logs --timestamps --tail=300` and parsed by `internal/logevents`. Each component reports its pod, the time window its log covered, and how many lines were read. A component whose pod is not ready, or whose log cannot be read, reports an `error` and no events; that means not observed, not quiet. This output exposed a gap in the packet probe: after an AMF pod crash the probe passed while the gNB showed `n2_association_terminated` with no later `ng_setup_success`, so existing sessions worked but new registrations had no N2 path.
+
 After a dashboard pod experiment, CorePulse writes the run JSON record and rebuilds ignored `data/dataset.csv`. It can also be rebuilt manually:
 
 ```bash
@@ -38,9 +40,22 @@ for missing components, so rebuild them from the raw JSONL and run records to re
 distinction. The export uses the existing column names and order and continues to group rows by
 `run_id` within clean, provenance-checked run intervals.
 
+## Packet and protocol evidence columns
+
+Seven columns follow the resource columns. They come from the run record, not from the telemetry samples, and keep the same rule as the component metrics: an empty cell means not observed, `0` means observed and absent.
+
+| Column | Value for each sample |
+| --- | --- |
+| `probe_status`, `probe_sent`, `probe_received` | The latest UE-to-UPF probe at or before the sample: baseline probes, the pre-fault probe, then the recovery probes. Empty before the first probe. |
+| `smf_pfcp_failures` | SMF events since the run started: heartbeat timeout, no UPF available, de-association, and association retry failure. |
+| `gnb_n2_terminations` | gNB `n2_association_terminated` events since the run started. |
+| `ue_registrations`, `ue_pdu_sessions` | UE registration and PDU session successes since the run started. |
+
+Runs written from 8 November 2026 store `protocol_events`, read once with `--timestamps --tail=300` after the run ends. A count is filled only when that component's log was read without error, its window starts at or before the run start, and it was read after the sample. Otherwise the cell is empty: a replacement pod's log, a truncated log, or a failed read cannot show what happened before it. Older runs have probes but no events, so only the probe columns are filled for them. Counts are cumulative within a run; differences between rows give per-interval counts.
+
 ## Timestamped protocol log events
 
-`internal/logevents` parses UERANSIM UE logs and Open5GS SMF/UPF logs into structured events with a UTC timestamp, component, event kind, 1-based line number, and source provenance (pod, container, log format). It is a pure parser and is not yet wired into `signals`, telemetry, or the CSV.
+`internal/logevents` parses UERANSIM UE and gNB logs and Open5GS SMF and UPF logs into structured events with a UTC timestamp, its source, the component, the event kind, a 1-based line number, and provenance (pod, container, log format).
 
 | Kind | Component | Marker | Observed in this lab |
 | --- | --- | --- | --- |
@@ -48,14 +63,20 @@ distinction. The export uses the existing column names and order and continues t
 | `registration_failure` | UE | `Registration failed` / `Registration reject` | Not yet |
 | `pdu_session_success` | UE | `PDU Session establishment is successful` | Yes |
 | `pdu_session_failure` | UE | `PDU Session Establishment ... reject/fail` | Not yet |
-| `pfcp_associated` | SMF, UPF | `PFCP associated` | Yes (UPF) |
-| `pfcp_deassociated` | SMF, UPF | `PFCP de-associated` | Not yet |
-| `pfcp_heartbeat_timeout` | SMF, UPF | `No Heartbeat from UPF/SMF` | Not yet |
+| `ng_setup_success` | gNB | `NG Setup procedure is successful` | Yes |
+| `n2_association_terminated` | gNB | `Association terminated for AMF` | Yes, after an AMF pod crash |
+| `pfcp_associated` | SMF, UPF | `PFCP associated` | Yes, both |
+| `pfcp_heartbeat_timeout` | SMF, UPF | `No Heartbeat from UPF/SMF` | Yes (SMF), after a UPF pod crash |
+| `pfcp_no_upf_available` | SMF | `No UPF available` | Yes, after a UPF pod crash |
+| `pfcp_deassociated` | SMF, UPF | `PFCP de-associated` | Yes (SMF), after a UPF pod crash |
+| `pfcp_association_retry_failed` | SMF, UPF | `Retry association with peer failed` | Yes (SMF), repeating every 11 s |
 
-Each event carries `marker_observed_live`. Markers marked "not yet" follow upstream log text and must be confirmed against the pinned lab images before they are used as features.
+Each event carries `marker_observed_live`. The two failure markers still marked "not yet" follow upstream log text and must be confirmed against the pinned lab images before they are used as features. The fixtures in `internal/logevents/testdata/kubectl` are real lab output from 7 and 8 November 2026 with colour codes intact and subscriber identity lines removed; the other fixtures are synthetic.
 
-Time handling is explicit. Neither format includes a zone, so the caller must pass the zone the container wrote in; the parser never uses the host's local zone. Open5GS timestamps also omit the year: the caller passes the collection time, and an event more than one day after it is assigned to the previous year. ANSI color escapes and CRLF endings are removed before parsing. Lines that start like a timestamp but do not parse are reported in `skipped` with a reason and no message text, so subscriber identifiers are not copied. Other lines, such as banners, are ignored.
+Time handling is explicit. The preferred input is `kubectl logs --timestamps`: every line then starts with an RFC 3339 timestamp from the container runtime, which carries its zone and becomes the event time (`timestamp_source: runtime`). In that mode the application timestamp is only checked for shape. Without it, neither application format includes a zone, so the caller must pass the zone the container wrote in, and Open5GS timestamps also omit the year: the caller passes the collection time, and an event more than one day after it is assigned to the previous year. In the lab both formats are written in UTC and match the runtime timestamps to the millisecond.
+
+ANSI colour escapes and CRLF endings are removed before parsing; Open5GS embeds colour codes inside the timestamp and component fields. Lines that start like a record but do not parse are reported in `skipped` with a reason and no message text, so subscriber identifiers are not copied. In runtime mode a line without the runtime prefix is skipped as `missing runtime timestamp`. Other lines, such as banners, are ignored.
 
 Each matching line is one event, so repeated real events can be counted. `Dedupe` removes events that recur only because two log reads overlapped, using timestamp, component, kind, pod, and container.
 
-The result has no health field. It reports `timestamped_lines` and the covered time `window`; a missing event means only that the marker did not appear in that window. It does not mean the service was healthy or that the failure rate was zero. The fixtures in `internal/logevents/testdata` are synthetic and contain no subscriber identifiers.
+The result has no health field. It reports `timestamped_lines` and the covered time `window`; a missing event means only that the marker did not appear in that window. It does not mean the service was healthy or that the failure rate was zero.
