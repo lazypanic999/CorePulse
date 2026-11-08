@@ -89,8 +89,8 @@ func TestParseOpen5GSFixture(t *testing.T) {
 
 	checkEvents(t, result.Events, []want{
 		{2, PFCPAssociated, "2026-11-02T10:15:20.5Z", true},
-		{3, PFCPHeartbeatTimeout, "2026-11-02T10:18:02.01Z", false},
-		{4, PFCPDeassociated, "2026-11-02T10:18:02.011Z", false},
+		{3, PFCPHeartbeatTimeout, "2026-11-02T10:18:02.01Z", true},
+		{4, PFCPDeassociated, "2026-11-02T10:18:02.011Z", true},
 		{5, PFCPAssociated, "2026-11-02T10:18:40.7Z", true},
 	})
 	for _, e := range result.Events {
@@ -121,7 +121,7 @@ func TestOpen5GSYearRollover(t *testing.T) {
 	}
 	checkEvents(t, result.Events, []want{
 		{1, PFCPAssociated, "2026-12-31T23:59:00Z", true},
-		{2, PFCPHeartbeatTimeout, "2027-01-01T00:30:00Z", false},
+		{2, PFCPHeartbeatTimeout, "2027-01-01T00:30:00Z", true},
 	})
 }
 

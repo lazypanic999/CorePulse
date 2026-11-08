@@ -1,0 +1,11 @@
+2026-11-07T23:59:29.411855957Z Open5GS daemon v2.7.5
+2026-11-07T23:59:29.454607052Z [32m11/07 23:59:29.454[0m: [[33mapp[0m] [1;32mINFO[0m: SMF initialize...done (../src/smf/app.c:31)
+2026-11-07T23:59:29.454769420Z [32m11/07 23:59:29.454[0m: [[33msmf[0m] [1;32mINFO[0m: PFCP associated [10.244.0.209]:8805 (../src/smf/pfcp-sm.c:188)
+2026-11-07T23:59:33.570623218Z [32m11/07 23:59:33.570[0m: [[33msmf[0m] [1;32mINFO[0m: [Added] Number of SMF-Sessions is now 1 (../src/smf/context.c:3190)
+2026-11-08T00:04:56.030119430Z [32m11/08 00:04:56.029[0m: [[33mpfcp[0m] [1;36mWARNING[0m: [33] LOCAL  No Reponse. Give up! for step 1 type 1 peer [10.244.0.209]:8805 (../lib/pfcp/xact.c:602)
+2026-11-08T00:04:56.030163616Z [32m11/08 00:04:56.029[0m: [[33msmf[0m] [1;36mWARNING[0m: No Heartbeat from UPF [10.244.0.209]:8805 (../src/smf/pfcp-sm.c:409)
+2026-11-08T00:04:56.030168167Z [32m11/08 00:04:56.029[0m: [[33msmf[0m] [1;33mERROR[0m: No UPF available (../src/smf/pfcp-sm.c:511)
+2026-11-08T00:04:56.030171535Z [32m11/08 00:04:56.029[0m: [[33msmf[0m] [1;32mINFO[0m: PFCP de-associated [10.244.0.209]:8805 (../src/smf/pfcp-sm.c:204)
+2026-11-08T00:05:03.536039286Z [32m11/08 00:05:03.535[0m: [[33mpfcp[0m] [1;36mWARNING[0m: [34] LOCAL  No Reponse. Give up! for step 1 type 5 peer [10.244.0.209]:8805 (../lib/pfcp/xact.c:602)
+2026-11-08T00:05:07.031463107Z [32m11/08 00:05:07.031[0m: [[33msmf[0m] [1;36mWARNING[0m: Retry association with peer failed [10.244.0.209]:8805 (../src/smf/pfcp-sm.c:100)
+2026-11-08T00:05:18.034947335Z [32m11/08 00:05:18.034[0m: [[33msmf[0m] [1;36mWARNING[0m: Retry association with peer failed [10.244.0.209]:8805 (../src/smf/pfcp-sm.c:100)

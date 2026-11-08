@@ -21,13 +21,24 @@ import (
 type Kind string
 
 const (
-	RegistrationSuccess  Kind = "registration_success"
-	RegistrationFailure  Kind = "registration_failure"
-	PDUSessionSuccess    Kind = "pdu_session_success"
-	PDUSessionFailure    Kind = "pdu_session_failure"
-	PFCPAssociated       Kind = "pfcp_associated"
-	PFCPDeassociated     Kind = "pfcp_deassociated"
-	PFCPHeartbeatTimeout Kind = "pfcp_heartbeat_timeout"
+	RegistrationSuccess Kind = "registration_success"
+	RegistrationFailure Kind = "registration_failure"
+	PDUSessionSuccess   Kind = "pdu_session_success"
+	PDUSessionFailure   Kind = "pdu_session_failure"
+	// NGSetupSuccess is the gNB's N2 (NGAP over SCTP) setup with the AMF.
+	NGSetupSuccess Kind = "ng_setup_success"
+	// N2AssociationTerminated is logged by the gNB when the AMF's SCTP
+	// association ends. In the lab the gNB did not set up N2 again with the
+	// replacement AMF, while existing UE sessions kept forwarding packets.
+	N2AssociationTerminated Kind = "n2_association_terminated"
+	PFCPAssociated          Kind = "pfcp_associated"
+	PFCPDeassociated        Kind = "pfcp_deassociated"
+	PFCPHeartbeatTimeout    Kind = "pfcp_heartbeat_timeout"
+	// PFCPRetryFailed repeats while SMF keeps retrying a peer address. After a
+	// UPF pod replacement in the lab it named the old pod IP, not the new one.
+	PFCPRetryFailed Kind = "pfcp_association_retry_failed"
+	// PFCPNoUPF is logged by SMF when it has no associated UPF left.
+	PFCPNoUPF Kind = "pfcp_no_upf_available"
 )
 
 // Format identifies a pinned log line layout.
@@ -53,11 +64,20 @@ type Source struct {
 }
 
 // Options controls time interpretation. Both log formats omit the zone, so
-// the caller must state it rather than relying on the host's local zone.
+// the caller must state it rather than relying on the host's local zone, or
+// read the logs with kubectl --timestamps and set RuntimeTimestamps.
 type Options struct {
-	// Location the log timestamps were written in. Required.
+	// RuntimeTimestamps means every line starts with the RFC 3339 timestamp
+	// that "kubectl logs --timestamps" prepends. That timestamp comes from the
+	// container runtime, carries its zone, and becomes the event time; the
+	// application timestamp is then not interpreted, so Location and Reference
+	// are not needed.
+	RuntimeTimestamps bool
+	// Location the log timestamps were written in. Required unless
+	// RuntimeTimestamps is set.
 	Location *time.Location
-	// Reference is required for Open5GS logs, whose timestamps have no year.
+	// Reference is required for Open5GS logs without RuntimeTimestamps, whose
+	// timestamps have no year.
 	// It should be the time the logs were collected. The year of Reference is
 	// used, or the previous year when that would place an event more than one
 	// day after Reference (a December log read in January).
@@ -67,8 +87,11 @@ type Options struct {
 // Event is one observed protocol marker.
 type Event struct {
 	Timestamp time.Time `json:"timestamp"`
-	Component string    `json:"component"`
-	Kind      Kind      `json:"kind"`
+	// TimestampSource is "runtime" for kubectl --timestamps or "log" for the
+	// application's own timestamp.
+	TimestampSource string `json:"timestamp_source"`
+	Component       string `json:"component"`
+	Kind            Kind   `json:"kind"`
 	// Line is the 1-based line number in the parsed input.
 	Line   int    `json:"line"`
 	Source Source `json:"source"`
@@ -118,9 +141,13 @@ var markers = []marker{
 	{RegistrationSuccess, FormatUERANSIM, []string{"ue"}, regexp.MustCompile(`(?i)registration is successful`), true},
 	{PDUSessionFailure, FormatUERANSIM, []string{"ue"}, regexp.MustCompile(`(?i)pdu session establishment.*(reject|fail)`), false},
 	{PDUSessionSuccess, FormatUERANSIM, []string{"ue"}, regexp.MustCompile(`(?i)pdu session establishment is successful`), true},
-	{PFCPDeassociated, FormatOpen5GS, []string{"smf", "upf"}, regexp.MustCompile(`PFCP de-associated`), false},
+	{N2AssociationTerminated, FormatUERANSIM, []string{"gnb"}, regexp.MustCompile(`Association terminated for AMF`), true},
+	{NGSetupSuccess, FormatUERANSIM, []string{"gnb"}, regexp.MustCompile(`NG Setup procedure is successful`), true},
+	{PFCPDeassociated, FormatOpen5GS, []string{"smf", "upf"}, regexp.MustCompile(`PFCP de-associated`), true},
 	{PFCPAssociated, FormatOpen5GS, []string{"smf", "upf"}, regexp.MustCompile(`PFCP associated`), true},
-	{PFCPHeartbeatTimeout, FormatOpen5GS, []string{"smf", "upf"}, regexp.MustCompile(`No Heartbeat from (UPF|SMF)`), false},
+	{PFCPHeartbeatTimeout, FormatOpen5GS, []string{"smf", "upf"}, regexp.MustCompile(`No Heartbeat from (UPF|SMF)`), true},
+	{PFCPRetryFailed, FormatOpen5GS, []string{"smf", "upf"}, regexp.MustCompile(`Retry association with peer failed`), true},
+	{PFCPNoUPF, FormatOpen5GS, []string{"smf"}, regexp.MustCompile(`No UPF available`), true},
 }
 
 var (
@@ -131,13 +158,14 @@ var (
 	// malformed; anything else (stack traces, banners) is ignored silently.
 	ueransimPrefix = regexp.MustCompile(`^\[\d`)
 	open5gsPrefix  = regexp.MustCompile(`^\d{2}/\d{2} `)
+	runtimePrefix  = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})) ?(.*)$`)
 )
 
 const maxLineBytes = 1 << 20
 
 // Parse reads log lines from r and returns the protocol events they contain.
 func Parse(r io.Reader, src Source, opts Options) (Result, error) {
-	if opts.Location == nil {
+	if opts.Location == nil && !opts.RuntimeTimestamps {
 		return Result{}, errors.New("logevents: Options.Location is required; log timestamps carry no zone")
 	}
 	switch src.Format {
@@ -146,7 +174,7 @@ func Parse(r io.Reader, src Source, opts Options) (Result, error) {
 			return Result{}, errors.New("logevents: Source.Component is required for UERANSIM logs")
 		}
 	case FormatOpen5GS:
-		if opts.Reference.IsZero() {
+		if opts.Reference.IsZero() && !opts.RuntimeTimestamps {
 			return Result{}, errors.New("logevents: Options.Reference is required for yearless Open5GS timestamps")
 		}
 	default:
@@ -160,6 +188,22 @@ func Parse(r io.Reader, src Source, opts Options) (Result, error) {
 	for scanner.Scan() {
 		line++
 		text := strings.TrimRight(ansiEscape.ReplaceAllString(scanner.Text(), ""), "\r")
+		var runtimeTS time.Time
+		if opts.RuntimeTimestamps {
+			parts := runtimePrefix.FindStringSubmatch(text)
+			if parts == nil {
+				if strings.TrimSpace(text) != "" {
+					result.Skipped = append(result.Skipped, Skipped{Line: line, Reason: "missing runtime timestamp"})
+				}
+				continue
+			}
+			parsed, err := time.Parse(time.RFC3339Nano, parts[1])
+			if err != nil {
+				result.Skipped = append(result.Skipped, Skipped{Line: line, Reason: "invalid runtime timestamp"})
+				continue
+			}
+			runtimeTS, text = parsed.UTC(), parts[2]
+		}
 		ts, component, message, reason := splitLine(text, src, opts)
 		if reason != "" {
 			result.Skipped = append(result.Skipped, Skipped{Line: line, Reason: reason})
@@ -167,6 +211,10 @@ func Parse(r io.Reader, src Source, opts Options) (Result, error) {
 		}
 		if ts.IsZero() {
 			continue
+		}
+		source := "log"
+		if opts.RuntimeTimestamps {
+			ts, source = runtimeTS, "runtime"
 		}
 		result.TimestampedLines++
 		if result.Window == nil {
@@ -181,7 +229,7 @@ func Parse(r io.Reader, src Source, opts Options) (Result, error) {
 		}
 		if m, ok := match(src.Format, component, message); ok {
 			result.Events = append(result.Events, Event{
-				Timestamp: ts, Component: component, Kind: m.kind, Line: line,
+				Timestamp: ts, TimestampSource: source, Component: component, Kind: m.kind, Line: line,
 				Source: src, MarkerObservedLive: m.live,
 			})
 		}
@@ -204,7 +252,13 @@ func splitLine(text string, src Source, opts Options) (time.Time, string, string
 			}
 			return time.Time{}, "", "", ""
 		}
-		ts, err := time.ParseInLocation("2006-01-02 15:04:05.000", parts[1], opts.Location)
+		// With runtime timestamps the application time is only checked for a
+		// valid shape; UTC is a placeholder and the value is discarded.
+		location := opts.Location
+		if opts.RuntimeTimestamps {
+			location = time.UTC
+		}
+		ts, err := time.ParseInLocation("2006-01-02 15:04:05.000", parts[1], location)
 		if err != nil {
 			return time.Time{}, "", "", "invalid timestamp"
 		}
@@ -216,6 +270,14 @@ func splitLine(text string, src Source, opts Options) (time.Time, string, string
 				return time.Time{}, "", "", "malformed open5gs line"
 			}
 			return time.Time{}, "", "", ""
+		}
+		if opts.RuntimeTimestamps {
+			// Shape check only. 2000 is a leap year, so 02/29 stays valid.
+			ts, err := time.Parse("2006/01/02 15:04:05.000", "2000/"+parts[1])
+			if err != nil {
+				return time.Time{}, "", "", "invalid timestamp"
+			}
+			return ts, parts[2], parts[4], ""
 		}
 		ts, err := open5gsTime(parts[1], opts)
 		if err != nil {

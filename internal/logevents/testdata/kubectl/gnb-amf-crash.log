@@ -1,0 +1,22 @@
+2026-11-08T00:09:17.905136179Z UERANSIM v3.2.6
+2026-11-08T00:09:17.906527780Z [2026-11-08 00:09:17.906] [sctp] [info] Trying to establish SCTP connection... (10.107.52.16:38412)
+2026-11-08T00:09:17.909837366Z [2026-11-08 00:09:17.909] [sctp] [info] SCTP connection established (10.107.52.16:38412)
+2026-11-08T00:09:17.910176176Z [2026-11-08 00:09:17.909] [sctp] [debug] SCTP association setup ascId[9]
+2026-11-08T00:09:17.910581573Z [2026-11-08 00:09:17.910] [ngap] [debug] Sending NG Setup Request
+2026-11-08T00:09:17.921879791Z [2026-11-08 00:09:17.921] [ngap] [debug] NG Setup Response received
+2026-11-08T00:09:17.921914637Z [2026-11-08 00:09:17.921] [ngap] [info] NG Setup procedure is successful
+2026-11-08T00:09:21.472141214Z [2026-11-08 00:09:21.471] [rrc] [debug] UE[1] new signal detected
+2026-11-08T00:09:21.476630804Z [2026-11-08 00:09:21.476] [rrc] [info] RRC Setup for UE[1]
+2026-11-08T00:09:21.479020944Z [2026-11-08 00:09:21.478] [ngap] [debug] Initial NAS message received from UE[1]
+2026-11-08T00:09:36.697216903Z [2026-11-08 00:09:36.696] [rrc] [debug] UE[2] new signal detected
+2026-11-08T00:09:38.503066417Z [2026-11-08 00:09:38.502] [rls] [debug] UE[1] signal lost
+2026-11-08T00:09:46.494982114Z [2026-11-08 00:09:46.494] [rrc] [info] RRC Setup for UE[2]
+2026-11-08T00:09:46.496790164Z [2026-11-08 00:09:46.496] [ngap] [debug] Initial NAS message received from UE[2]
+2026-11-08T00:09:46.536752356Z [2026-11-08 00:09:46.536] [ngap] [debug] UE Context Release Command received
+2026-11-08T00:09:46.536802660Z [2026-11-08 00:09:46.536] [rrc] [info] Releasing RRC connection for UE[1]
+2026-11-08T00:09:46.571632731Z [2026-11-08 00:09:46.571] [ngap] [debug] Initial Context Setup Request received
+2026-11-08T00:09:46.806439710Z [2026-11-08 00:09:46.805] [ngap] [info] PDU session resource(s) setup for UE[2] count[1]
+2026-11-08T00:10:54.555670553Z [2026-11-08 00:10:54.554] [sctp] [debug] SCTP association shutdown (clientId: 2)
+2026-11-08T00:10:54.555772362Z [2026-11-08 00:10:54.554] [sctp] [warning] Unhandled SCTP notification received
+2026-11-08T00:10:54.555786247Z [2026-11-08 00:10:54.555] [ngap] [error] Association terminated for AMF[2]
+2026-11-08T00:10:54.555794659Z [2026-11-08 00:10:54.555] [ngap] [debug] Removing AMF context[2]
