@@ -6,15 +6,15 @@ The lab was started with `scripts/start-lab.ps1` and all 16 deployments became a
 
 | Runs | Outcome |
 | --- | --- |
-| 5 baselines (3 + 2) | All `verified` and `clean`; every probe 2/2 |
-| UPF `c5cc300f`, `68acf881` | Replacement pod ready, packet path `service_degraded` (six probes at 0/2) |
-| AMF `141b3adb`, `fafacad0` | Replacement pod ready, packets kept flowing (`service_recovered`), but the gNB lost N2 |
+| 9 baselines | All `verified` and `clean`; every probe 2/2 |
+| 5 UPF runs (`c5cc300f`, `68acf881`, `4ed364c1`, `93eee07a`, `2a2e78bd`) | Replacement pod ready, packet path `service_degraded` every time (six probes at 0/2) |
+| 5 AMF runs (`141b3adb`, `fafacad0`, `54f6392e`, `3abbd583`, `d1776481`) | Replacement pod ready, packets kept flowing (`service_recovered`), but the gNB lost N2 every time |
 
-Counting the earlier runs, a UPF pod crash has now left the user plane down four times out of four. The SMF log shows why. When the old UPF pod (10.244.0.209) disappeared, SMF logged a missed heartbeat, `No UPF available`, and `PFCP de-associated`, then retried the **old** address every 11 seconds. The replacement UPF (10.244.0.211) never logged an association. This happened with the headless `corepulse-upf-pfcp` service already in place, so SMF appears to resolve the peer once and keep the IP. Restarting SMF through `scripts/recover-service.sh` restored the path every time it was used tonight (4 of 4), confirmed by two consecutive 2/2 checks. Issue [#22](https://github.com/lazypanic999/CorePulse/issues/22) tracks the cause; this is one lab with Open5GS 2.7.5, not a general claim.
+Counting the earlier runs, a UPF pod crash has now left the user plane down seven times out of seven. The SMF log shows why. When the old UPF pod (10.244.0.209) disappeared, SMF logged a missed heartbeat, `No UPF available`, and `PFCP de-associated`, then retried the **old** address every 11 seconds. The replacement UPF (10.244.0.211) never logged an association. This happened with the headless `corepulse-upf-pfcp` service already in place, so SMF appears to resolve the peer once and keep the IP. Restarting SMF through `scripts/recover-service.sh` restored the path every time it was used that night (9 of 9), confirmed by two consecutive 2/2 checks. Issue [#22](https://github.com/lazypanic999/CorePulse/issues/22) tracks the cause; this is one lab with Open5GS 2.7.5, not a general claim.
 
 An AMF pod crash does not interrupt existing sessions: the user plane does not need the AMF. But 31 to 46 seconds after the AMF fault run started, the gNB logged `Association terminated for AMF` and never ran NG Setup with the replacement AMF. New registrations would have failed while every ping passed. `scripts/recover-service.sh` restarts the gNB, which then set up N2 again. Issue [#21](https://github.com/lazypanic999/CorePulse/issues/21) and PR [#24](https://github.com/lazypanic999/CorePulse/pull/24) add a separate N2 result to fault runs.
 
-Both findings came from reading component logs with runtime timestamps (`corepulse signals`, PRs [#19](https://github.com/lazypanic999/CorePulse/pull/19) and [#20](https://github.com/lazypanic999/CorePulse/pull/20)). The packet probe alone would have reported the AMF runs as fully recovered. The local curated dataset grew to 134 rows (61 normal, 73 fault) from 14 clean runs; with PR [#23](https://github.com/lazypanic999/CorePulse/pull/23) the newer rows also carry probe and protocol event columns.
+Both findings came from reading component logs with runtime timestamps (`corepulse signals`, PRs [#19](https://github.com/lazypanic999/CorePulse/pull/19) and [#20](https://github.com/lazypanic999/CorePulse/pull/20)). The packet probe alone would have reported the AMF runs as fully recovered. The local curated dataset grew to 267 rows (104 normal, 163 fault) from 24 clean runs: 12 baselines, 7 UPF and 5 AMF runs; with PR [#23](https://github.com/lazypanic999/CorePulse/pull/23) the newer rows also carry probe and protocol event columns.
 
 ## 4 November 2026: lifecycle and service reset
 

@@ -28,7 +28,7 @@ Goal: collect control-plane and user-plane health alongside resource metrics, so
 - [ ] Report UE, gNB, SMF, and UPF events from `corepulse signals` (PR [#20](https://github.com/lazypanic999/CorePulse/pull/20), in review).
 - [ ] Record protocol events in every run and add probe and event columns to the curated CSV, keeping "not observed" distinct from zero (PR [#23](https://github.com/lazypanic999/CorePulse/pull/23), in review). Events are read once per run rather than on the 10 s resource cadence; a continuous event stream can follow if models need it.
 - [ ] Report N2 control-plane recovery separately from the packet path ([#21](https://github.com/lazypanic999/CorePulse/issues/21), PR [#24](https://github.com/lazypanic999/CorePulse/pull/24), in review).
-- [x] Repeat the UPF pod-crash experiment and document whether `scripts/recover-service.sh` restores the PFCP path. Four of four UPF runs left the user plane down; the reset restored it each time it was used on 8 November. Cause under investigation in [#22](https://github.com/lazypanic999/CorePulse/issues/22).
+- [x] Repeat the UPF pod-crash experiment and document whether `scripts/recover-service.sh` restores the PFCP path. Seven of seven UPF runs left the user plane down; the reset restored it each time it was used on 8 November (9 of 9). Cause under investigation in [#22](https://github.com/lazypanic999/CorePulse/issues/22).
 
 **Done when:** a fault run record and its CSV rows show resource, event, and packet-path signals side by side, and the degraded UPF case is reproducible. The degraded case is reproducible; the rest lands with PRs #19, #20, #23, and #24.
 
@@ -51,7 +51,7 @@ Goal: a dataset a model can honestly be evaluated on.
 
 - [ ] 30-second window feature extraction (mean, max, delta, missing-ratio per signal).
 - [ ] Parameter sweeps per fault (several loss/latency levels) to avoid one-value-per-class leakage.
-- [ ] Target size: at least 10 verified baseline runs and 5 clean runs per fault class.
+- [x] Target size: at least 10 verified baseline runs and 5 clean runs per fault class. Reached locally on 8 November: 12 baselines, 7 UPF, 5 AMF (267 rows). The data stays out of Git.
 - [ ] Run-level train/test split helper; windows from one run never cross the split.
 - [ ] Dataset card in `docs/` describing collection conditions, class balance, and known biases (single node, single UE).
 - [ ] Optional Parquet export next to CSV.
