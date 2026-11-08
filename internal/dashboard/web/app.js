@@ -138,6 +138,15 @@ function packetOutcome(run) {
   return { text: 'Not recorded', tone: '' };
 }
 
+function n2Outcome(run) {
+  const status = run.control_plane_recovery?.status;
+  if (status === 'n2_lost') return { text: 'Lost', tone: 'bad' };
+  if (status === 'n2_restored') return { text: 'Restored', tone: 'good' };
+  if (status === 'n2_no_change_observed') return { text: 'Up', tone: 'good' };
+  if (status === 'n2_unobserved') return { text: 'Not observed', tone: '' };
+  return { text: 'Not recorded', tone: '' };
+}
+
 function runOutcome(run) {
   const baseline = run.fault === 'normal';
   const deployment = baseline
@@ -146,7 +155,7 @@ function runOutcome(run) {
       ? { text: 'Yes', tone: 'good' }
       : run.status === 'recovery_pending' ? { text: 'Pending', tone: 'partial' } : { text: 'Not verified', tone: 'bad' };
   const quality = run.quality === 'clean' ? { text: 'Included', tone: 'good' } : { text: 'Excluded', tone: '' };
-  return { target: baseline ? 'Baseline' : String(run.target || '').toUpperCase(), deployment, packets: packetOutcome(run), quality };
+  return { target: baseline ? 'Baseline' : String(run.target || '').toUpperCase(), deployment, packets: packetOutcome(run), n2: n2Outcome(run), quality };
 }
 
 function cell(row, text, className, tone) {
@@ -181,6 +190,7 @@ async function refreshRuns() {
     cell(row, outcome.target, 'target-cell');
     cell(row, outcome.deployment.text, '', outcome.deployment.tone);
     cell(row, outcome.packets.text, '', outcome.packets.tone);
+    cell(row, outcome.n2.text, '', outcome.n2.tone);
     cell(row, outcome.quality.text, '', outcome.quality.tone);
     cell(row, String(run.run_id || '').slice(0, 8), 'id-cell');
     body.append(row);
@@ -295,8 +305,11 @@ async function runExperiment() {
     const service = result.service_recovery?.status === 'service_recovered'
       ? 'Packets reach the UPF again.'
       : 'Packets to the UPF have not recovered. See the run record.';
+    const n2 = result.control_plane_recovery?.status === 'n2_lost'
+      ? ' The gNB lost N2 to the AMF, so new registrations would fail.'
+      : '';
     toast(result.status === 'recovered'
-      ? `${target.toUpperCase()} pod replaced. ${service}`
+      ? `${target.toUpperCase()} pod replaced. ${service}${n2}`
       : 'Kubernetes did not confirm a replacement pod. Check the lab before another run.');
     await Promise.all([refreshOverview(), refreshRuns(), refreshService()]);
   } catch (error) { toast(error.message); }
