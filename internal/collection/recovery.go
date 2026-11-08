@@ -85,6 +85,11 @@ func finishFaultWithWait(client corepulse.Client, result map[string]any, samples
 	result["ended_at"] = time.Now().UTC().Format(time.RFC3339Nano)
 	result["observed_samples"] = samples
 	result["phase"] = "completed"
+	if events, eventsErr := protocolEvents(client); eventsErr != "" {
+		result["protocol_events_error"] = eventsErr
+	} else {
+		result["protocol_events"] = events
+	}
 	if samples > 0 && (last.Status == "healthy" || last.Status == "degraded") {
 		result["quality"] = "clean"
 	}

@@ -25,7 +25,11 @@ type BaselineRecord struct {
 	Quality       string                   `json:"quality"`
 	Samples       int                      `json:"samples"`
 	ServiceProbes []corepulse.ServiceProbe `json:"service_probes"`
-	Error         string                   `json:"error,omitempty"`
+	// ProtocolEvents is read once at the end of the run; see CollectedAt and
+	// Window on each component for what it covers.
+	ProtocolEvents      []corepulse.ComponentEvents `json:"protocol_events,omitempty"`
+	ProtocolEventsError string                      `json:"protocol_events_error,omitempty"`
+	Error               string                      `json:"error,omitempty"`
 }
 
 func runID() (string, error) {
@@ -87,6 +91,9 @@ func baseline(ctx context.Context, client corepulse.Client, store *telemetry.Sto
 	}
 	defer func() {
 		record.EndedAt = time.Now().UTC()
+		if record.Samples > 0 && ctx.Err() == nil {
+			record.ProtocolEvents, record.ProtocolEventsError = protocolEvents(client)
+		}
 		if runErr != nil {
 			record.Error = runErr.Error()
 			record.Status, record.Quality = "unverified", "excluded"

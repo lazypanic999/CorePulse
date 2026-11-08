@@ -18,11 +18,12 @@ import (
 )
 
 type Run struct {
-	ID      string
-	Fault   string
-	Target  string
-	Started time.Time
-	Ended   time.Time
+	ID       string
+	Fault    string
+	Target   string
+	Started  time.Time
+	Ended    time.Time
+	evidence evidence
 }
 
 type Summary struct {
@@ -61,6 +62,15 @@ func loadRuns(dir string) ([]Run, error) {
 			Namespace string `json:"namespace"`
 			Started   string `json:"started_at"`
 			Ended     string `json:"ended_at"`
+			// Evidence written by baseline and fault runs. Older records
+			// may lack any of these; their columns are then left empty.
+			ServiceProbes   []probeJSON                 `json:"service_probes"`
+			PreProbe        *probeJSON                  `json:"pre_service_probe"`
+			ServiceProbe    *probeJSON                  `json:"service_probe"`
+			ServiceRecovery *struct {
+				Probes []probeJSON `json:"probes"`
+			} `json:"service_recovery"`
+			ProtocolEvents []corepulse.ComponentEvents `json:"protocol_events"`
 		}
 		if err := json.Unmarshal(data, &raw); err != nil {
 			return nil, fmt.Errorf("run %s: %w", entry.Name(), err)
@@ -82,24 +92,37 @@ func loadRuns(dir string) ([]Run, error) {
 		if !ended.After(started) {
 			return nil, fmt.Errorf("run %s has invalid interval", entry.Name())
 		}
-		runs = append(runs, Run{ID: raw.ID, Fault: raw.Fault, Target: raw.Target, Started: started, Ended: ended})
+		probes := [][]probeJSON{raw.ServiceProbes}
+		if raw.PreProbe != nil {
+			probes = append(probes, []probeJSON{*raw.PreProbe})
+		}
+		if raw.ServiceRecovery != nil && len(raw.ServiceRecovery.Probes) > 0 {
+			probes = append(probes, raw.ServiceRecovery.Probes)
+		} else if raw.ServiceProbe != nil {
+			probes = append(probes, []probeJSON{*raw.ServiceProbe})
+		}
+		runs = append(runs, Run{ID: raw.ID, Fault: raw.Fault, Target: raw.Target, Started: started, Ended: ended, evidence: newEvidence(probes, raw.ProtocolEvents)})
 	}
 	sort.Slice(runs, func(i, j int) bool { return runs[i].Started.Before(runs[j].Started) })
 	return runs, nil
 }
 
-func label(sample telemetry.Sample, runs []Run) (string, string, string, error) {
-	label, runID, target := "excluded", "", ""
-	for _, run := range runs {
+func label(sample telemetry.Sample, runs []Run) (string, *Run, error) {
+	var match *Run
+	for i := range runs {
+		run := &runs[i]
 		if sample.Timestamp.Before(run.Started) || sample.Timestamp.After(run.Ended) {
 			continue
 		}
-		if runID != "" {
-			return "", "", "", fmt.Errorf("sample %s overlaps multiple runs", sample.Timestamp.Format(time.RFC3339Nano))
+		if match != nil {
+			return "", nil, fmt.Errorf("sample %s overlaps multiple runs", sample.Timestamp.Format(time.RFC3339Nano))
 		}
-		label, runID, target = run.Fault, run.ID, run.Target
+		match = run
 	}
-	return label, runID, target, nil
+	if match == nil {
+		return "excluded", nil, nil
+	}
+	return match.Fault, match, nil
 }
 
 func componentFields(pods []telemetry.PodUsage, component string) (string, string) {
@@ -139,7 +162,7 @@ func Build(telemetryPath, runsDir, outputPath string) (Summary, error) {
 	}
 	defer os.Remove(temp.Name())
 	writer := csv.NewWriter(temp)
-	columns := []string{"timestamp", "run_id", "label", "target", "context", "namespace", "source", "pod_count", "cpu_millicores", "memory_bytes", "amf_cpu_millicores", "amf_memory_bytes", "upf_cpu_millicores", "upf_memory_bytes"}
+	columns := append([]string{"timestamp", "run_id", "label", "target", "context", "namespace", "source", "pod_count", "cpu_millicores", "memory_bytes", "amf_cpu_millicores", "amf_memory_bytes", "upf_cpu_millicores", "upf_memory_bytes"}, evidenceColumns...)
 	if err := writer.Write(columns); err != nil {
 		temp.Close()
 		return Summary{}, err
@@ -157,7 +180,7 @@ func Build(telemetryPath, runsDir, outputPath string) (Summary, error) {
 			temp.Close()
 			return Summary{}, fmt.Errorf("telemetry provenance does not match the isolated lab")
 		}
-		label, runID, target, err := label(sample, runs)
+		label, run, err := label(sample, runs)
 		if err != nil {
 			temp.Close()
 			return Summary{}, err
@@ -169,10 +192,11 @@ func Build(telemetryPath, runsDir, outputPath string) (Summary, error) {
 		amfCPU, amfMem := componentFields(sample.Pods, "open5gs-amf")
 		upfCPU, upfMem := componentFields(sample.Pods, "open5gs-upf")
 		row := []string{
-			sample.Timestamp.UTC().Format(time.RFC3339Nano), runID, label, target, sample.Context, sample.Namespace, sample.Source,
+			sample.Timestamp.UTC().Format(time.RFC3339Nano), run.ID, label, run.Target, sample.Context, sample.Namespace, sample.Source,
 			strconv.Itoa(sample.PodCount), strconv.FormatFloat(sample.CPUMilli, 'f', 3, 64), strconv.FormatInt(sample.MemoryBytes, 10),
 			amfCPU, amfMem, upfCPU, upfMem,
 		}
+		row = append(row, run.evidence.fields(*run, sample.Timestamp)...)
 		if err := writer.Write(row); err != nil {
 			temp.Close()
 			return Summary{}, err
