@@ -45,7 +45,7 @@ func (c *eventsClient) GetJSON(args ...string) (map[string]any, error) {
 	name := strings.TrimPrefix(selector, "app=")
 	return map[string]any{"items": []any{map[string]any{
 		"metadata": map[string]any{"name": name + "-pod", "ownerReferences": []any{map[string]any{"kind": "ReplicaSet", "name": name + "-rs"}}},
-		"status":   map[string]any{"phase": "Running", "conditions": []any{map[string]any{"type": "Ready", "status": "True"}}},
+		"status":   map[string]any{"phase": "Running", "podIP": "10.244.0.211", "conditions": []any{map[string]any{"type": "Ready", "status": "True"}}},
 	}}}, nil
 }
 

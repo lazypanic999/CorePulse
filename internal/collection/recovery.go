@@ -85,19 +85,28 @@ func finishFaultWithWait(client corepulse.Client, result map[string]any, samples
 	result["ended_at"] = time.Now().UTC().Format(time.RFC3339Nano)
 	result["observed_samples"] = samples
 	result["phase"] = "completed"
+	if samples > 0 && (last.Status == "healthy" || last.Status == "degraded") {
+		result["quality"] = "clean"
+	}
+	// Save the finished run before waiting for N2 evidence, so an
+	// interruption during the wait cannot demote it to an excluded record.
+	if err := persist(); err != nil {
+		return err
+	}
 	if delay := n2SettleDelay(stringOf(result["target"]), result["started_at"], time.Now().UTC()); delay > 0 {
 		wait(delay)
 	}
-	started, _ := time.Parse(time.RFC3339Nano, stringOf(result["started_at"]))
+	started, startErr := time.Parse(time.RFC3339Nano, stringOf(result["started_at"]))
 	if events, eventsErr := protocolEvents(client); eventsErr != "" {
 		result["protocol_events_error"] = eventsErr
 		result["control_plane_recovery"] = ControlPlaneRecovery{Status: "n2_unobserved"}
 	} else {
 		result["protocol_events"] = events
-		result["control_plane_recovery"] = controlPlaneRecovery(events, started)
-	}
-	if samples > 0 && (last.Status == "healthy" || last.Status == "degraded") {
-		result["quality"] = "clean"
+		if startErr != nil {
+			result["control_plane_recovery"] = ControlPlaneRecovery{Status: "n2_unobserved"}
+		} else {
+			result["control_plane_recovery"] = controlPlaneRecovery(events, started)
+		}
 	}
 	return persist()
 }

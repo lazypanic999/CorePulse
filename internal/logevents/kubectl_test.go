@@ -27,6 +27,14 @@ func TestKubectlSMFLogAfterUPFReplacement(t *testing.T) {
 			t.Fatalf("unexpected provenance: %+v", e)
 		}
 	}
+	// PFCP lines keep only the peer address; "No UPF available" names none.
+	peers := []string{}
+	for _, e := range result.Events {
+		peers = append(peers, e.Peer)
+	}
+	if strings.Join(peers, ",") != "10.244.0.209:8805,10.244.0.209:8805,,10.244.0.209:8805,10.244.0.209:8805,10.244.0.209:8805" {
+		t.Fatalf("unexpected peers: %q", peers)
+	}
 	// The [pfcp] library lines are timestamped records without an SMF marker.
 	if result.TimestampedLines != 10 || len(result.Skipped) != 0 {
 		t.Fatalf("timestamped=%d skipped=%+v", result.TimestampedLines, result.Skipped)
