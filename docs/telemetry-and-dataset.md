@@ -6,6 +6,8 @@ The verified fields in each raw sample are UTC `timestamp`, source, context, nam
 
 `corepulse signals` exposes three read-only lab observations: registration and PDU-session success events in the current ready UE pod's recent logs, and a current UE-to-UPF gateway packet probe. The log booleans indicate that those transitions appeared in the pod log; they are not continuous success rates or proof of present session state. The gateway probe gives the current packet result. No PFCP, GTP-U, or AMF protocol counter has been verified as a live metric.
 
+`protocol_events` in the same output lists timestamped events from the current UE, gNB, SMF, and UPF pods, read with `kubectl logs --timestamps --tail=300` and parsed by `internal/logevents`. Each component reports its pod, the time window its log covered, and how many lines were read. A component whose pod is not ready, or whose log cannot be read, reports an `error` and no events; that means not observed, not quiet. This output exposed a gap in the packet probe: after an AMF pod crash the probe passed while the gNB showed `n2_association_terminated` with no later `ng_setup_success`, so existing sessions worked but new registrations had no N2 path.
+
 After a dashboard pod experiment, CorePulse writes the run JSON record and rebuilds ignored `data/dataset.csv`. It can also be rebuilt manually:
 
 ```bash
