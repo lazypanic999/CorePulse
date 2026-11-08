@@ -40,7 +40,7 @@ distinction. The export uses the existing column names and order and continues t
 
 ## Timestamped protocol log events
 
-`internal/logevents` parses UERANSIM UE logs and Open5GS SMF/UPF logs into structured events with a UTC timestamp, component, event kind, 1-based line number, and source provenance (pod, container, log format). It is a pure parser and is not yet wired into `signals`, telemetry, or the CSV.
+`internal/logevents` parses UERANSIM UE and gNB logs and Open5GS SMF and UPF logs into structured events with a UTC timestamp, its source, the component, the event kind, a 1-based line number, and provenance (pod, container, log format).
 
 | Kind | Component | Marker | Observed in this lab |
 | --- | --- | --- | --- |
@@ -48,14 +48,20 @@ distinction. The export uses the existing column names and order and continues t
 | `registration_failure` | UE | `Registration failed` / `Registration reject` | Not yet |
 | `pdu_session_success` | UE | `PDU Session establishment is successful` | Yes |
 | `pdu_session_failure` | UE | `PDU Session Establishment ... reject/fail` | Not yet |
-| `pfcp_associated` | SMF, UPF | `PFCP associated` | Yes (UPF) |
-| `pfcp_deassociated` | SMF, UPF | `PFCP de-associated` | Not yet |
-| `pfcp_heartbeat_timeout` | SMF, UPF | `No Heartbeat from UPF/SMF` | Not yet |
+| `ng_setup_success` | gNB | `NG Setup procedure is successful` | Yes |
+| `n2_association_terminated` | gNB | `Association terminated for AMF` | Yes, after an AMF pod crash |
+| `pfcp_associated` | SMF, UPF | `PFCP associated` | Yes, both |
+| `pfcp_heartbeat_timeout` | SMF, UPF | `No Heartbeat from UPF/SMF` | Yes (SMF), after a UPF pod crash |
+| `pfcp_no_upf_available` | SMF | `No UPF available` | Yes, after a UPF pod crash |
+| `pfcp_deassociated` | SMF, UPF | `PFCP de-associated` | Yes (SMF), after a UPF pod crash |
+| `pfcp_association_retry_failed` | SMF, UPF | `Retry association with peer failed` | Yes (SMF), repeating every 11 s |
 
-Each event carries `marker_observed_live`. Markers marked "not yet" follow upstream log text and must be confirmed against the pinned lab images before they are used as features.
+Each event carries `marker_observed_live`. The two failure markers still marked "not yet" follow upstream log text and must be confirmed against the pinned lab images before they are used as features. The fixtures in `internal/logevents/testdata/kubectl` are real lab output from 7 and 8 November 2026 with colour codes intact and subscriber identity lines removed; the other fixtures are synthetic.
 
-Time handling is explicit. Neither format includes a zone, so the caller must pass the zone the container wrote in; the parser never uses the host's local zone. Open5GS timestamps also omit the year: the caller passes the collection time, and an event more than one day after it is assigned to the previous year. ANSI color escapes and CRLF endings are removed before parsing. Lines that start like a timestamp but do not parse are reported in `skipped` with a reason and no message text, so subscriber identifiers are not copied. Other lines, such as banners, are ignored.
+Time handling is explicit. The preferred input is `kubectl logs --timestamps`: every line then starts with an RFC 3339 timestamp from the container runtime, which carries its zone and becomes the event time (`timestamp_source: runtime`). In that mode the application timestamp is only checked for shape. Without it, neither application format includes a zone, so the caller must pass the zone the container wrote in, and Open5GS timestamps also omit the year: the caller passes the collection time, and an event more than one day after it is assigned to the previous year. In the lab both formats are written in UTC and match the runtime timestamps to the millisecond.
+
+ANSI colour escapes and CRLF endings are removed before parsing; Open5GS embeds colour codes inside the timestamp and component fields. Lines that start like a record but do not parse are reported in `skipped` with a reason and no message text, so subscriber identifiers are not copied. In runtime mode a line without the runtime prefix is skipped as `missing runtime timestamp`. Other lines, such as banners, are ignored.
 
 Each matching line is one event, so repeated real events can be counted. `Dedupe` removes events that recur only because two log reads overlapped, using timestamp, component, kind, pod, and container.
 
-The result has no health field. It reports `timestamped_lines` and the covered time `window`; a missing event means only that the marker did not appear in that window. It does not mean the service was healthy or that the failure rate was zero. The fixtures in `internal/logevents/testdata` are synthetic and contain no subscriber identifiers.
+The result has no health field. It reports `timestamped_lines` and the covered time `window`; a missing event means only that the marker did not appear in that window. It does not mean the service was healthy or that the failure rate was zero.
