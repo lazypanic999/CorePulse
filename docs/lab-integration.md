@@ -1,5 +1,21 @@
 # Lab integration: live baseline and remaining checks
 
+## 8 November 2026: repeated faults and their causes
+
+The lab was started with `scripts/start-lab.ps1` and all 16 deployments became available. Before any fault the UE registered, established its PDU session, and passed 2/2 gateway checks. Over the night these runs were recorded:
+
+| Runs | Outcome |
+| --- | --- |
+| 5 baselines (3 + 2) | All `verified` and `clean`; every probe 2/2 |
+| UPF `c5cc300f`, `68acf881` | Replacement pod ready, packet path `service_degraded` (six probes at 0/2) |
+| AMF `141b3adb`, `fafacad0` | Replacement pod ready, packets kept flowing (`service_recovered`), but the gNB lost N2 |
+
+Counting the earlier runs, a UPF pod crash has now left the user plane down four times out of four. The SMF log shows why. When the old UPF pod (10.244.0.209) disappeared, SMF logged a missed heartbeat, `No UPF available`, and `PFCP de-associated`, then retried the **old** address every 11 seconds. The replacement UPF (10.244.0.211) never logged an association. This happened with the headless `corepulse-upf-pfcp` service already in place, so SMF appears to resolve the peer once and keep the IP. Restarting SMF through `scripts/recover-service.sh` restored the path every time it was used tonight (4 of 4), confirmed by two consecutive 2/2 checks. Issue [#22](https://github.com/lazypanic999/CorePulse/issues/22) tracks the cause; this is one lab with Open5GS 2.7.5, not a general claim.
+
+An AMF pod crash does not interrupt existing sessions: the user plane does not need the AMF. But 31 to 46 seconds after the AMF fault run started, the gNB logged `Association terminated for AMF` and never ran NG Setup with the replacement AMF. New registrations would have failed while every ping passed. `scripts/recover-service.sh` restarts the gNB, which then set up N2 again. Issue [#21](https://github.com/lazypanic999/CorePulse/issues/21) and PR [#24](https://github.com/lazypanic999/CorePulse/pull/24) add a separate N2 result to fault runs.
+
+Both findings came from reading component logs with runtime timestamps (`corepulse signals`, PRs [#19](https://github.com/lazypanic999/CorePulse/pull/19) and [#20](https://github.com/lazypanic999/CorePulse/pull/20)). The packet probe alone would have reported the AMF runs as fully recovered. The local curated dataset grew to 134 rows (61 normal, 73 fault) from 14 clean runs; with PR [#23](https://github.com/lazypanic999/CorePulse/pull/23) the newer rows also carry probe and protocol event columns.
+
 ## 4 November 2026: lifecycle and service reset
 
 The lab now has a retained Windows-launched WSL session, a system-drive free-space check, and an idempotent patch for the pinned populate init container. On the existing subscriber, the patch and a subsequent populate rollout both succeeded without inserting a duplicate. The hidden launcher was invoked twice and reused its tracked process. Prior WSL logs showed orderly systemd shutdown; Microsoft's documented WSL idle-lifetime behavior is consistent with that evidence, but other shutdown causes have not been ruled out.

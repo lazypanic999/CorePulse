@@ -20,6 +20,21 @@ The useful split for the next feature set is control-plane events (UE registrati
 
 The lab's full `scripts/verify.sh` timed out on `open5gs-populate` after restart. Its init container reported a duplicate subscriber key. At the time of the point-in-time checks above, the six essential workloads used by CorePulse's baseline gate were ready and the UE packet path was healthy. The full verifier needs a separate lab idempotency fix.
 
+## Signals confirmed on 8 November 2026
+
+These log markers were seen in the live lab with `kubectl logs --timestamps`, and are now parsed by `internal/logevents`:
+
+| Component | Marker | When it appeared |
+| --- | --- | --- |
+| UE | `Initial Registration is successful`, `PDU Session establishment is successful` | Every UE start |
+| gNB | `NG Setup procedure is successful` | gNB start, and after `recover-service.sh` |
+| gNB | `Association terminated for AMF` | 31 to 46 s after an AMF fault run started; no NG Setup followed |
+| SMF, UPF | `PFCP associated` | Lab start and after `recover-service.sh` |
+| SMF | `No Heartbeat from UPF`, `No UPF available`, `PFCP de-associated` | About 20 s after a UPF fault run started |
+| SMF | `Retry association with peer failed` | Every 11 s afterwards, naming the old UPF pod IP |
+
+Open5GS writes ANSI colour codes inside its timestamp and component fields, and both Open5GS and UERANSIM write UTC that matches the runtime timestamps. The registration and PDU session failure markers have still not been observed.
+
 ## Controlled UPF replacement
 
 One guarded UPF pod-crash run started with a healthy 2/2 gateway probe and captured three resource samples inside the recorded interval. The old UPF pod disappeared from the later samples, Kubernetes made a replacement pod ready, but the post-run UE-to-UPF probe was degraded. UPF and SMF logs then showed PFCP heartbeat and session-establishment failures. This is direct evidence that deployment readiness and 5G service recovery are separate outcomes. The run's `quality: clean` means its provenance and observation gates passed; it does **not** mean the service was healthy after the fault.
