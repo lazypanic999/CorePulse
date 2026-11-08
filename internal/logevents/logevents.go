@@ -99,6 +99,10 @@ type Event struct {
 	// (docs/validated-signals.md). Other markers follow the upstream log text
 	// and have not yet been confirmed against the pinned lab images.
 	MarkerObservedLive bool `json:"marker_observed_live"`
+	// Peer is the PFCP peer address ("10.244.0.209:8805") named on PFCP
+	// lines. Only this network address is kept from the message; it is a
+	// lab pod endpoint, not subscriber data.
+	Peer string `json:"peer,omitempty"`
 }
 
 // Skipped records a line that looked like a log line but could not be used.
@@ -158,6 +162,7 @@ var (
 	// malformed; anything else (stack traces, banners) is ignored silently.
 	ueransimPrefix = regexp.MustCompile(`^\[\d`)
 	open5gsPrefix  = regexp.MustCompile(`^\d{2}/\d{2} `)
+	pfcpPeer       = regexp.MustCompile(`\[(\d{1,3}(?:\.\d{1,3}){3})\]:(\d{1,5})`)
 	runtimePrefix  = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})) ?(.*)$`)
 )
 
@@ -228,10 +233,16 @@ func Parse(r io.Reader, src Source, opts Options) (Result, error) {
 			}
 		}
 		if m, ok := match(src.Format, component, message); ok {
-			result.Events = append(result.Events, Event{
+			event := Event{
 				Timestamp: ts, TimestampSource: source, Component: component, Kind: m.kind, Line: line,
 				Source: src, MarkerObservedLive: m.live,
-			})
+			}
+			if strings.HasPrefix(string(m.kind), "pfcp_") {
+				if peer := pfcpPeer.FindStringSubmatch(message); peer != nil {
+					event.Peer = peer[1] + ":" + peer[2]
+				}
+			}
+			result.Events = append(result.Events, event)
 		}
 	}
 	if err := scanner.Err(); err != nil {

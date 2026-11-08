@@ -30,6 +30,9 @@ func (c *eventsClient) Run(_ time.Duration, args ...string) (string, error) {
 }
 
 func (c *eventsClient) GetJSON(args ...string) (map[string]any, error) {
+	if strings.HasPrefix(args[1], "pod/") {
+		return map[string]any{"status": map[string]any{"podIP": "10.244.0.211"}}, nil
+	}
 	if strings.HasPrefix(args[1], "deployment/") {
 		name := strings.TrimPrefix(args[1], "deployment/")
 		ready := float64(1)
