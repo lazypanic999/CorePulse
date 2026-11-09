@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.2.1 — 2026-11-09 (preview)
 
 - Distinguish live capture times from Metrics API source intervals in the resource panel. Show per-pod metadata coverage and averaging windows; historical unknown intervals remain explicit instead of implying fresh measurements.
 
