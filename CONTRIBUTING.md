@@ -2,11 +2,11 @@
 
 ## Find a starting point
 
-Browse [good first issues](https://github.com/lazypanic999/CorePulse/labels/good%20first%20issue) for small, scoped contributions or [help wanted](https://github.com/lazypanic999/CorePulse/labels/help%20wanted) for larger tasks. Each issue lists acceptance criteria, relevant files and whether a live lab is required. Comment with the issue you want to work on and a short approach so contributors can coordinate.
+Browse [good first issues](https://github.com/lazypanic999/CorePulse/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22) for small, scoped contributions or [help wanted](https://github.com/lazypanic999/CorePulse/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22help%20wanted%22) for larger tasks. Each issue lists acceptance criteria, relevant files and whether a live lab is required. Comment with the issue you want to work on and a short approach so contributors can coordinate.
 
-- [Synthetic offline evaluation walkthrough (#31)](https://github.com/lazypanic999/CorePulse/issues/31) is a documentation/example task that needs no Kubernetes.
-- Go contributors can help design [cross-process collection ownership (#32)](https://github.com/lazypanic999/CorePulse/issues/32), using subprocesses and fake clients.
-- Dataset and ML contributors can help with [collection-session holdouts (#33)](https://github.com/lazypanic999/CorePulse/issues/33), also using fixtures alone.
+- Start with the completed [synthetic offline evaluation walkthrough](examples/offline/README.md): all three pipeline commands work without Kubernetes.
+- A current no-lab starter is [source-frame reuse and measurement-age diagnostics (#44)](https://github.com/lazypanic999/CorePulse/issues/44), using JSONL fixtures.
+- For larger dataset/evaluation changes, browse the open help-wanted list above and discuss grouping, source-time and missing-data policies before implementation. [Collection ownership](docs/collection-ownership.md) is already implemented and provides subprocess-test examples.
 
 Fork the repository, create a focused branch and link the issue in your pull request. Keep documentation and issue discussions in English. For the local lab lifecycle and reset procedure, see [lab operations](docs/lab-operations.md).
 
@@ -114,3 +114,5 @@ go vet ./...
 ```
 
 Describe what was measured in a live lab and what was only tested with fixtures. Do not commit kubeconfigs, credentials, raw telemetry, run records, or trained models. See [README.md](README.md) for the current scope.
+
+To verify the complete offline example after changing exported data or evaluation behavior, build the CLI and run `python3 scripts/check-offline-example.py --binary ./corepulse` (on Windows, use your built `.exe` path). Python is only needed for this checker; the documented Go CLI pipeline itself has no Python dependency.
