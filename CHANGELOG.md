@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.2.2 — 2026-11-09 (preview)
 
 - Treat ping failures without valid positive transmitted-packet counts as unavailable, not observed packet loss. Preserve unknown/legacy 0/0 counters as empty CSV/window features while retaining genuine zero replies; unobserved final probes cannot qualify a fault as clean.
 
