@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.4 — 2026-11-09 (preview)
+
+- Update the container's bundled kubectl from v1.35.1 to the current v1.35.10 patch in the same minor line. Build the image in ordinary Linux CI and execute CorePulse version plus kubectl client-version checks with networking disabled and a read-only root filesystem. Native CorePulse code and evaluation semantics are unchanged.
+
 ## v0.2.3 — 2026-11-09 (preview)
 
 - Gate release/container publication on executing the actual Linux amd64, Windows amd64 and macOS arm64 archives, checking packaged versions and both synthetic holdout modes. Linux arm64 and Darwin amd64 remain cross-built without native execution checks.
