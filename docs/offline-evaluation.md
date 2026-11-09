@@ -25,6 +25,8 @@ Features entirely absent in the relevant training partition are dropped and list
 
 ## Reading the report
 
+If the split declares a capture-time embargo, purged runs are excluded from both fitting and scoring and `purged_windows` accounts for their rows. The evaluator verifies separation from actual window ranges rather than trusting the manifest's declared margin. Scenario and binary F1 use different label sets and should not be ranked as if they were the same task. Disjoint run IDs and a time margin still do not establish cross-session generalization or certified measurement-time independence; see [source timing limits](windowed-dataset.md#optional-capture-time-embargo).
+
 The JSON records the source hash, full split, training/test window support, normal training support, methods, parameters and every held-out prediction. Incorrect predictions remain present. Reports are deterministic for identical input, split and options; no current timestamp is injected into their contents.
 
 Each method has window-level and run-level confusion matrices, accuracy, per-class precision/recall/F1, support, and macro F1. Confusion rows are truth and columns are prediction in the reported label order. Run predictions use the most common non-abstaining window prediction; ties choose the first label in that order. A run with no prediction remains abstained.

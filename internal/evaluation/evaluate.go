@@ -37,6 +37,7 @@ type ModelReport struct {
 	Centroids     map[string][]float64 `json:"centroids,omitempty"`
 }
 type Report struct {
+	PurgedWindows         int                    `json:"purged_windows"`
 	SchemaVersion         int                    `json:"schema_version"`
 	WindowsSHA256         string                 `json:"windows_sha256"`
 	Split                 dataset.SplitManifest  `json:"split"`
@@ -52,6 +53,7 @@ func Evaluate(windowsPath, splitPath, outputPath string, options Options) (Repor
 	r := Report{SchemaVersion: 1, ZScoreThreshold: options.Threshold, Models: map[string]ModelReport{}, Limitations: []string{
 		"Ground truth labels describe controlled experiment intervals, not continuous service degradation.",
 		"Single-node, single-UE local lab; held-out runs from this environment do not establish generalization to another network.",
+		"Resource sample timestamps are capture times; original metric timestamps and averaging windows are not yet retained. Nearby runs may share underlying CPU measurement intervals. A capture-time embargo reduces proximity, but cannot certify measurement-time independence.",
 		"Training uses equally weighted windows; long runs contribute more windows. Both window and majority-vote run metrics are reported.",
 		"Sparse and partial windows remain included; missing resource values use training-only medians and missing-ratio features.",
 		"Probe rule abstains when evidence is absent. Protocol event counts are excluded from fitted models because their availability depends on post-run log collection.",
@@ -82,6 +84,7 @@ func Evaluate(windowsPath, splitPath, outputPath string, options Options) (Repor
 		return r, err
 	}
 	r.TrainWindows, r.TestWindows = len(train), len(test)
+	r.PurgedWindows = len(data.Rows) - len(train) - len(test)
 	normal := []dataset.WindowRow{}
 	for _, row := range train {
 		if row.Label == "normal" {
@@ -178,6 +181,9 @@ func Evaluate(windowsPath, splitPath, outputPath string, options Options) (Repor
 	if !r.Split.RequireProtocol {
 		r.Limitations = append(r.Limitations, "Legacy protocol-start evidence was explicitly allowed; mixed starting conditions may contaminate labels.")
 	}
+	if r.Split.EmbargoSeconds == 0 {
+		r.Limitations = append(r.Limitations, "No temporal embargo was applied; disjoint run IDs alone do not exclude shared metric averaging intervals.")
+	}
 	if err := runrecord.Save(outputPath, r); err != nil {
 		return r, err
 	}
@@ -185,6 +191,9 @@ func Evaluate(windowsPath, splitPath, outputPath string, options Options) (Repor
 }
 
 func validateSplit(data dataset.WindowData, m dataset.SplitManifest, allowLegacy bool) ([]dataset.WindowRow, []dataset.WindowRow, []string, error) {
+	if m.EmbargoSeconds < 0 || m.EmbargoSeconds > 86400 || math.IsNaN(m.EmbargoSeconds) || math.IsInf(m.EmbargoSeconds, 0) {
+		return nil, nil, nil, fmt.Errorf("invalid temporal embargo in split manifest")
+	}
 	if m.TestFraction <= 0 || m.TestFraction >= 1 {
 		return nil, nil, nil, fmt.Errorf("invalid test fraction in split manifest")
 	}
@@ -195,7 +204,7 @@ func validateSplit(data dataset.WindowData, m dataset.SplitManifest, allowLegacy
 		return nil, nil, nil, fmt.Errorf("legacy split requires explicit allow-legacy")
 	}
 	roles := map[string]string{}
-	for role, ids := range map[string][]string{"train": m.TrainRuns, "test": m.TestRuns} {
+	for role, ids := range map[string][]string{"train": m.TrainRuns, "test": m.TestRuns, "purged": m.PurgedRuns} {
 		for _, id := range ids {
 			if _, exists := roles[id]; exists {
 				return nil, nil, nil, fmt.Errorf("duplicate or overlapping split run %s", id)
@@ -214,13 +223,17 @@ func validateSplit(data dataset.WindowData, m dataset.SplitManifest, allowLegacy
 		if (m.RequireProtocol || !allowLegacy) && !row.ProtocolVerified {
 			return nil, nil, nil, fmt.Errorf("run %s has no verified protocol start", row.RunID)
 		}
+		fresh := !seen[row.RunID]
+		seen[row.RunID] = true
+		if role == "purged" {
+			continue
+		}
 		if role == "train" {
 			train = append(train, row)
 		} else {
 			test = append(test, row)
 		}
-		if !seen[row.RunID] {
-			seen[row.RunID] = true
+		if fresh {
 			c := counts[classOf(row)]
 			if role == "train" {
 				c.TrainRuns++
@@ -236,11 +249,14 @@ func validateSplit(data dataset.WindowData, m dataset.SplitManifest, allowLegacy
 	labels := make([]string, 0, len(counts))
 	for class, c := range counts {
 		if c.TrainRuns < 1 || c.TestRuns < 1 || m.Classes[class] != c {
-			return nil, nil, nil, fmt.Errorf("class %s is missing independent train/test support or has inconsistent counts", class)
+			return nil, nil, nil, fmt.Errorf("class %s is missing distinct train/test run support or has inconsistent counts", class)
 		}
 		labels = append(labels, class)
 	}
 	sort.Strings(labels)
+	if err := dataset.VerifyTemporalSeparation(data, m.TrainRuns, m.TestRuns, time.Duration(m.EmbargoSeconds*float64(time.Second))); err != nil {
+		return nil, nil, nil, err
+	}
 	return train, test, labels, nil
 }
 

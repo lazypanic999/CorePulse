@@ -180,7 +180,7 @@ func TestMissingProbeEvidenceAbstains(t *testing.T) {
 }
 
 func TestEvaluationRejectsChangedOrOverlappingSplits(t *testing.T) {
-	for _, mode := range []string{"changed_csv", "overlap", "missing_id", "wrong_classes", "alias"} {
+	for _, mode := range []string{"changed_csv", "overlap", "missing_id", "wrong_classes", "alias", "forged_embargo", "purged_overlap"} {
 		t.Run(mode, func(t *testing.T) {
 			input, split, out, m := fixture(t)
 			if err := os.WriteFile(out, []byte("keep"), 0644); err != nil {
@@ -202,6 +202,10 @@ func TestEvaluationRejectsChangedOrOverlappingSplits(t *testing.T) {
 				m.Classes["normal"] = dataset.ClassSplit{TrainRuns: 99, TestRuns: 1}
 			case "alias":
 				out = input
+			case "forged_embargo":
+				m.EmbargoSeconds = 120
+			case "purged_overlap":
+				m.PurgedRuns = []string{m.TrainRuns[0]}
 			}
 			if mode != "changed_csv" && mode != "alias" {
 				if err := runrecord.Save(split, m); err != nil {
@@ -218,6 +222,68 @@ func TestEvaluationRejectsChangedOrOverlappingSplits(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestPurgedWindowsNeverEnterFittingOrScoring(t *testing.T) {
+	input, split, out, _ := fixture(t)
+	rows := readRows(t, input)
+	for _, original := range append([][]string(nil), rows[1:]...) {
+		if original[0] == "n1" {
+			row := append([]string(nil), original...)
+			row[0] = "n3"
+			rows = append(rows, row)
+		}
+	}
+	writeRows(t, input, rows)
+	base, err := dataset.Split(input, split, dataset.SplitOptions{TestFraction: .25, Seed: 42, RequireProtocol: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := time.Date(2026, 11, 9, 0, 0, 0, 0, time.UTC)
+	starts := map[string]time.Time{}
+	for _, id := range base.TestRuns {
+		offset := time.Duration(0)
+		if id[:1] == "a" {
+			offset = 3 * time.Hour
+		}
+		starts[id] = start.Add(offset)
+	}
+	nearNormal := false
+	for _, id := range base.TrainRuns {
+		offset := time.Hour
+		if id[:1] == "a" {
+			offset = 4 * time.Hour
+		} else if !nearNormal {
+			offset = 90 * time.Second
+			nearNormal = true
+		}
+		starts[id] = start.Add(offset)
+	}
+	indices := map[string]int{}
+	for _, row := range rows[1:] {
+		at := starts[row[0]].Add(time.Duration(indices[row[0]]) * 30 * time.Second)
+		indices[row[0]]++
+		row[3], row[4], row[5], row[6] = at.Format(time.RFC3339), at.Add(30*time.Second).Format(time.RFC3339), at.Add(time.Second).Format(time.RFC3339), at.Add(5*time.Second).Format(time.RFC3339)
+	}
+	writeRows(t, input, rows)
+	m, err := dataset.Split(input, split, dataset.SplitOptions{TestFraction: .25, Seed: 42, RequireProtocol: true, Embargo: 2 * time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := Evaluate(input, split, out, Options{Threshold: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.PurgedWindows != 2 || r.TrainWindows != 4 || r.TestWindows != 4 || len(m.PurgedRuns) != 1 {
+		t.Fatalf("purged accounting is wrong: %+v", r)
+	}
+	for _, model := range r.Models {
+		for _, p := range model.Predictions {
+			if slices.Contains(m.PurgedRuns, p.RunID) {
+				t.Fatal("scored a purged run")
+			}
+		}
 	}
 }
 
