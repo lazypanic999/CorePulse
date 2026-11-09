@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Run native Windows/macOS offline regression checks alongside the Linux minimum-version job. Build release archives and the container with the maintained toolchain pinned in `.go-version`; older Go 1.22 Mach-O binaries can fail to launch on current macOS due to missing UUID load commands.
+
 - Record explicit prospective session declarations in baseline/fault/dashboard checkpoints and optional window metadata. Add deterministic, hash-bound whole-session holdouts with schema-2 evaluation, complete-session embargo purging, refusal of unknown/insufficient groups and explicit dashboard grouping. Legacy run-mode data remains compatible; declarations do not certify independence.
 
 ## v0.2.2 — 2026-11-09 (preview)

@@ -18,7 +18,7 @@ You can build, test, and preview CorePulse without Open5GS, UERANSIM, or a clust
 
 ### Prerequisites
 
-- Go 1.22 or newer (the version in `go.mod`).
+- The release Go toolchain in `.go-version` is recommended. Linux CI also checks the `go.mod` source minimum (1.22); current macOS needs a linker from Go 1.24 or newer.
 - Git.
 - `kubectl` is optional. Without it, or without a reachable `open5gs-lab` context, lab commands fail with an explicit error and the dashboard stays in preview mode.
 

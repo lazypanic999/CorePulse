@@ -2,7 +2,7 @@
 
 **Every value and identifier here is invented. These are schema fixtures, not measured 5G performance, a public lab dataset or proof of detection quality.** Each raw row and run record carries an `example_only` marker. The `verified`, `clean` and N2/N4 flags are fabricated example inputs; no actual protocol check occurred.
 
-Use this walkthrough from the repository root with Go 1.22 or newer. The three offline commands do not require Kubernetes, Docker, Open5GS, Python or `kubectl`. The three pipeline outputs stay under ignored `reports/offline-example/`, separate from real telemetry, run records and the published local reference result.
+Use this walkthrough from the repository root with the Go toolchain in `.go-version` (recommended). The source minimum is Go 1.22, but current macOS requires a linker from Go 1.24 or newer. The three offline commands do not require Kubernetes, Docker, Open5GS, Python or `kubectl`. The three pipeline outputs stay under ignored `reports/offline-example/`, separate from real telemetry, run records and the published local reference result.
 
 ```bash
 go build -o corepulse ./cmd/corepulse
