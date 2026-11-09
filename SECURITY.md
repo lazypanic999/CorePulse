@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-CorePulse is an early-development local lab tool. Security fixes are developed on `main` and included in subsequent preview releases. Use the latest code or preview release when verifying a fix; older previews do not have a separate backport support line. The current release, `v0.1.0`, is a preview, not a production-ready deployment.
+CorePulse is an early-development local lab tool. Security fixes are developed on `main` and included in subsequent preview releases. Use the latest code or preview release when verifying a fix; older previews do not have a separate backport support line. Releases are previews for an isolated lab, not production-ready deployments.
 
 ## Report a vulnerability privately
 

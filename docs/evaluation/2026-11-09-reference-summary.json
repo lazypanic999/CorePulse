@@ -1,0 +1,458 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-09",
+  "validation_scope": "single-session local exploratory evaluation; not certified measurement-time independence",
+  "source_data_distributed": false,
+  "source_windows_sha256": "fb65a1590bff475f48abf9310514d70b356e9700c82d898f0bc054f8d9549b36",
+  "evaluation_report_sha256": "789489824a690610472689b28a84083105f73f5fcabd44bcafeb3243fd048760",
+  "qualified_runs": {
+    "normal": 12,
+    "pod_crash:amf": 5,
+    "pod_crash:upf": 5
+  },
+  "captured_telemetry_rows": 316,
+  "feature_windows": 60,
+  "partial_windows": 17,
+  "legacy_records_excluded": 24,
+  "split": {
+    "seed": 42,
+    "test_fraction": 0.25,
+    "capture_time_embargo_seconds": 120,
+    "zscore_threshold": 3,
+    "train_runs": 12,
+    "test_runs": 7,
+    "purged_runs": 3,
+    "train_windows": 31,
+    "test_windows": 20,
+    "purged_windows": 9,
+    "classes": {
+      "normal": {
+        "train_runs": 7,
+        "test_runs": 3
+      },
+      "pod_crash:amf": {
+        "train_runs": 3,
+        "test_runs": 2
+      },
+      "pod_crash:upf": {
+        "train_runs": 2,
+        "test_runs": 2
+      }
+    },
+    "class_window_counts": {
+      "train": {
+        "normal": 17,
+        "pod_crash:amf": 6,
+        "pod_crash:upf": 8
+      },
+      "test": {
+        "normal": 8,
+        "pod_crash:amf": 4,
+        "pod_crash:upf": 8
+      },
+      "purged": {
+        "normal": 5,
+        "pod_crash:upf": 4
+      }
+    }
+  },
+  "methods": {
+    "majority_scenario": {
+      "task": "scenario_classification",
+      "window_metrics": {
+        "labels": [
+          "normal",
+          "pod_crash:amf",
+          "pod_crash:upf"
+        ],
+        "confusion": [
+          [
+            8,
+            0,
+            0
+          ],
+          [
+            4,
+            0,
+            0
+          ],
+          [
+            8,
+            0,
+            0
+          ]
+        ],
+        "classes": {
+          "normal": {
+            "precision": 0.4,
+            "recall": 1,
+            "f1": 0.5714285714285715,
+            "support": 8,
+            "predicted": 20
+          },
+          "pod_crash:amf": {
+            "precision": 0,
+            "recall": 0,
+            "f1": 0,
+            "support": 4,
+            "predicted": 0
+          },
+          "pod_crash:upf": {
+            "precision": 0,
+            "recall": 0,
+            "f1": 0,
+            "support": 8,
+            "predicted": 0
+          }
+        },
+        "total": 20,
+        "predicted": 20,
+        "abstained": 0,
+        "coverage": 1,
+        "accuracy_on_predicted": 0.4,
+        "macro_f1": 0.1904761904761905
+      },
+      "run_metrics": {
+        "labels": [
+          "normal",
+          "pod_crash:amf",
+          "pod_crash:upf"
+        ],
+        "confusion": [
+          [
+            3,
+            0,
+            0
+          ],
+          [
+            2,
+            0,
+            0
+          ],
+          [
+            2,
+            0,
+            0
+          ]
+        ],
+        "classes": {
+          "normal": {
+            "precision": 0.42857142857142855,
+            "recall": 1,
+            "f1": 0.6,
+            "support": 3,
+            "predicted": 7
+          },
+          "pod_crash:amf": {
+            "precision": 0,
+            "recall": 0,
+            "f1": 0,
+            "support": 2,
+            "predicted": 0
+          },
+          "pod_crash:upf": {
+            "precision": 0,
+            "recall": 0,
+            "f1": 0,
+            "support": 2,
+            "predicted": 0
+          }
+        },
+        "total": 7,
+        "predicted": 7,
+        "abstained": 0,
+        "coverage": 1,
+        "accuracy_on_predicted": 0.42857142857142855,
+        "macro_f1": 0.19999999999999998
+      }
+    },
+    "nearest_centroid": {
+      "task": "scenario_classification",
+      "window_metrics": {
+        "labels": [
+          "normal",
+          "pod_crash:amf",
+          "pod_crash:upf"
+        ],
+        "confusion": [
+          [
+            8,
+            0,
+            0
+          ],
+          [
+            3,
+            0,
+            1
+          ],
+          [
+            2,
+            0,
+            6
+          ]
+        ],
+        "classes": {
+          "normal": {
+            "precision": 0.6153846153846154,
+            "recall": 1,
+            "f1": 0.761904761904762,
+            "support": 8,
+            "predicted": 13
+          },
+          "pod_crash:amf": {
+            "precision": 0,
+            "recall": 0,
+            "f1": 0,
+            "support": 4,
+            "predicted": 0
+          },
+          "pod_crash:upf": {
+            "precision": 0.8571428571428571,
+            "recall": 0.75,
+            "f1": 0.7999999999999999,
+            "support": 8,
+            "predicted": 7
+          }
+        },
+        "total": 20,
+        "predicted": 20,
+        "abstained": 0,
+        "coverage": 1,
+        "accuracy_on_predicted": 0.7,
+        "macro_f1": 0.5206349206349207
+      },
+      "run_metrics": {
+        "labels": [
+          "normal",
+          "pod_crash:amf",
+          "pod_crash:upf"
+        ],
+        "confusion": [
+          [
+            3,
+            0,
+            0
+          ],
+          [
+            2,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            2
+          ]
+        ],
+        "classes": {
+          "normal": {
+            "precision": 0.6,
+            "recall": 1,
+            "f1": 0.7499999999999999,
+            "support": 3,
+            "predicted": 5
+          },
+          "pod_crash:amf": {
+            "precision": 0,
+            "recall": 0,
+            "f1": 0,
+            "support": 2,
+            "predicted": 0
+          },
+          "pod_crash:upf": {
+            "precision": 1,
+            "recall": 1,
+            "f1": 1,
+            "support": 2,
+            "predicted": 2
+          }
+        },
+        "total": 7,
+        "predicted": 7,
+        "abstained": 0,
+        "coverage": 1,
+        "accuracy_on_predicted": 0.7142857142857143,
+        "macro_f1": 0.5833333333333334
+      }
+    },
+    "normal_zscore": {
+      "task": "normal_vs_fault_interval",
+      "window_metrics": {
+        "labels": [
+          "normal",
+          "fault"
+        ],
+        "confusion": [
+          [
+            5,
+            3
+          ],
+          [
+            4,
+            8
+          ]
+        ],
+        "classes": {
+          "fault": {
+            "precision": 0.7272727272727273,
+            "recall": 0.6666666666666666,
+            "f1": 0.6956521739130435,
+            "support": 12,
+            "predicted": 11
+          },
+          "normal": {
+            "precision": 0.5555555555555556,
+            "recall": 0.625,
+            "f1": 0.5882352941176471,
+            "support": 8,
+            "predicted": 9
+          }
+        },
+        "total": 20,
+        "predicted": 20,
+        "abstained": 0,
+        "coverage": 1,
+        "accuracy_on_predicted": 0.65,
+        "macro_f1": 0.6419437340153453
+      },
+      "run_metrics": {
+        "labels": [
+          "normal",
+          "fault"
+        ],
+        "confusion": [
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            2
+          ]
+        ],
+        "classes": {
+          "fault": {
+            "precision": 0.6666666666666666,
+            "recall": 0.5,
+            "f1": 0.5714285714285715,
+            "support": 4,
+            "predicted": 3
+          },
+          "normal": {
+            "precision": 0.5,
+            "recall": 0.6666666666666666,
+            "f1": 0.5714285714285715,
+            "support": 3,
+            "predicted": 4
+          }
+        },
+        "total": 7,
+        "predicted": 7,
+        "abstained": 0,
+        "coverage": 1,
+        "accuracy_on_predicted": 0.5714285714285714,
+        "macro_f1": 0.5714285714285715
+      }
+    },
+    "probe_rule": {
+      "task": "normal_vs_fault_interval",
+      "window_metrics": {
+        "labels": [
+          "normal",
+          "fault"
+        ],
+        "confusion": [
+          [
+            8,
+            0
+          ],
+          [
+            4,
+            8
+          ]
+        ],
+        "classes": {
+          "fault": {
+            "precision": 1,
+            "recall": 0.6666666666666666,
+            "f1": 0.8,
+            "support": 12,
+            "predicted": 8
+          },
+          "normal": {
+            "precision": 0.6666666666666666,
+            "recall": 1,
+            "f1": 0.8,
+            "support": 8,
+            "predicted": 12
+          }
+        },
+        "total": 20,
+        "predicted": 20,
+        "abstained": 0,
+        "coverage": 1,
+        "accuracy_on_predicted": 0.8,
+        "macro_f1": 0.8
+      },
+      "run_metrics": {
+        "labels": [
+          "normal",
+          "fault"
+        ],
+        "confusion": [
+          [
+            3,
+            0
+          ],
+          [
+            2,
+            2
+          ]
+        ],
+        "classes": {
+          "fault": {
+            "precision": 1,
+            "recall": 0.5,
+            "f1": 0.6666666666666666,
+            "support": 4,
+            "predicted": 2
+          },
+          "normal": {
+            "precision": 0.6,
+            "recall": 1,
+            "f1": 0.7499999999999999,
+            "support": 3,
+            "predicted": 5
+          }
+        },
+        "total": 7,
+        "predicted": 7,
+        "abstained": 0,
+        "coverage": 1,
+        "accuracy_on_predicted": 0.7142857142857143,
+        "macro_f1": 0.7083333333333333
+      }
+    }
+  },
+  "observed_fault_outcomes": {
+    "amf:service_recovered": 5,
+    "amf:n2_lost": 5,
+    "upf:service_degraded": 5,
+    "upf:n2_no_change_observed": 5
+  },
+  "frozen_inputs_reproduce_exact_report": true,
+  "limits": [
+    "Ground truth labels describe controlled experiment intervals, not continuous service degradation.",
+    "Single-node, single-UE local lab; held-out runs from this environment do not establish generalization to another network.",
+    "Resource sample timestamps are capture times; original metric timestamps and averaging windows are not yet retained. Nearby runs may share underlying CPU measurement intervals. A capture-time embargo reduces proximity, but cannot certify measurement-time independence.",
+    "Training uses equally weighted windows; long runs contribute more windows. Both window and majority-vote run metrics are reported.",
+    "Sparse and partial windows remain included; missing resource values use training-only medians and missing-ratio features.",
+    "Probe rule abstains when evidence is absent. Protocol event counts are excluded from fitted models because their availability depends on post-run log collection.",
+    "Hyperparameters and split seed must be selected before examining held-out scores. These are offline baselines, not live dashboard predictions."
+  ],
+  "final_lab_links": {
+    "n2": "up",
+    "n4": "up"
+  },
+  "final_packet_received": 2
+}

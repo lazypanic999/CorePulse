@@ -51,9 +51,9 @@ Goal: a dataset a model can honestly be evaluated on.
 
 - [x] 30-second window feature extraction (mean, max, delta, missing-ratio per signal).
 - [ ] Parameter sweeps per fault (several loss/latency levels) to avoid one-value-per-class leakage.
-- [x] Target size: at least 10 verified baseline runs and 5 clean runs per fault class. Reached locally on 8 November: 12 baselines, 7 UPF, 5 AMF (267 rows). The data stays out of Git. These historical counts predate protocol-start gates; the new strict cohort must be reported separately.
+- [x] Target size: at least 10 verified baseline runs and 5 clean runs per fault class. Reached locally on 8 November: 12 baselines, 7 UPF, 5 AMF (267 rows). The data stays out of Git. These historical counts predate protocol-start gates. The new [strict cohort](datasets/2026-11-09-local-preview.md) has 12 normal, 5 AMF and 5 UPF runs; it remains a small single-session study.
 - [x] Run-level train/test split helper; windows from one run never cross the split.
-- [ ] Dataset card in `docs/` describing collection conditions, class balance, and known biases (single node, single UE).
+- [x] Dataset card in `docs/` describing collection conditions, class balance, and known biases (single node, single UE).
 - [ ] Optional Parquet export next to CSV.
 
 **Done when:** `corepulse dataset` produces a windowed, split dataset with a dataset card, reproducible from raw JSONL and run records.
@@ -65,7 +65,7 @@ Goal: measurable, honest first models.
 - [x] [Decision 0003](decisions/0003-offline-baseline-runtime.md): Go-native offline references; advanced-model serving runtime remains open.
 - [x] Normal-only resource deviation baseline; isolation forest remains a possible later comparison.
 - [x] Offline nearest-centroid scenario classifier using resource features.
-- [ ] Precision, recall, F1, and confusion matrix on held-out runs, saved as a versioned report.
+- [x] Precision, recall, F1 and confusion matrices in the [9 November local reference report](datasets/2026-11-09-local-preview.md), with a capture-time embargo and explicit source-timing limits.
 - [x] Compare against a trivial baseline (e.g. "probe failed ⇒ anomaly") so any gain is meaningful.
 
 **Done when:** a reproducible evaluation report exists and its numbers come from runs the model never saw.

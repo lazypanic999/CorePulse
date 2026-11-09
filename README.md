@@ -11,7 +11,7 @@
 
 CorePulse breaks a small 5G core on purpose and records what happens. It runs against an Open5GS and UERANSIM lab on Kubernetes, deletes one network function at a time under strict guards, and measures whether the service comes back, not just the pod. The long-term goal is a dataset and models that can tell which part of the core is failing.
 
-![CorePulse service path view: AMF, SMF, UE, gNB and UPF all ready, and 2 of 2 pings reaching the UPF](assets/dashboard-service-path.png)
+![CorePulse service path view: AMF, SMF, UE, gNB and UPF all ready, and 2 of 2 pings reaching the UPF](assets/dashboard-verified-lab.jpg)
 
 > **Status:** early development. The CLI and dashboard work against the live lab: guarded pod-crash experiments, packet checks, resource metrics, timestamped protocol-log observations, and a curated dataset. The CLI also prepares whole-run splits and evaluates simple offline baselines. Continuous protocol KPIs and live model predictions remain future work.
 
@@ -25,7 +25,7 @@ So CorePulse treats "the pod is back" and "packets flow again" as two separate r
 
 Discovery reads deployments, pods, services, and Prometheus scrape annotations from the `open5gs` namespace. It lists scrape candidates but does not claim a metric exists until someone checks it.
 
-`pod-crash` deletes one AMF or UPF pod. Without `--apply` it only prints the plan. With `--apply` it first requires the exact `open5gs-lab` context, ready workloads, and a passing UE-to-UPF ping. It then watches the deployment recover and keeps probing the packet path. Two passing probes in a row count as service recovery, and every probe is saved in the [run record](docs/run-record.md).
+`pod-crash` deletes one AMF or UPF pod. Without `--apply` it only prints the plan. With `--apply` it first requires the exact `open5gs-lab` context, ready workloads, a passing UE-to-UPF ping, and observed N2/PFCP readiness. It then watches the deployment recover and keeps probing the packet path. Two passing probes in a row count as service recovery, and every probe is saved in the [run record](docs/run-record.md).
 
 `baseline` collects normal runs only while the packet check passes and the six essential pods (AMF, SMF, UDR, UPF, gNB, UE) stay ready and unchanged. `dataset` builds a CSV from clean runs only. Setup noise, interrupted runs, and unverified samples are counted and left out.
 
@@ -85,7 +85,7 @@ Then, from the same environment as the `open5gs-lab` context:
 ```bash
 go run ./cmd/corepulse discover --output reports/discovery.json
 go run ./cmd/corepulse verify-service
-go run ./cmd/corepulse baseline --runs 3 --samples 4 --interval 10s
+go run ./cmd/corepulse baseline --metrics-wait 90s --runs 3 --samples 4 --interval 10s
 go run ./cmd/corepulse pod-crash --target upf --apply
 go run ./cmd/corepulse dataset --telemetry data/telemetry.jsonl --runs-dir runs --output data/dataset.csv
 ```
@@ -93,6 +93,14 @@ go run ./cmd/corepulse dataset --telemetry data/telemetry.jsonl --runs-dir runs 
 After a UPF fault, `bash scripts/recover-service.sh` resets the UE, gNB, SMF, and UPF sessions and confirms the packet path again. The [lab operations guide](docs/lab-operations.md) explains it, along with subscriber setup and logs. Stop the lab with `.\scripts\stop-lab.ps1`.
 
 Run records go to `runs/` and raw samples to `data/`. Both folders are ignored by Git. The ping check proves the UE reaches the UPF tunnel gateway. It does not prove Internet access.
+
+## First offline reference result
+
+The [9 November local cohort](docs/datasets/2026-11-09-local-preview.md) contains 12 verified normal runs, five AMF faults and five UPF faults. With a two-minute capture-time embargo, 31 windows from 12 runs trained the references, 20 windows from seven runs were held out, and nine nearby windows were purged. The scenario classifier beats a majority reference but misses AMF; the resource-only binary method trails a simple packet rule. These are small, single-session exploratory results, not a deployed detector or certified source-time-independent benchmark.
+
+![Saved offline evaluation with held-out support, mistakes and timing limitations](assets/dashboard-offline-evaluation.jpg)
+
+The saved report is separate from live health. Open its prediction table to see every held-out prediction, including mistakes. Raw inputs remain local; the dataset card links a public aggregate summary and explains the measurement-window and generalization limits.
 
 ## Downloads
 
