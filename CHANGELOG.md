@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Preserve optional per-pod Metrics API source timestamps and averaging windows in new telemetry. Reject malformed metadata while retaining unknown legacy intervals; capture-time labels, resource values and fitted features remain unchanged.
+
 ## v0.2.0 — 2026-11-09 (preview)
 
 - Service-aware experiment guards: observed N2/PFCP starting conditions, six-workload checks, and explicit lab context selection in Go and the lab helpers.

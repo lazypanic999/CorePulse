@@ -40,7 +40,7 @@ The resource-only deviation method does not beat the simple packet rule on their
 
 ## Timing and generalization limits
 
-The Metrics API exposed approximately a one-minute CPU averaging window during this session (one observed value was `1m0.008s`). Kubernetes documents that CPU is averaged over the reported [`window`](https://kubernetes.io/docs/tasks/debug/debug-cluster/resource-metrics-pipeline/). CorePulse currently stores capture times, not the original metric timestamps/windows. Feature windows can therefore repeat or combine overlapping source averages. A two-minute capture-time embargo reduces nearby train/test exposure but cannot certify measurement-time independence. Retaining the missing metadata is [#39](https://github.com/lazypanic999/CorePulse/issues/39).
+The Metrics API exposed approximately a one-minute CPU averaging window during this session (one observed value was `1m0.008s`). Kubernetes documents that CPU is averaged over the reported [`window`](https://kubernetes.io/docs/tasks/debug/debug-cluster/resource-metrics-pipeline/). The v0.2.0 collector stored capture times, not the original metric timestamps/windows. Feature windows can therefore repeat or combine overlapping source averages. A two-minute capture-time embargo reduces nearby train/test exposure but cannot certify measurement-time independence. Optional source metadata for future captures is tracked in [#39](https://github.com/lazypanic999/CorePulse/issues/39); it cannot recover the missing intervals in this frozen cohort.
 
 All runs share one collection session, machine, UE and configuration. Windows are not independent observations; long runs contribute more rows, and sparse/partial windows remain included. Fault labels identify controlled experiment intervals, not continuous degradation. Post-run protocol-event availability is unsuitable as a causal online input, so the fitted methods here use resource features only. [Session-grouped holdouts](https://github.com/lazypanic999/CorePulse/issues/33), richer causal protocol features, source-time validation and new predeclared cohorts are needed before stronger conclusions.
 
@@ -52,7 +52,7 @@ Window CSV SHA-256:
 fb65a1590bff475f48abf9310514d70b356e9700c82d898f0bc054f8d9549b36
 ```
 
-On the collection machine, inputs and outputs are frozen under ignored `data/preview-2026-11-09-v0.2/`. A fresh window export, split and evaluation from that snapshot reproduced the **exact report bytes** using the same Go 1.27.3 Linux/amd64 evaluator binary. The full report SHA-256 is in the public summary. The implementation is included in the v0.2.0 preview; [methods](../offline-evaluation.md) and [window semantics](../windowed-dataset.md) describe its behavior.
+On the collection machine, inputs and outputs are frozen under ignored `data/preview-2026-11-09-v0.2/`. A fresh window export, split and evaluation from that snapshot reproduced the **exact report bytes** using the same Go 1.27.3 Linux/amd64 evaluator binary. The published v0.2.0 Linux/amd64 archive was downloaded, its SHA-256 verified, and its evaluator also reproduced those exact report bytes from the frozen CSV and manifest. The full report SHA-256 is in the public summary. The implementation is included in the v0.2.0 preview; [methods](../offline-evaluation.md) and [window semantics](../windowed-dataset.md) describe its behavior.
 
 ```bash
 corepulse windows --telemetry data/preview-2026-11-09-v0.2/telemetry.jsonl --runs-dir data/preview-2026-11-09-v0.2/runs --output data/windows-rebuilt.csv
