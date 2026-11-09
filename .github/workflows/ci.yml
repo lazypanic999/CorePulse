@@ -26,6 +26,11 @@ jobs:
         run: ./corepulse pod-crash --target amf
       - name: Offline synthetic walkthrough
         run: python3 scripts/check-offline-example.py --binary ./corepulse
+      - name: Build and execute container without cluster access
+        run: |
+          docker build --build-arg VERSION=ci -t corepulse-ci .
+          test "$(docker run --rm --network none --read-only corepulse-ci version)" = ci
+          docker run --rm --network none --read-only --entrypoint kubectl corepulse-ci version --client=true -o json
 
   portable:
     name: Offline checks (${{ matrix.os }})
