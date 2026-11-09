@@ -1,5 +1,7 @@
 # Inspect the lab before collection
 
+Available in the v0.2.3 preview and newer source builds.
+
 Run the native binary inside the environment that can reach the lab (Ubuntu WSL for the documented Windows/Minikube setup):
 
 ```bash

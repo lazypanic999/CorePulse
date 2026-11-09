@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## v0.2.3 — 2026-11-09 (preview)
+
+- Gate release/container publication on executing the actual Linux amd64, Windows amd64 and macOS arm64 archives, checking packaged versions and both synthetic holdout modes. Linux arm64 and Darwin amd64 remain cross-built without native execution checks.
 
 - Add a read-only `doctor` CLI report with distinct ownership, context, workload, packet, N2/N4, metric-coverage and stable-pod checks. It never starts a run or repairs the lab; incomplete prerequisites exit 2 and active collection blocks further cluster inspection.
 
