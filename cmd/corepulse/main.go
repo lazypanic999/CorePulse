@@ -43,7 +43,7 @@ func saveJSON(path string, value any) error {
 
 func run(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("usage: corepulse <version|discover|signals|verify-service|pod-crash|baseline|dataset|serve> [options]")
+		return 1, errors.New("usage: corepulse <version|discover|signals|verify-service|pod-crash|baseline|dataset|windows|split|serve> [options]")
 	}
 	client := corepulse.Kubectl{}
 	switch args[0] {
@@ -130,6 +130,44 @@ func run(args []string) (int, error) {
 			return 1, err
 		}
 		return 0, printJSON(summary)
+	case "windows":
+		flags := flag.NewFlagSet("windows", flag.ContinueOnError)
+		flags.SetOutput(os.Stderr)
+		raw := flags.String("telemetry", filepath.Join("data", "telemetry.jsonl"), "raw telemetry JSONL")
+		runs := flags.String("runs-dir", "runs", "run record directory")
+		output := flags.String("output", filepath.Join("data", "windows.csv"), "run-aligned feature windows")
+		duration := flags.Duration("window", 30*time.Second, "non-overlapping window duration (1s to 1h)")
+		legacy := flags.Bool("allow-legacy", false, "include clean runs without protocol starting evidence (exploration only)")
+		if err := flags.Parse(args[1:]); err != nil {
+			return 1, err
+		}
+		if flags.NArg() != 0 {
+			return 1, errors.New("unexpected positional arguments")
+		}
+		summary, err := dataset.BuildWindows(*raw, *runs, *output, dataset.WindowOptions{Duration: *duration, RequireProtocol: !*legacy})
+		if err != nil {
+			return 1, err
+		}
+		return 0, printJSON(summary)
+	case "split":
+		flags := flag.NewFlagSet("split", flag.ContinueOnError)
+		flags.SetOutput(os.Stderr)
+		input := flags.String("input", filepath.Join("data", "windows.csv"), "window CSV input")
+		output := flags.String("output", filepath.Join("data", "split.json"), "whole-run split manifest")
+		fraction := flags.Float64("test-fraction", 0.25, "held-out fraction per experiment scenario")
+		seed := flags.Int64("seed", 42, "deterministic run split seed")
+		legacy := flags.Bool("allow-legacy", false, "allow unverified protocol starts (exploration only)")
+		if err := flags.Parse(args[1:]); err != nil {
+			return 1, err
+		}
+		if flags.NArg() != 0 {
+			return 1, errors.New("unexpected positional arguments")
+		}
+		manifest, err := dataset.Split(*input, *output, dataset.SplitOptions{TestFraction: *fraction, Seed: *seed, RequireProtocol: !*legacy})
+		if err != nil {
+			return 1, err
+		}
+		return 0, printJSON(manifest)
 	case "serve":
 		flags := flag.NewFlagSet("serve", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)
@@ -232,7 +270,7 @@ func run(args []string) (int, error) {
 		}
 		return 0, nil
 	default:
-		return 1, fmt.Errorf("unknown command %q; use version, discover, signals, verify-service, pod-crash, baseline, dataset, or serve", args[0])
+		return 1, fmt.Errorf("unknown command %q; use version, discover, signals, verify-service, pod-crash, baseline, dataset, windows, split, or serve", args[0])
 	}
 }
 

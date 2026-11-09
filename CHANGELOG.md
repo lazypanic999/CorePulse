@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Require observed N2 and PFCP readiness before starting experiments; baseline intervals also retain repeated protocol checks.
+- Offline run-aligned feature windows with explicit missingness and deterministic scenario-stratified whole-run split manifests.
+
 - README rewritten around the service recovery finding, with new captures from the live lab on 6 November 2026.
 - Dashboard run table labels baseline runs as baselines and reads the packet result from baseline probes and older fault records.
 - Dashboard redesign: the service path diagram shows pod readiness and the UE-to-UPF packet check separately, the run control lists its safety checks, runs appear in a table, and kubectl errors are summarized with the raw output on request. No external assets; the glass theme and marketing hero are removed.

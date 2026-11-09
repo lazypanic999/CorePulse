@@ -18,12 +18,13 @@ import (
 )
 
 type Run struct {
-	ID       string
-	Fault    string
-	Target   string
-	Started  time.Time
-	Ended    time.Time
-	evidence evidence
+	ID               string
+	Fault            string
+	Target           string
+	Started          time.Time
+	Ended            time.Time
+	ProtocolVerified bool
+	evidence         evidence
 }
 
 type Summary struct {
@@ -70,7 +71,8 @@ func loadRuns(dir string) ([]Run, error) {
 			ServiceRecovery *struct {
 				Probes []probeJSON `json:"probes"`
 			} `json:"service_recovery"`
-			ProtocolEvents []corepulse.ComponentEvents `json:"protocol_events"`
+			ProtocolEvents   []corepulse.ComponentEvents `json:"protocol_events"`
+			PreProtocolCheck *corepulse.ProtocolCheck    `json:"pre_protocol_check"`
 		}
 		if err := json.Unmarshal(data, &raw); err != nil {
 			return nil, fmt.Errorf("run %s: %w", entry.Name(), err)
@@ -101,7 +103,8 @@ func loadRuns(dir string) ([]Run, error) {
 		} else if raw.ServiceProbe != nil {
 			probes = append(probes, []probeJSON{*raw.ServiceProbe})
 		}
-		runs = append(runs, Run{ID: raw.ID, Fault: raw.Fault, Target: raw.Target, Started: started, Ended: ended, evidence: newEvidence(probes, raw.ProtocolEvents)})
+		protocolVerified := raw.PreProtocolCheck != nil && !raw.PreProtocolCheck.CheckedAt.IsZero() && !raw.PreProtocolCheck.CheckedAt.After(started) && raw.PreProtocolCheck.Links.N2 == corepulse.LinkUp && raw.PreProtocolCheck.Links.N4 == corepulse.LinkUp
+		runs = append(runs, Run{ID: raw.ID, Fault: raw.Fault, Target: raw.Target, Started: started, Ended: ended, ProtocolVerified: protocolVerified, evidence: newEvidence(probes, raw.ProtocolEvents)})
 	}
 	sort.Slice(runs, func(i, j int) bool { return runs[i].Started.Before(runs[j].Started) })
 	return runs, nil
