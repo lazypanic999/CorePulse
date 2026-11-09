@@ -21,7 +21,7 @@ SMF and UE were restarted in order, each by scaling its single replica to zero, 
 | Early checks after UE restart | Up | Up | No transmitted-packet summary; recorded 0/0 |
 | Later checks after UE restart | Up | Up | Two consecutive 2/2 replies |
 
-The early 0/0 records are **unobserved packet counts**, not measured packet loss. The current probe implementation recorded these startup command failures as `degraded`; they must not be interpreted as an observed zero-packet experiment. Packet-count availability needs to remain explicit when exporting them.
+The early 0/0 records are **unobserved packet counts**, not measured packet loss. The v0.2.1 collector used for these diagnostics recorded these startup command failures as `degraded`; they must not be interpreted as an observed zero-packet experiment. Updated source builds classify missing/invalid packet summaries as `unavailable` and export unknown counters as empty features. The summary retains the original recorded statuses instead of rewriting the evidence.
 
 This gives a narrower observed recovery sequence than resetting all four service workloads: SMF association returned first, while the packet path remained down during the two checks; a later UE restart was followed by a working packet path without another UPF or gNB restart. There was no time-matched untreated control, so this does not prove that the UE restart was necessary or that this sequence always suffices. Restarting SMF changes both peer discovery and SMF process/session state, which are not isolated here. The older failed restart attempts in the historical lab notes used different starting conditions and are not contradicted by these two observations.
 

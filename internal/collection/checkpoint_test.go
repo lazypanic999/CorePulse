@@ -94,3 +94,16 @@ func TestServiceCheckpointFailureStopsFurtherProbes(t *testing.T) {
 		t.Fatalf("lost probe or continued after failure: %+v %v", r, err)
 	}
 }
+
+func TestUnobservedPacketCountsCannotQualifyFaultAsClean(t *testing.T) {
+	r := map[string]any{"status": "recovered", "ended_at": "deployment-time"}
+	err := finishFaultWithWait(labClient{probe: "ping: SO_BINDTODEVICE: Invalid argument"}, r, 1, nil, nil, func(time.Duration) {})
+	if err != nil || r["quality"] != "excluded" || r["service_recovery"].(Recovery).Status != "service_unverified" {
+		t.Fatalf("unobserved packet path qualified as a clean degraded fault: %v %v", r, err)
+	}
+	for _, p := range r["service_recovery"].(Recovery).Probes {
+		if p.Status != "unavailable" {
+			t.Fatalf("invented packet loss: %+v", p)
+		}
+	}
+}

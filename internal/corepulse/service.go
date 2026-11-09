@@ -10,7 +10,7 @@ import (
 
 const upfGateway = "10.45.0.1"
 
-var pingSummary = regexp.MustCompile(`(\d+) packets transmitted, (\d+) received`)
+var pingSummary = regexp.MustCompile(`(?m)^\s*(\d+) packets transmitted, (\d+) (?:packets )?received`)
 var registrationSuccess = regexp.MustCompile(`(?i)registration is successful|registration accept`)
 var sessionSuccess = regexp.MustCompile(`(?i)pdu session.*successful|pdu session establishment accept`)
 
@@ -66,6 +66,8 @@ type ServiceProbe struct {
 	Namespace string `json:"namespace"`
 	UEPod     string `json:"ue_pod,omitempty"`
 	Gateway   string `json:"gateway"`
+	// Counts are unavailable when Status is unavailable; integer zeros in
+	// that JSON shape are not observations of zero transmitted packets.
 	Sent      int    `json:"sent"`
 	Received  int    `json:"received"`
 	CheckedAt string `json:"checked_at"`
@@ -133,23 +135,29 @@ func ProbeService(client Client) (ServiceProbe, error) {
 	probe.UEPod = pod
 	output, err := client.Run(15*time.Second, "exec", "pod/"+pod, "--namespace", LabNamespace, "--", "ping", "-I", "uesimtun0", upfGateway, "-c", "2")
 	matches := pingSummary.FindStringSubmatch(output)
-	if len(matches) == 3 {
-		probe.Sent, _ = strconv.Atoi(matches[1])
-		probe.Received, _ = strconv.Atoi(matches[2])
-	}
-	if err != nil {
-		probe.Status, probe.Detail = "degraded", err.Error()
+	if len(matches) != 3 {
+		probe.Detail = "ping returned no recognizable packet summary"
+		if err != nil {
+			probe.Detail = err.Error()
+		}
 		return probe, nil
 	}
-	if len(matches) != 3 {
-		probe.Status, probe.Detail = "degraded", "ping returned no recognizable packet summary"
+	sent, sentErr := strconv.Atoi(matches[1])
+	received, receivedErr := strconv.Atoi(matches[2])
+	if sentErr != nil || receivedErr != nil || sent <= 0 || received < 0 || received > sent {
+		probe.Detail = "ping returned invalid or unobserved packet counts"
+		return probe, nil
+	}
+	probe.Sent, probe.Received = sent, received
+	if err != nil {
+		probe.Status, probe.Detail = "degraded", err.Error()
 		return probe, nil
 	}
 	if probe.Sent == 2 && probe.Received == 2 {
 		probe.Status = "healthy"
 	} else {
 		probe.Status = "degraded"
-		probe.Detail = "UE-to-UPF gateway packets were lost"
+		probe.Detail = "UE-to-UPF gateway check did not confirm both requested replies"
 	}
 	return probe, nil
 }

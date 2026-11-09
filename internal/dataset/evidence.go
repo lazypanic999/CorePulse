@@ -76,7 +76,13 @@ func (e evidence) fields(run Run, at time.Time) []string {
 	if latest == nil {
 		out = append(out, "", "", "")
 	} else {
-		out = append(out, latest.status, strconv.Itoa(latest.sent), strconv.Itoa(latest.recvd))
+		// Local command failures and old degraded 0/0 records do not prove
+		// any packets were transmitted. Keep their status, not fake zeros.
+		if (latest.status == "healthy" || latest.status == "degraded") && latest.sent > 0 && latest.recvd >= 0 && latest.recvd <= latest.sent {
+			out = append(out, latest.status, strconv.Itoa(latest.sent), strconv.Itoa(latest.recvd))
+		} else {
+			out = append(out, latest.status, "", "")
+		}
 	}
 	for _, column := range eventCounts {
 		out = append(out, e.count(column, run, at))

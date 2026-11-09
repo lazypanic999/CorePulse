@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Treat ping failures without valid positive transmitted-packet counts as unavailable, not observed packet loss. Preserve unknown/legacy 0/0 counters as empty CSV/window features while retaining genuine zero replies; unobserved final probes cannot qualify a fault as clean.
+
 - Show shared collection ownership in the dashboard and disable run/typed-confirmation controls while locked, unavailable or submitting. Add a read-only ownership endpoint without release tokens or paths; reject relative lock overrides that could resolve differently across working trees.
 
 ## v0.2.1 — 2026-11-09 (preview)
