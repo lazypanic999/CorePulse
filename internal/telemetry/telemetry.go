@@ -20,9 +20,10 @@ import (
 const Source = "metrics.k8s.io/v1beta1"
 
 type PodUsage struct {
-	Name        string  `json:"name"`
-	CPUMilli    float64 `json:"cpu_millicores"`
-	MemoryBytes int64   `json:"memory_bytes"`
+	Name        string       `json:"name"`
+	CPUMilli    float64      `json:"cpu_millicores"`
+	MemoryBytes int64        `json:"memory_bytes"`
+	Measurement *Measurement `json:"measurement,omitempty"`
 }
 
 type Sample struct {
@@ -55,6 +56,8 @@ func Capture(client corepulse.Client) (Sample, error) {
 			Metadata struct {
 				Name string `json:"name"`
 			} `json:"metadata"`
+			Timestamp  json.RawMessage `json:"timestamp"`
+			Window     json.RawMessage `json:"window"`
 			Containers []struct {
 				Usage map[string]string `json:"usage"`
 			} `json:"containers"`
@@ -72,6 +75,10 @@ func Capture(client corepulse.Client) (Sample, error) {
 			continue
 		}
 		pod := PodUsage{Name: item.Metadata.Name}
+		pod.Measurement, err = decodeMeasurement(item.Timestamp, item.Window)
+		if err != nil {
+			return Sample{}, fmt.Errorf("pod %s measurement: %w", pod.Name, err)
+		}
 		for _, container := range item.Containers {
 			cpu, err := cpuMilli(container.Usage["cpu"])
 			if err != nil {

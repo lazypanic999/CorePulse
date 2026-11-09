@@ -26,6 +26,18 @@ On 2 November 2026, the local lab produced three verified normal runs (four samp
 
 The metrics API may lag pod creation or deletion, and missing pods do not mean zero resource use. Samples remain raw and append-only; the CSV is reproducible from raw samples and run records. No model accuracy claim should be made from the first demonstration run.
 
+## Capture time and source measurement time
+
+`timestamp` at the sample root is the CorePulse capture time, not the time of a new CPU observation. New captures retain optional per-pod source metadata:
+
+```json
+{"name":"open5gs-amf-example","cpu_millicores":3,"memory_bytes":1048576,"measurement":{"timestamp":"2026-11-09T00:00:00.123Z","window":"1m0.008s"}}
+```
+
+The Metrics API reports a source `timestamp` and `window`; CPU is averaged over that interval. Different pods can have different intervals. CorePulse validates a nonzero RFC 3339 source timestamp and a positive Go duration, preserving both without substituting the capture time. If both API fields are absent, `measurement` is omitted and the source interval remains unknown. Partial or malformed live metadata fails that capture; invalid samples are not appended. Historical JSONL without `measurement` remains readable with no fabricated values. This additive field keeps raw `schema_version: 1` and existing resource values unchanged.
+
+This metadata does **not** deduplicate samples, enforce freshness, change run labels, alter CSV columns, or become a fitted feature. A 30-second feature mean across captured CPU averages is not a new 30-second CPU measurement. Polling faster than the Metrics API updates can repeat the same source frame. A capture-time embargo alone cannot prove that underlying CPU intervals are disjoint. Source-time staleness, repeated-frame handling and train/test interval overlap need explicit follow-up policies. See the [Kubernetes resource metrics pipeline](https://kubernetes.io/docs/tasks/debug/debug-cluster/resource-metrics-pipeline/) and [window semantics](windowed-dataset.md).
+
 ## Missing component metrics in CSV
 
 `amf_cpu_millicores`, `amf_memory_bytes`, `upf_cpu_millicores` and `upf_memory_bytes`
