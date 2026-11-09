@@ -174,6 +174,7 @@ func run(args []string) (int, error) {
 		flags.SetOutput(os.Stderr)
 		addr := flags.String("addr", "127.0.0.1:8787", "local dashboard address")
 		runsDir := flags.String("runs-dir", "runs", "run record directory")
+		evaluationPath := flags.String("evaluation", filepath.Join("reports", "evaluation.json"), "saved offline evaluation report to display")
 		if err := flags.Parse(args[1:]); err != nil {
 			return 1, err
 		}
@@ -191,7 +192,7 @@ func run(args []string) (int, error) {
 		fmt.Fprintf(os.Stderr, "CorePulse dashboard: http://%s\n", *addr)
 		store := telemetry.NewStore(filepath.Join("data", "telemetry.jsonl"))
 		store.Start(context.Background(), client, 10*time.Second)
-		return 1, http.ListenAndServe(*addr, dashboard.NewWithTelemetry(client, *runsDir, store))
+		return 1, http.ListenAndServe(*addr, dashboard.NewWithEvaluation(client, *runsDir, store, *evaluationPath))
 	case "evaluate":
 		flags := flag.NewFlagSet("evaluate", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)

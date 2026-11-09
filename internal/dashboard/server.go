@@ -24,9 +24,10 @@ import (
 var webFiles embed.FS
 
 type Server struct {
-	Client    corepulse.Client
-	RunsDir   string
-	Telemetry *telemetry.Store
+	Client         corepulse.Client
+	RunsDir        string
+	Telemetry      *telemetry.Store
+	EvaluationPath string
 
 	// The protocol view reads four pod logs; several tabs polling every
 	// 30 s share one read per protocolCacheTTL.
@@ -42,7 +43,11 @@ func New(client corepulse.Client, runsDir string) http.Handler {
 }
 
 func NewWithTelemetry(client corepulse.Client, runsDir string, store *telemetry.Store) http.Handler {
-	s := &Server{Client: client, RunsDir: runsDir, Telemetry: store}
+	return NewWithEvaluation(client, runsDir, store, filepath.Join("reports", "evaluation.json"))
+}
+
+func NewWithEvaluation(client corepulse.Client, runsDir string, store *telemetry.Store, evaluationPath string) http.Handler {
+	s := &Server{Client: client, RunsDir: runsDir, Telemetry: store, EvaluationPath: evaluationPath}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/overview", s.overview)
 	mux.HandleFunc("GET /api/plan", s.plan)
@@ -50,6 +55,7 @@ func NewWithTelemetry(client corepulse.Client, runsDir string, store *telemetry.
 	mux.HandleFunc("GET /api/telemetry", s.telemetry)
 	mux.HandleFunc("GET /api/service-check", s.serviceCheck)
 	mux.HandleFunc("GET /api/protocol", s.protocol)
+	mux.HandleFunc("GET /api/evaluation", s.evaluation)
 	mux.HandleFunc("POST /api/experiments/pod-crash", s.runPodCrash)
 	web, _ := fs.Sub(webFiles, "web")
 	mux.Handle("/", http.FileServer(http.FS(web)))

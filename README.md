@@ -113,7 +113,7 @@ The full plan with status per milestone is in [docs/ROADMAP.md](docs/ROADMAP.md)
 | 4. Dashboard | Live predictions next to known labels | A full demo works end to end, wrong predictions included |
 | 5. Polish | One-command setup and a demo recording | Works on a clean machine |
 
-Discovery is done. The injector has one fault type so far, the dataset has verified starting conditions and whole-run splits, and the first offline baselines can be evaluated reproducibly. Serving model predictions in the dashboard remains future work.
+Discovery is done. The injector has one fault type so far, the dataset has verified starting conditions and whole-run splits, and the first offline baselines can be evaluated reproducibly. The dashboard displays saved evaluation snapshots, including mistakes; serving live model predictions remains future work.
 
 ## Ground rules
 

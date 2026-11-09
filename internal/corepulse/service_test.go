@@ -81,4 +81,7 @@ func TestInspectSignalsDistinguishesLogEventsFromCurrentProbe(t *testing.T) {
 	if !snapshot.RegistrationObserved || !snapshot.SessionObserved || snapshot.ServiceProbe.Status != "degraded" {
 		t.Fatalf("unexpected signal snapshot: %+v", snapshot)
 	}
+	if snapshot.Links.N2 != LinkUnknown || snapshot.Links.N4 != LinkUnknown {
+		t.Fatalf("unreadable protocol evidence was treated as up: %+v", snapshot.Links)
+	}
 }

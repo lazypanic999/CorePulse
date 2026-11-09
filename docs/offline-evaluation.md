@@ -38,3 +38,9 @@ The truth is the known experiment interval, not an assertion that every instant 
 Windows from a run never cross partitions. Runs still share one node, one UE, lab configuration and collection session, so this is not an external validation set. Long runs contribute more training windows, partial/sparse windows remain included, and simple models can learn collection effects. More independent sessions, additional fault parameters and a larger predeclared test set are needed before making accuracy or generalization claims. Choose seeds and thresholds before inspecting test results and preserve poor results instead of rerunning seeds for a better score.
 
 The Go implementation has no new model/runtime dependencies. It is an initial reproducible reference; choosing a runtime for more capable models and serving predictions remains separate future work.
+
+## Dashboard snapshot
+
+`corepulse serve` reads `reports/evaluation.json` for a read-only **Offline evaluation** section. Use `--evaluation <path>` to select another saved report. The section shows held-out support, window/run F1, coverage, mistakes and abstentions, plus an expandable table with every prediction and the source CSV hash. It never substitutes current live probes for held-out predictions or fits a model during a request.
+
+Missing, incomplete or unsupported reports show an explicit unavailable state instead of zero scores. The endpoint `/api/evaluation` is read-only, works without Kubernetes and shares the dashboard's loopback-host restrictions. Re-run evaluation to update the snapshot. The section is not live model serving.
