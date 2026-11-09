@@ -32,7 +32,14 @@ func (k Kubectl) Run(timeout time.Duration, args ...string) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, binary, args...)
+	// Observe the ambient context for the existing fail-closed preflight, but
+	// bind every actual lab operation to the allowlisted context. A concurrent
+	// `kubectl config use-context` must not redirect an already-checked run.
+	commandArgs := args
+	if !(len(args) == 2 && args[0] == "config" && args[1] == "current-context") {
+		commandArgs = append([]string{"--context", LabContext}, args...)
+	}
+	cmd := exec.CommandContext(ctx, binary, commandArgs...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	err := cmd.Run()
