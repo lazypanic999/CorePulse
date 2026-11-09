@@ -58,6 +58,7 @@ func (c *checkpointClient) GetJSON(args ...string) (map[string]any, error) {
 }
 
 func TestDashboardDoesNotDeleteWhenCheckpointCannotBeSaved(t *testing.T) {
+	t.Setenv("COREPULSE_LOCK_DIR", filepath.Join(t.TempDir(), "lock"))
 	blocked := filepath.Join(t.TempDir(), "not-a-directory")
 	if err := os.WriteFile(blocked, []byte("keep"), 0644); err != nil {
 		t.Fatal(err)
@@ -73,6 +74,7 @@ func TestDashboardDoesNotDeleteWhenCheckpointCannotBeSaved(t *testing.T) {
 }
 
 func TestDashboardRejectsUnobservedProtocolDespiteHealthyPackets(t *testing.T) {
+	t.Setenv("COREPULSE_LOCK_DIR", filepath.Join(t.TempDir(), "lock"))
 	c := &checkpointClient{protocolDown: true}
 	r := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8787/api/experiments/pod-crash", strings.NewReader(`{"target":"amf","confirm":"DELETE_ONE_LAB_POD"}`))
 	r.Header.Set("Content-Type", "application/json")

@@ -1,5 +1,7 @@
 # Fault run record v1
 
+Updated source builds serialize CLI/dashboard experiment entry points with [shared collection ownership](collection-ownership.md). Interrupted markers require conservative manual inspection; the v0.2.0 release predates this guard.
+
 ## Protocol starting conditions
 
 New baseline and fault runs require both `N2=up` and `N4=up` in fresh reads of the current gNB and SMF pod logs, in addition to workload readiness and the packet probe. Down, stale-peer, unreadable and unobserved links refuse the run before mutation or capture. The same fault gate is shared by CLI and dashboard; cached dashboard topology cannot authorize a deletion.

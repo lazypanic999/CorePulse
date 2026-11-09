@@ -52,6 +52,7 @@ func Baseline(client corepulse.Client, store *telemetry.Store, runsDir string, s
 
 // BaselineContext retains an excluded record on cancellation. Clients performing
 // blocking I/O should also use ctx (the CLI supplies a context-bound Kubectl).
+// The CLI holds shared ownership across its entire baseline batch and export.
 func BaselineContext(ctx context.Context, client corepulse.Client, store *telemetry.Store, runsDir string, samples int, interval time.Duration) (record BaselineRecord, runErr error) {
 	return baseline(ctx, client, store, runsDir, samples, interval, waitContext)
 }

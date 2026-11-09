@@ -100,34 +100,36 @@ func run(args []string) (int, error) {
 		if *samples < 2 || *interval < time.Second || *metricsWait < 0 || *metricsWait > 5*time.Minute {
 			return 1, errors.New("baseline needs at least two samples, interval >= 1s, and metrics-wait between 0 and 5m")
 		}
-		store := telemetry.NewStore(*telemetryPath)
-		for i := 0; i < *runs; i++ {
-			if *metricsWait > 0 {
-				ready, err := collection.WaitForMetrics(ctx, client, *metricsWait)
+		return collection.WithOwnership("baseline", func() (int, error) {
+			store := telemetry.NewStore(*telemetryPath)
+			for i := 0; i < *runs; i++ {
+				if *metricsWait > 0 {
+					ready, err := collection.WaitForMetrics(ctx, client, *metricsWait)
+					if err != nil {
+						if errors.Is(err, context.Canceled) {
+							return 130, err
+						}
+						return 1, err
+					}
+					fmt.Fprintf(os.Stderr, "Resource metrics cover %d essential pods after %d checks.\n", len(ready.Pods), ready.Checks)
+				}
+				record, err := collection.BaselineContext(ctx, client, store, *runsDir, *samples, *interval)
+				if record.RunID != "" {
+					_ = printJSON(record)
+				}
 				if err != nil {
 					if errors.Is(err, context.Canceled) {
 						return 130, err
 					}
 					return 1, err
 				}
-				fmt.Fprintf(os.Stderr, "Resource metrics cover %d essential pods after %d checks.\n", len(ready.Pods), ready.Checks)
 			}
-			record, err := collection.BaselineContext(ctx, client, store, *runsDir, *samples, *interval)
-			if record.RunID != "" {
-				_ = printJSON(record)
-			}
+			summary, err := dataset.Build(*telemetryPath, *runsDir, *output)
 			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					return 130, err
-				}
 				return 1, err
 			}
-		}
-		summary, err := dataset.Build(*telemetryPath, *runsDir, *output)
-		if err != nil {
-			return 1, err
-		}
-		return 0, printJSON(summary)
+			return 0, printJSON(summary)
+		})
 	case "dataset":
 		flags := flag.NewFlagSet("dataset", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)
@@ -281,30 +283,32 @@ func run(args []string) (int, error) {
 			plan["mode"] = "dry-run"
 			return 0, printJSON(plan)
 		}
-		preProbe, err := corepulse.ProbeService(client)
-		if err != nil {
-			return 1, err
-		}
-		if preProbe.Status != "healthy" {
-			return 1, fmt.Errorf("fault run requires a healthy UE-to-UPF path before injection: %s", preProbe.Detail)
-		}
-		if _, err := corepulse.StableLabPods(client); err != nil {
-			return 1, fmt.Errorf("fault run requires ready essential workloads: %w", err)
-		}
-		store := telemetry.NewStore(filepath.Join("data", "telemetry.jsonl"))
-		result, err := collection.RunFault(client, *target, *runsDir, preProbe, func() error { return store.Capture(client) })
-		if err != nil {
-			return 1, err
-		}
-		path := filepath.Join(*runsDir, result["run_id"].(string)+".json")
-		result["run_record"] = path
-		if err := printJSON(result); err != nil {
-			return 1, err
-		}
-		if result["status"] != "recovered" || result["service_recovery"].(collection.Recovery).Status != "service_recovered" || collection.ControlPlaneLost(result) {
-			return 2, nil
-		}
-		return 0, nil
+		return collection.WithOwnership("pod-crash:"+*target, func() (int, error) {
+			preProbe, err := corepulse.ProbeService(client)
+			if err != nil {
+				return 1, err
+			}
+			if preProbe.Status != "healthy" {
+				return 1, fmt.Errorf("fault run requires a healthy UE-to-UPF path before injection: %s", preProbe.Detail)
+			}
+			if _, err := corepulse.StableLabPods(client); err != nil {
+				return 1, fmt.Errorf("fault run requires ready essential workloads: %w", err)
+			}
+			store := telemetry.NewStore(filepath.Join("data", "telemetry.jsonl"))
+			result, err := collection.RunFault(client, *target, *runsDir, preProbe, func() error { return store.Capture(client) })
+			if err != nil {
+				return 1, err
+			}
+			path := filepath.Join(*runsDir, result["run_id"].(string)+".json")
+			result["run_record"] = path
+			if err := printJSON(result); err != nil {
+				return 1, err
+			}
+			if result["status"] != "recovered" || result["service_recovery"].(collection.Recovery).Status != "service_recovered" || collection.ControlPlaneLost(result) {
+				return 2, nil
+			}
+			return 0, nil
+		})
 	default:
 		return 1, fmt.Errorf("unknown command %q; use version, discover, signals, verify-service, pod-crash, baseline, dataset, windows, split, evaluate, or serve", args[0])
 	}
