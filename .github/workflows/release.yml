@@ -19,6 +19,8 @@ jobs:
       - run: go test ./...
       - run: go vet ./...
       - run: python3 -m unittest discover -s scripts/tests -p 'test_*.py'
+      - run: go build -o corepulse ./cmd/corepulse
+      - run: python3 scripts/check-offline-example.py --binary ./corepulse
 
   binaries:
     needs: validate

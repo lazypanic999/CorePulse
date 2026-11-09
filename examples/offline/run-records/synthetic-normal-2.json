@@ -1,0 +1,29 @@
+{
+  "context": "open5gs-lab",
+  "ended_at": "2026-11-09T01:01:00Z",
+  "example_only": "SYNTHETIC — not lab evidence",
+  "fault": "normal",
+  "namespace": "open5gs",
+  "pre_protocol_check": {
+    "checked_at": "2026-11-09T00:59:59Z",
+    "evidence": [],
+    "links": {
+      "n2": "up",
+      "n4": "up"
+    }
+  },
+  "quality": "clean",
+  "run_id": "synthetic-normal-2",
+  "schema_version": 1,
+  "service_probes": [
+    {
+      "checked_at": "2026-11-09T01:00:00Z",
+      "received": 2,
+      "sent": 2,
+      "status": "healthy"
+    }
+  ],
+  "started_at": "2026-11-09T01:00:00Z",
+  "status": "verified",
+  "target": ""
+}

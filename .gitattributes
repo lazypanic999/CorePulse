@@ -1,1 +1,3 @@
 *.sh text eol=lf
+examples/offline/telemetry.jsonl text eol=lf
+examples/offline/run-records/*.json text eol=lf

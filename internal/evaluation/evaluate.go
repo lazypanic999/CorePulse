@@ -18,6 +18,7 @@ import (
 )
 
 type Options struct {
+	Synthetic   bool
 	Threshold   float64
 	AllowLegacy bool
 }
@@ -37,6 +38,7 @@ type ModelReport struct {
 	Centroids     map[string][]float64 `json:"centroids,omitempty"`
 }
 type Report struct {
+	Synthetic             bool                   `json:"synthetic,omitempty"`
 	PurgedWindows         int                    `json:"purged_windows"`
 	SchemaVersion         int                    `json:"schema_version"`
 	WindowsSHA256         string                 `json:"windows_sha256"`
@@ -59,6 +61,10 @@ func Evaluate(windowsPath, splitPath, outputPath string, options Options) (Repor
 		"Probe rule abstains when evidence is absent. Protocol event counts are excluded from fitted models because their availability depends on post-run log collection.",
 		"Hyperparameters and split seed must be selected before examining held-out scores. These are offline baselines, not live dashboard predictions.",
 	}}
+	if options.Synthetic {
+		r.Synthetic = true
+		r.Limitations = append([]string{"SYNTHETIC EXAMPLE: all inputs are invented. These scores are not measured lab performance or evidence of detection quality."}, r.Limitations...)
+	}
 	if options.Threshold <= 0 || math.IsNaN(options.Threshold) || math.IsInf(options.Threshold, 0) {
 		return r, fmt.Errorf("z-score threshold must be finite and positive")
 	}

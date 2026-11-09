@@ -1,0 +1,29 @@
+{
+  "context": "open5gs-lab",
+  "ended_at": "2026-11-09T06:01:00Z",
+  "example_only": "SYNTHETIC — not lab evidence",
+  "fault": "pod_crash",
+  "namespace": "open5gs",
+  "pre_protocol_check": {
+    "checked_at": "2026-11-09T05:59:59Z",
+    "evidence": [],
+    "links": {
+      "n2": "up",
+      "n4": "up"
+    }
+  },
+  "quality": "clean",
+  "run_id": "synthetic-upf-1",
+  "schema_version": 1,
+  "service_probes": [
+    {
+      "checked_at": "2026-11-09T06:00:30Z",
+      "received": 0,
+      "sent": 2,
+      "status": "degraded"
+    }
+  ],
+  "started_at": "2026-11-09T06:00:00Z",
+  "status": "recovered",
+  "target": "upf"
+}

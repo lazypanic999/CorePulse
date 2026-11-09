@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"math"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -118,5 +119,25 @@ func TestSnapshotRetainsValidAbstentions(t *testing.T) {
 	}
 	if err := ValidateSnapshot(r); err != nil {
 		t.Fatalf("valid abstentions rejected: %v", err)
+	}
+}
+
+func TestSyntheticDeclarationDoesNotChangeFitting(t *testing.T) {
+	input, split, out, _ := fixture(t)
+	ordinary, err := Evaluate(input, split, out, Options{Threshold: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	synthetic, err := Evaluate(input, split, out, Options{Threshold: 3, Synthetic: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, _ := json.Marshal(ordinary.Models)
+	b, _ := json.Marshal(synthetic.Models)
+	if ordinary.Synthetic || !synthetic.Synthetic || string(a) != string(b) || len(synthetic.Limitations) != len(ordinary.Limitations)+1 || !strings.HasPrefix(synthetic.Limitations[0], "SYNTHETIC EXAMPLE:") {
+		t.Fatal("synthetic declaration changed fitting or lost its warning")
+	}
+	if err := ValidateSnapshot(synthetic); err != nil {
+		t.Fatalf("valid labelled synthetic report rejected: %v", err)
 	}
 }
