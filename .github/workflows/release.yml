@@ -50,12 +50,12 @@ jobs:
           suffix=""
           if [[ "$GOOS" == windows ]]; then suffix=".exe"; fi
           CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=$VERSION" -o "build/corepulse$suffix" ./cmd/corepulse
-          cp LICENSE build/
+          cp LICENSE THIRD_PARTY_NOTICES.md build/
           archive="corepulse_${VERSION}_${GOOS}_${GOARCH}"
           if [[ "$GOOS" == windows ]]; then
-            (cd build && zip -q "../dist/${archive}.zip" "corepulse.exe" LICENSE)
+            (cd build && zip -q "../dist/${archive}.zip" "corepulse.exe" LICENSE THIRD_PARTY_NOTICES.md)
           else
-            tar -C build -czf "dist/${archive}.tar.gz" corepulse LICENSE
+            tar -C build -czf "dist/${archive}.tar.gz" corepulse LICENSE THIRD_PARTY_NOTICES.md
           fi
       - uses: actions/upload-artifact@v4
         with:

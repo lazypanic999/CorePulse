@@ -12,5 +12,6 @@ LABEL org.opencontainers.image.source="https://github.com/lazypanic999/CorePulse
       org.opencontainers.image.description="5G core lab observability and guarded fault experiments" \
       org.opencontainers.image.licenses="MIT"
 COPY --from=build /out/corepulse /usr/local/bin/corepulse
+COPY LICENSE THIRD_PARTY_NOTICES.md /usr/share/licenses/corepulse/
 WORKDIR /workspace
 ENTRYPOINT ["/usr/local/bin/corepulse"]
