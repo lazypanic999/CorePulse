@@ -217,6 +217,7 @@ func run(args []string) (int, error) {
 		split := flags.String("split", filepath.Join("data", "split.json"), "whole-run split manifest")
 		output := flags.String("output", filepath.Join("reports", "evaluation.json"), "offline baseline evaluation report")
 		threshold := flags.Float64("z-threshold", 3, "normal-only maximum absolute z-score threshold")
+		synthetic := flags.Bool("synthetic", false, "explicitly mark invented example inputs; scores are not lab performance")
 		legacy := flags.Bool("allow-legacy", false, "allow explicitly exploratory legacy splits")
 		if err := flags.Parse(args[1:]); err != nil {
 			return 1, err
@@ -224,7 +225,7 @@ func run(args []string) (int, error) {
 		if flags.NArg() != 0 {
 			return 1, errors.New("unexpected positional arguments")
 		}
-		report, err := evaluation.Evaluate(*input, *split, *output, evaluation.Options{Threshold: *threshold, AllowLegacy: *legacy})
+		report, err := evaluation.Evaluate(*input, *split, *output, evaluation.Options{Threshold: *threshold, AllowLegacy: *legacy, Synthetic: *synthetic})
 		if err != nil {
 			return 1, err
 		}

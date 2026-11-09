@@ -49,3 +49,5 @@ Missing, incomplete or unsupported reports show an explicit unavailable state in
 
 
 The saved snapshot is checked for internal consistency before display: all four reference methods must retain the same held-out window identities and compatible truths. Split roles must be disjoint, class support must match, and window/run confusion matrices, class scores, coverage and abstentions are recomputed from predictions. Inconsistent snapshots show unavailable rather than displaying their stored scores. This check does not refit or authenticate the models, source data, truth labels, claimed hash or measurement-time independence; a self-consistent report can still describe a flawed study. Original frozen results remain reproducible with their pinned release evaluator; updated evaluator limitation text can change report bytes across source versions.
+
+For a no-cluster walkthrough, use [examples/offline](../examples/offline/README.md). Pass `evaluate --synthetic` for invented inputs: the report retains `synthetic: true`, an explicit limitation and a dashboard warning. This declaration does not change fitting and is not automatic provenance verification.

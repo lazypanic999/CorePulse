@@ -24,3 +24,5 @@ jobs:
         run: go build -o corepulse ./cmd/corepulse
       - name: Check CLI dry run
         run: ./corepulse pod-crash --target amf
+      - name: Offline synthetic walkthrough
+        run: python3 scripts/check-offline-example.py --binary ./corepulse

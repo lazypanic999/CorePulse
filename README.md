@@ -102,6 +102,10 @@ The [9 November local cohort](docs/datasets/2026-11-09-local-preview.md) contain
 
 The saved report is separate from live health. Open its prediction table to see every held-out prediction, including mistakes. Raw inputs remain local; the dataset card links a public aggregate summary and explains the measurement-window and generalization limits.
 
+## Try the offline pipeline without a cluster
+
+The [synthetic walkthrough](examples/offline/README.md) includes nine invented run records and raw captures. Build windows, create a disjoint split, and evaluate with `--synthetic`; missing values, mistakes and abstentions remain visible. These tutorial scores are not measured lab performance.
+
 ## Downloads
 
 [GitHub Releases](https://github.com/lazypanic999/CorePulse/releases) has preview binaries for Linux, macOS, and Windows with SHA-256 checksums. The container image `ghcr.io/lazypanic999/corepulse:v0.2.0` is on [GitHub Packages](https://github.com/lazypanic999/CorePulse/pkgs/container/corepulse) and includes `kubectl`. For a Minikube lab inside WSL, use the native binary in Ubuntu, because the cluster API is only reachable from there.

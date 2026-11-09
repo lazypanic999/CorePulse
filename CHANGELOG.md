@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add a deterministic, explicitly synthetic no-cluster walkthrough through windows, splitting and evaluation. A synthetic report marker/warning keeps invented tutorial scores separate from lab measurements; CI checks the complete example pipeline.
+
 - Recompute saved evaluation scores from retained predictions before dashboard display. Reject mismatched confusion matrices, support, run votes, window identities, split roles or omitted comparisons without fitting models or reading the raw dataset.
 
 - Use consistent half-open run intervals in sample and window exports: a capture at adjacent runs' shared boundary belongs only to the next run, and a capture at the final end remains excluded.
