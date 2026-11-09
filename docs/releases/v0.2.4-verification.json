@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "release": "v0.2.4",
+  "verification_date": "2026-11-09",
+  "source_commit": "f3b70eba8774b71e74da8e31221ca381d0dc483a",
+  "workflow_url": "https://github.com/lazypanic999/CorePulse/actions/runs/42561543871",
+  "report_kind": "maintainer verification summary; not a security certification or public raw dataset",
+  "downloaded_archive_sha256_verified": {
+    "corepulse_v0.2.4_darwin_amd64.tar.gz": "e203e777b2debcec01ca176f13016cb5d7008ae9aa4dfe6141baf26174cb6d0b",
+    "corepulse_v0.2.4_darwin_arm64.tar.gz": "e50d216fab7aec5771877022d16cb5339a450ed69ecb0aee2049c4715beaee05",
+    "corepulse_v0.2.4_linux_amd64.tar.gz": "eb7e139dce20b2dcc4195af30e7ffdfa89536e8020aa9077fdc7de41df4b1032",
+    "corepulse_v0.2.4_windows_amd64.zip": "6a893d65f4b45f682740ad833c6508abbdae1791189958ee77e9e117e595ec52"
+  },
+  "native_packaged_execution": [
+    "linux/amd64",
+    "windows/amd64",
+    "darwin/arm64"
+  ],
+  "native_walkthrough": "explicitly synthetic run-grouped and session-grouped CLI pipelines",
+  "cross_built_without_native_execution": [
+    "linux/arm64",
+    "darwin/amd64"
+  ],
+  "darwin_load_commands": {
+    "both_archives_have_lc_uuid": true,
+    "minimum_macos": "13.0.0"
+  },
+  "container": {
+    "reference": "ghcr.io/lazypanic999/corepulse:v0.2.4",
+    "index_digest": "sha256:687a78132197a399064b22d62478268fb856caecbc3bd1105332bb3c1566f1b8",
+    "spdx_version": [
+      "SPDX-2.3"
+    ],
+    "sbom_package_count": 92,
+    "sbom_descriptor_digests_and_subject_verified": true,
+    "kubectl_version": "v1.35.10",
+    "native_notices_match_repository": true,
+    "synthetic_walkthrough_matches_native": true,
+    "validation_network": "none",
+    "validation_rootfs_read_only": true,
+    "validation_mounts": "invented offline fixtures read-only and a dedicated output directory only",
+    "complete_container_license_review": false
+  },
+  "known_vulnerability_scan": {
+    "tool": "govulncheck v1.9.0",
+    "target": "published CorePulse windows/amd64 executable",
+    "known_vulnerabilities_reported": 0
+  },
+  "frozen_reference_regression": {
+    "csv_sha256": "fb65a1590bff475f48abf9310514d70b356e9700c82d898f0bc054f8d9549b36",
+    "csv_bytes_unchanged": true,
+    "fitted_parameters_predictions_metrics_unchanged": true,
+    "original_raw_inputs_public": false,
+    "cross_session_accuracy_established": false
+  },
+  "post_reset_lab_snapshot": {
+    "doctor_checks_passed": 8,
+    "n2": "up",
+    "n4": "up",
+    "gateway_packets_received": 2,
+    "gateway_packets_sent": 2,
+    "scope": "point-in-time isolated lab observation; not Internet access or an uptime guarantee"
+  }
+}
