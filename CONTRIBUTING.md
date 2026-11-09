@@ -95,6 +95,14 @@ Contributions are made under the repository's [MIT License](LICENSE). Preserve e
 
 ## Development checks
 
+Changes to the Bash/Python lab helpers also have offline fixture tests. Run them in Linux or WSL with Bash and Python 3:
+
+```bash
+python3 -m unittest discover -s scripts/tests -p 'test_*.py'
+```
+
+The tests substitute a fake `kubectl`, simulate ambient context changes and failures, and never contact a cluster. CI runs them alongside the Go checks.
+
 CorePulse is an early-stage Go project. Keep fault actions scoped to the isolated `open5gs-lab` Kubernetes context and the `open5gs` namespace. Changes to fault injection should include a recovery check and a test for the safety guard.
 
 Before opening a pull request, run:

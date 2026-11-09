@@ -4,10 +4,10 @@ import pathlib
 import subprocess
 
 def get(*args):
-    return json.loads(subprocess.check_output(["kubectl", *args, "-o", "json"]))
+    return json.loads(subprocess.check_output(["kubectl", "--context", "open5gs-lab", *args, "-o", "json"]))
 
 def apply(value):
-    subprocess.run(["kubectl", "apply", "-f", "-"], input=json.dumps(value).encode(), check=True)
+    subprocess.run(["kubectl", "--context", "open5gs-lab", "apply", "-f", "-"], input=json.dumps(value).encode(), check=True)
 
 context = subprocess.check_output(["kubectl", "config", "current-context"], text=True).strip()
 if context != "open5gs-lab":
@@ -33,5 +33,5 @@ if old in config:
     if not backup.exists():
         backup.write_text(json.dumps(cm, indent=2))
     patch = {"data": {"smf.yaml": config.replace(old, new)}}
-    subprocess.run(["kubectl", "patch", "configmap/open5gs-smf", "-n", "open5gs", "--type=merge", "-p", json.dumps(patch)], check=True)
+    subprocess.run(["kubectl", "--context", "open5gs-lab", "patch", "configmap/open5gs-smf", "-n", "open5gs", "--type=merge", "-p", json.dumps(patch)], check=True)
 print("PFCP headless peer configured; restart SMF via recover-service.sh to load it.")
