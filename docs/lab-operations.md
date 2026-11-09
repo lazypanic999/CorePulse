@@ -1,5 +1,7 @@
 # Local lab lifecycle and service recovery
 
+The Bash and Python helpers explicitly select `open5gs-lab` for their Kubernetes operations, including replica restoration after an error. Initial current-context checks remain in place. Fixture tests exercise the complete helpers with a fake kubectl that changes the ambient context after mutation begins; this never touches a real cluster.
+
 CorePulse's live kubectl operations explicitly select `--context open5gs-lab`, including operations inside a long experiment. The initial current-context check still refuses a different active context. Discovery follows the same rule; `discover --snapshot` remains available offline. Explicit selection prevents a later ambient context switch from redirecting an already-checked command. Context names and kubeconfig entries must still be configured correctly by the operator.
 
 From PowerShell in the CorePulse checkout:
