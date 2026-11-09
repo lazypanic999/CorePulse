@@ -1,5 +1,5 @@
 const $ = (selector) => document.querySelector(selector);
-const state = { overview: null, probe: null, protocol: null, runs: [], toastTimer: null };
+const state = { overview: null, probe: null, protocol: null, collection: null, submitting: false, runs: [], toastTimer: null };
 const EXPECTED = ['open5gs-amf', 'open5gs-smf', 'open5gs-udr', 'open5gs-upf', 'ueransim-gnb', 'ueransim-ue'];
 
 function toast(message) {
@@ -88,9 +88,32 @@ function updateGates() {
   const n4Up = state.protocol?.links?.n4 === 'up';
   setGate('n2', known && state.protocol ? n2Up : null);
   setGate('n4', known && state.protocol ? n4Up : null);
+  const collectionFree = state.collection?.available === true && state.collection?.locked === false;
+  setGate('collection', state.collection ? collectionFree : null);
   const name = target.toUpperCase();
   $('#run-button').textContent = `Delete ${name} pod`;
-  $('#run-button').disabled = !(correctContext && targetReady && expectedReady && pathHealthy && n2Up && n4Up);
+  $('#run-button').disabled = state.submitting || !(correctContext && targetReady && expectedReady && pathHealthy && n2Up && n4Up && collectionFree);
+  $('#confirm-run').disabled = $('#run-button').disabled || $('#confirm-input').value.trim().toLowerCase() !== target;
+}
+
+async function refreshOwnership() {
+  try {
+    const response = await fetch('/api/collection', { cache: 'no-store' });
+    if (!response.ok) throw new Error('Collection ownership unavailable');
+    state.collection = await response.json();
+    const owner = state.collection.owner;
+    $('#collection-state').textContent = state.collection.available !== true
+      ? state.collection.message || 'Collection ownership cannot be checked; a new run cannot start.'
+      : state.collection.locked
+        ? owner
+          ? `Collection locked by ${owner.operation} on ${owner.host}, PID ${owner.pid}, since ${displayTime(owner.started_at)}. A retained marker does not prove the process is still running.`
+          : state.collection.message || 'Collection is locked and needs inspection.'
+        : 'No shared collection marker is held. The server acquires ownership again before preflight.';
+  } catch {
+    state.collection = null;
+    $('#collection-state').textContent = 'Collection ownership cannot be checked; a new run cannot start.';
+  }
+  updateGates();
 }
 
 function updateOverview(data) {
@@ -385,8 +408,11 @@ async function showPlan() {
 }
 
 async function runExperiment() {
+  if ($('#confirm-run').disabled) return;
   const target = selectedTarget();
   const button = $('#confirm-run');
+  state.submitting = true;
+  updateGates();
   button.disabled = true;
   button.textContent = 'Deleting';
   try {
@@ -411,12 +437,14 @@ async function runExperiment() {
     $('#confirm-dialog').close();
     button.textContent = 'Delete pod';
     $('#confirm-input').value = '';
+    state.submitting = false;
+    await refreshOwnership();
   }
 }
 
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => $(`#${button.dataset.close}`).close()));
 document.querySelectorAll('input[name="target"]').forEach((input) => input.addEventListener('change', updateGates));
-$('#refresh-button').addEventListener('click', () => { refreshOverview(); refreshService(); refreshProtocol(); refreshEvaluation(); });
+$('#refresh-button').addEventListener('click', () => { refreshOverview(); refreshService(); refreshProtocol(); refreshEvaluation(); refreshOwnership(); });
 $('#plan-button').addEventListener('click', showPlan);
 $('#run-button').addEventListener('click', () => {
   if ($('#run-button').disabled) return;
@@ -430,11 +458,12 @@ $('#run-button').addEventListener('click', () => {
   $('#confirm-dialog').showModal();
   $('#confirm-input').focus();
 });
-$('#confirm-input').addEventListener('input', () => { $('#confirm-run').disabled = $('#confirm-input').value.trim().toLowerCase() !== selectedTarget(); });
+$('#confirm-input').addEventListener('input', updateGates);
 $('#confirm-run').addEventListener('click', runExperiment);
 setInterval(refreshOverview, 30000);
 setInterval(refreshTelemetry, 10000);
 setInterval(refreshService, 30000);
 setInterval(refreshProtocol, 30000);
 setInterval(refreshEvaluation, 30000);
-Promise.all([refreshOverview(), refreshRuns(), refreshTelemetry(), refreshService(), refreshProtocol(), refreshEvaluation()]);
+setInterval(refreshOwnership, 5000);
+Promise.all([refreshOverview(), refreshRuns(), refreshTelemetry(), refreshService(), refreshProtocol(), refreshEvaluation(), refreshOwnership()]);

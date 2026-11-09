@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +19,42 @@ type lockSpyClient struct{ calls int }
 func (c *lockSpyClient) Run(_ time.Duration, _ ...string) (string, error) {
 	c.calls++
 	return "", fmt.Errorf("cluster must not be accessed")
+}
+
+func TestOwnershipEndpointReadsMarkerWithoutClusterAccess(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "marker")
+	t.Setenv("COREPULSE_LOCK_DIR", dir)
+	client := &lockSpyClient{}
+	handler := New(client, t.TempDir())
+	request := func() collection.OwnershipState {
+		t.Helper()
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8787/api/collection", nil))
+		var state collection.OwnershipState
+		if w.Code != http.StatusOK || json.Unmarshal(w.Body.Bytes(), &state) != nil || client.calls != 0 {
+			t.Fatalf("ownership lookup touched cluster or failed: %d calls=%d %s", w.Code, client.calls, w.Body.String())
+		}
+		if strings.Contains(w.Body.String(), "\"token\"") {
+			t.Fatal("private release token exposed")
+		}
+		return state
+	}
+	if state := request(); !state.Available || state.Locked {
+		t.Fatalf("unexpected initial state: %+v", state)
+	}
+	owner, err := collection.AcquireOwnership("baseline")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state := request(); !state.Available || !state.Locked || state.Owner == nil || state.Owner.Operation != "baseline" {
+		t.Fatalf("owner not visible: %+v", state)
+	}
+	if err := owner.Release(); err != nil {
+		t.Fatal(err)
+	}
+	if state := request(); !state.Available || state.Locked {
+		t.Fatalf("stale view after release: %+v", state)
+	}
 }
 func (c *lockSpyClient) GetJSON(_ ...string) (map[string]any, error) {
 	c.calls++

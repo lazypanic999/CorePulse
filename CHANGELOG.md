@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Show shared collection ownership in the dashboard and disable run/typed-confirmation controls while locked, unavailable or submitting. Add a read-only ownership endpoint without release tokens or paths; reject relative lock overrides that could resolve differently across working trees.
+
 ## v0.2.1 — 2026-11-09 (preview)
 
 - Distinguish live capture times from Metrics API source intervals in the resource panel. Show per-pod metadata coverage and averaging windows; historical unknown intervals remain explicit instead of implying fresh measurements.
