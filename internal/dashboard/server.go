@@ -54,6 +54,9 @@ func NewWithEvaluation(client corepulse.Client, runsDir string, store *telemetry
 	mux.HandleFunc("GET /api/service-check", s.serviceCheck)
 	mux.HandleFunc("GET /api/protocol", s.protocol)
 	mux.HandleFunc("GET /api/evaluation", s.evaluation)
+	mux.HandleFunc("GET /api/collection", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, collection.InspectOwnership())
+	})
 	mux.HandleFunc("POST /api/experiments/pod-crash", s.runPodCrash)
 	web, _ := fs.Sub(webFiles, "web")
 	mux.Handle("/", http.FileServer(http.FS(web)))

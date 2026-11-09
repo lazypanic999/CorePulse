@@ -32,15 +32,7 @@ func AcquireOwnership(operation string) (*Ownership, error) {
 	if strings.TrimSpace(operation) == "" {
 		return nil, fmt.Errorf("collection operation must be named")
 	}
-	dir := os.Getenv("COREPULSE_LOCK_DIR")
-	if dir == "" {
-		cache, err := os.UserCacheDir()
-		if err != nil {
-			return nil, fmt.Errorf("resolve collection ownership directory: %w", err)
-		}
-		dir = filepath.Join(cache, "CorePulse", "locks", "open5gs-lab-open5gs")
-	}
-	dir, err := filepath.Abs(dir)
+	dir, err := ownershipDir()
 	if err != nil {
 		return nil, err
 	}
