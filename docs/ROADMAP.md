@@ -1,8 +1,8 @@
 # CorePulse roadmap
 
-_Last updated: 8 November 2026_
+_Last updated: 9 November 2026_
 
-This roadmap turns the phase table in the [README](../README.md#roadmap) into concrete milestones. Each milestone lists what it delivers, how we know it is done, and which open issues feed into it. Dates are intentionally omitted: a milestone ships when its acceptance criteria pass against the live lab, not on a calendar.
+This roadmap turns the phase table in the [README](../README.md#where-it-is-going) into concrete milestones. Each milestone lists what it delivers, how we know it is done, and which open issues feed into it. Dates are intentionally omitted: a milestone ships when its acceptance criteria pass against the live lab, not on a calendar.
 
 ## Where we are
 
@@ -10,9 +10,9 @@ This roadmap turns the phase table in the [README](../README.md#roadmap) into co
 | --- | --- | --- | --- |
 | 0. Discovery | Done | `discover`, `signals`, [validated signal inventory](validated-signals.md) | Open5GS exposes no verified Prometheus KPI endpoint |
 | 1. Injector | Partial | Guarded `pod_crash` for AMF/UPF with checkpoints and recovery observation | `packet_loss`, `high_latency`, `sctp_drop` |
-| 2. Dataset | Partial | Verified `baseline` runs, curated `dataset` CSV, run-level quality gates | Protocol/event features, windowing, enough runs per class |
-| 3. Models | Not started | — | Anomaly and classification baselines, held-out evaluation |
-| 4. Dashboard | Partial | Live topology, resource charts, guarded run control, run history | Prediction view, WebSocket stream |
+| 2. Dataset | Partial | Verified `baseline` runs, curated `dataset` CSV, run-level quality gates | Broader fault parameters, session-grouped holdouts, additional independent sessions |
+| 3. Models | Partial | Offline deviation/centroid references, whole-run evaluation, majority/probe comparisons | Larger independent cohorts, cross-session validation, live inference |
+| 4. Dashboard | Partial | Live topology, resource charts, guarded runs, saved offline evaluations | Live prediction view, WebSocket stream |
 | 5. Polish | Partial | Release binaries, GHCR image, WSL start/stop scripts | One-command setup on a clean machine, demo recording |
 
 The key finding so far: **a ready Kubernetes pod does not mean a working 5G service.** The UPF experiment recovered at the deployment level while the UE-to-UPF path stayed degraded. Every milestone below keeps that distinction explicit.
@@ -24,13 +24,13 @@ Goal: collect control-plane and user-plane health alongside resource metrics, so
 - [x] Merge resource quantity validation ([#1](https://github.com/lazypanic999/CorePulse/issues/1), PRs [#7](https://github.com/lazypanic999/CorePulse/pull/7), [#11](https://github.com/lazypanic999/CorePulse/pull/11)).
 - [x] Offline contributor quickstart ([#2](https://github.com/lazypanic999/CorePulse/issues/2)).
 - [x] Timestamped parser for registration, PDU session, and PFCP log events using fixtures ([#6](https://github.com/lazypanic999/CorePulse/issues/6)).
-- [ ] Read real `kubectl logs --timestamps` output and confirm markers against live logs (PR [#19](https://github.com/lazypanic999/CorePulse/pull/19), in review).
-- [ ] Report UE, gNB, SMF, and UPF events from `corepulse signals` (PR [#20](https://github.com/lazypanic999/CorePulse/pull/20), in review).
-- [ ] Record protocol events in every run and add probe and event columns to the curated CSV, keeping "not observed" distinct from zero (PR [#23](https://github.com/lazypanic999/CorePulse/pull/23), in review). Events are read once per run rather than on the 10 s resource cadence; a continuous event stream can follow if models need it.
-- [ ] Report N2 control-plane recovery separately from the packet path ([#21](https://github.com/lazypanic999/CorePulse/issues/21), PR [#24](https://github.com/lazypanic999/CorePulse/pull/24), in review).
+- [x] Read real `kubectl logs --timestamps` output and confirm markers against live logs (PR [#19](https://github.com/lazypanic999/CorePulse/pull/19), merged).
+- [x] Report UE, gNB, SMF, and UPF events from `corepulse signals` (PR [#20](https://github.com/lazypanic999/CorePulse/pull/20), merged).
+- [x] Record protocol events in every run and add probe and event columns to the curated CSV, keeping "not observed" distinct from zero (PR [#23](https://github.com/lazypanic999/CorePulse/pull/23), merged). Events are read once per run rather than on the 10 s resource cadence; a continuous event stream can follow if models need it.
+- [x] Report N2 control-plane recovery separately from the packet path ([#21](https://github.com/lazypanic999/CorePulse/issues/21), PR [#24](https://github.com/lazypanic999/CorePulse/pull/24), merged).
 - [x] Repeat the UPF pod-crash experiment and document whether `scripts/recover-service.sh` restores the PFCP path. All seven clean UPF runs left the user plane down; the reset restored it each time it was used on 8 November (9 of 9). Cause under investigation in [#22](https://github.com/lazypanic999/CorePulse/issues/22).
 
-**Done when:** a fault run record and its CSV rows show resource, event, and packet-path signals side by side, and the degraded UPF case is reproducible. The degraded case is reproducible; the rest lands with PRs #19, #20, #23, and #24.
+**Done when:** a fault run record and its CSV rows show resource, event, and packet-path signals side by side, and the degraded UPF case is reproducible. Implemented in PRs #19, #20, #23, and #24. New runs also require observed N2/PFCP starting conditions (#28), preventing a prior AMF after-effect from silently entering a new UPF-only interval.
 
 ## v0.3.0 — Fault catalog
 
@@ -49,10 +49,10 @@ Goal: move from one fault type to the four planned in the initial scope, each re
 
 Goal: a dataset a model can honestly be evaluated on.
 
-- [ ] 30-second window feature extraction (mean, max, delta, missing-ratio per signal).
+- [x] 30-second window feature extraction (mean, max, delta, missing-ratio per signal).
 - [ ] Parameter sweeps per fault (several loss/latency levels) to avoid one-value-per-class leakage.
-- [x] Target size: at least 10 verified baseline runs and 5 clean runs per fault class. Reached locally on 8 November: 12 baselines, 7 UPF, 5 AMF (267 rows). The data stays out of Git.
-- [ ] Run-level train/test split helper; windows from one run never cross the split.
+- [x] Target size: at least 10 verified baseline runs and 5 clean runs per fault class. Reached locally on 8 November: 12 baselines, 7 UPF, 5 AMF (267 rows). The data stays out of Git. These historical counts predate protocol-start gates; the new strict cohort must be reported separately.
+- [x] Run-level train/test split helper; windows from one run never cross the split.
 - [ ] Dataset card in `docs/` describing collection conditions, class balance, and known biases (single node, single UE).
 - [ ] Optional Parquet export next to CSV.
 
@@ -62,11 +62,11 @@ Goal: a dataset a model can honestly be evaluated on.
 
 Goal: measurable, honest first models.
 
-- [ ] Decision record `0003` on model runtime (Go-native vs. separate Python service) after a small benchmark.
-- [ ] Normal-vs-anomalous baseline (threshold/z-score first, then an isolation forest or similar).
-- [ ] Fault-type classifier on the same features.
+- [x] [Decision 0003](decisions/0003-offline-baseline-runtime.md): Go-native offline references; advanced-model serving runtime remains open.
+- [x] Normal-only resource deviation baseline; isolation forest remains a possible later comparison.
+- [x] Offline nearest-centroid scenario classifier using resource features.
 - [ ] Precision, recall, F1, and confusion matrix on held-out runs, saved as a versioned report.
-- [ ] Compare against a trivial baseline (e.g. "probe failed ⇒ anomaly") so any gain is meaningful.
+- [x] Compare against a trivial baseline (e.g. "probe failed ⇒ anomaly") so any gain is meaningful.
 
 **Done when:** a reproducible evaluation report exists and its numbers come from runs the model never saw.
 
