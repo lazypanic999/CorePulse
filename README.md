@@ -100,6 +100,8 @@ Run records go to `runs/` and raw samples to `data/`. Both folders are ignored b
 
 ## Where it is going
 
+Recorded experiments can be prepared offline with `corepulse windows` (30-second, run-aligned features with explicit missingness) and `corepulse split` (deterministic whole-run train/test partitions). Both require verified protocol starting conditions by default. See [windowed datasets](docs/windowed-dataset.md) for the schema and evaluation limits. These commands prepare data; there is no trained detector yet.
+
 The full plan with status per milestone is in [docs/ROADMAP.md](docs/ROADMAP.md). The phases:
 
 | Phase | Deliverable | Done when |
