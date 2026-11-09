@@ -87,6 +87,7 @@ func run(args []string) (int, error) {
 		runs := flags.Int("runs", 3, "number of separate verified baseline runs")
 		samples := flags.Int("samples", 4, "samples per run")
 		interval := flags.Duration("interval", 10*time.Second, "interval between samples")
+		metricsWait := flags.Duration("metrics-wait", 0, "optional pre-run wait for current pod metric coverage (up to 5m)")
 		telemetryPath := flags.String("telemetry", filepath.Join("data", "telemetry.jsonl"), "raw telemetry JSONL")
 		runsDir := flags.String("runs-dir", "runs", "run record directory")
 		output := flags.String("output", filepath.Join("data", "dataset.csv"), "curated CSV output")
@@ -96,8 +97,21 @@ func run(args []string) (int, error) {
 		if flags.NArg() != 0 || *runs < 1 || *runs > 100 {
 			return 1, errors.New("baseline needs 1 to 100 runs and no positional arguments")
 		}
+		if *samples < 2 || *interval < time.Second || *metricsWait < 0 || *metricsWait > 5*time.Minute {
+			return 1, errors.New("baseline needs at least two samples, interval >= 1s, and metrics-wait between 0 and 5m")
+		}
 		store := telemetry.NewStore(*telemetryPath)
 		for i := 0; i < *runs; i++ {
+			if *metricsWait > 0 {
+				ready, err := collection.WaitForMetrics(ctx, client, *metricsWait)
+				if err != nil {
+					if errors.Is(err, context.Canceled) {
+						return 130, err
+					}
+					return 1, err
+				}
+				fmt.Fprintf(os.Stderr, "Resource metrics cover %d essential pods after %d checks.\n", len(ready.Pods), ready.Checks)
+			}
 			record, err := collection.BaselineContext(ctx, client, store, *runsDir, *samples, *interval)
 			if record.RunID != "" {
 				_ = printJSON(record)
