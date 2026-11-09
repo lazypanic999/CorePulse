@@ -18,6 +18,10 @@ To stop the Minikube profile and release its tracked WSL session:
 .\scripts\stop-lab.ps1
 ```
 
+## Wait for resource metrics after reset
+
+After a reset, metrics-server can lag behind the new ready pods. For batch collection, use `corepulse baseline --metrics-wait 90s` to wait for resource metrics from all six current essential pod names before starting a labelled interval. Workload readiness is checked first, then metric polling is bounded by the requested wait (maximum five minutes); normal Kubernetes call timeouts also apply to workload checks. Waiting is read-only and cancellable and does not append telemetry or create a run record. Pod identity, packet health and N2/PFCP gates are still checked by the baseline afterward and throughout collection. If metrics disappear after the interval starts, the interval is still excluded rather than repaired into a normal label.
+
 ## Repeatable subscriber initialization
 
 `run-lab.sh` runs `repair-populate.sh`, which patches only the pinned `open5gs-populate` init container in the exact lab context. `populate-subscriber.sh` queries the demonstration subscriber before inserting. Existing records are preserved, missing records are added, and database connection/query errors fail startup. Reapply after a Helm upgrade. This script is specific to the tested `gradiant/open5gs-dbctl:0.10.3` image and public lab credentials.
