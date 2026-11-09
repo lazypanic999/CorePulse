@@ -1,22 +1,17 @@
 # Changelog
 
-## Unreleased
+## v0.2.0 — 2026-11-09 (preview)
 
-- Read-only offline evaluation dashboard with held-out support, coverage, mistakes, abstentions and the full prediction table; missing reports remain explicitly unavailable.
+- Service-aware experiment guards: observed N2/PFCP starting conditions, six-workload checks, and explicit lab context selection in Go and the lab helpers.
+- Durable run checkpoints before mutation and through recovery; cancellable baselines preserve excluded interrupted evidence. Optional pre-run metrics warmup handles replacement-pod metric lag without relabelling failed intervals.
+- Timestamped UE/gNB/SMF/UPF observations, stale PFCP peer detection, and N2 recovery outcomes separate from packet delivery.
+- Curated sample CSV with explicit missing-vs-zero fields and protocol/probe evidence. Run-aligned feature windows, source-hash-bound whole-run splits and optional capture-time embargoes prepare offline studies.
+- Resource-only nearest-centroid and normal-deviation references with training-only preprocessing, majority/probe comparisons, full held-out predictions, confusion matrices, F1 and abstention coverage.
+- Read-only offline evaluation dashboard, distinct from live service checks, with updated real captures and an expandable mistakes table.
+- Local reference cohort: 12 verified baselines, five AMF and five UPF faults. Of 60 feature windows, 31 trained the references, 20 were held out and nine were purged. The scenario classifier misses AMF and the binary resource method trails the packet rule; these are exploratory single-session results with explicit metric-timing limits.
+- Code of Conduct, private vulnerability reporting, contributor guidance, scoped help issues and offline Go/Bash/Python fixture checks.
 
-- Reproducible offline resource baselines with training-only preprocessing, held-out predictions, window/run confusion metrics, majority/probe comparisons and input-hash validation.
-
-- Require observed N2 and PFCP readiness before starting experiments; baseline intervals also retain repeated protocol checks.
-- Offline run-aligned feature windows with explicit missingness and deterministic scenario-stratified whole-run split manifests.
-
-- README rewritten around the service recovery finding, with new captures from the live lab on 6 November 2026.
-- Dashboard run table labels baseline runs as baselines and reads the packet result from baseline probes and older fault records.
-- Dashboard redesign: the service path diagram shows pod readiness and the UE-to-UPF packet check separately, the run control lists its safety checks, runs appear in a table, and kubectl errors are summarized with the raw output on request. No external assets; the glass theme and marketing hero are removed.
-- Shared CLI/dashboard fault checkpoints before mutation and throughout recovery, with complete JSON replacement and excluded pending records.
-- Cancellable baseline waits and kubectl commands; interrupted intervals retain their evidence and stay out of curated training data.
-- Missing AMF/UPF measurements export as empty CSV fields while observed zero remains numeric (community contribution #8).
-- Liquid glass desktop and narrow-screen dashboard with updated live captures.
-- Read-only UE-to-UPF gateway probe in the CLI, dashboard, and new experiment records.
+The public dataset card and aggregate report describe the evidence and limitations. Raw inputs remain local. This preview does not serve live model predictions and does not claim production readiness or certified measurement-time independence.
 
 ## v0.1.0 — 2026-10-31 (preview)
 
