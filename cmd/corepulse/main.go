@@ -18,6 +18,7 @@ import (
 	"github.com/lazypanic999/CorePulse/internal/corepulse"
 	"github.com/lazypanic999/CorePulse/internal/dashboard"
 	"github.com/lazypanic999/CorePulse/internal/dataset"
+	"github.com/lazypanic999/CorePulse/internal/evaluation"
 	"github.com/lazypanic999/CorePulse/internal/telemetry"
 )
 
@@ -43,7 +44,7 @@ func saveJSON(path string, value any) error {
 
 func run(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("usage: corepulse <version|discover|signals|verify-service|pod-crash|baseline|dataset|windows|split|serve> [options]")
+		return 1, errors.New("usage: corepulse <version|discover|signals|verify-service|pod-crash|baseline|dataset|windows|split|evaluate|serve> [options]")
 	}
 	client := corepulse.Kubectl{}
 	switch args[0] {
@@ -191,6 +192,25 @@ func run(args []string) (int, error) {
 		store := telemetry.NewStore(filepath.Join("data", "telemetry.jsonl"))
 		store.Start(context.Background(), client, 10*time.Second)
 		return 1, http.ListenAndServe(*addr, dashboard.NewWithTelemetry(client, *runsDir, store))
+	case "evaluate":
+		flags := flag.NewFlagSet("evaluate", flag.ContinueOnError)
+		flags.SetOutput(os.Stderr)
+		input := flags.String("input", filepath.Join("data", "windows.csv"), "window CSV input")
+		split := flags.String("split", filepath.Join("data", "split.json"), "whole-run split manifest")
+		output := flags.String("output", filepath.Join("reports", "evaluation.json"), "offline baseline evaluation report")
+		threshold := flags.Float64("z-threshold", 3, "normal-only maximum absolute z-score threshold")
+		legacy := flags.Bool("allow-legacy", false, "allow explicitly exploratory legacy splits")
+		if err := flags.Parse(args[1:]); err != nil {
+			return 1, err
+		}
+		if flags.NArg() != 0 {
+			return 1, errors.New("unexpected positional arguments")
+		}
+		report, err := evaluation.Evaluate(*input, *split, *output, evaluation.Options{Threshold: *threshold, AllowLegacy: *legacy})
+		if err != nil {
+			return 1, err
+		}
+		return 0, printJSON(report)
 	case "discover":
 		flags := flag.NewFlagSet("discover", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)
@@ -270,7 +290,7 @@ func run(args []string) (int, error) {
 		}
 		return 0, nil
 	default:
-		return 1, fmt.Errorf("unknown command %q; use version, discover, signals, verify-service, pod-crash, baseline, dataset, windows, split, or serve", args[0])
+		return 1, fmt.Errorf("unknown command %q; use version, discover, signals, verify-service, pod-crash, baseline, dataset, windows, split, evaluate, or serve", args[0])
 	}
 }
 

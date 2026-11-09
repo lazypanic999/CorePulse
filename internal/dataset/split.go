@@ -18,6 +18,7 @@ import (
 
 type WindowRow struct {
 	RunID            string
+	WindowStart      time.Time
 	Label            string
 	Target           string
 	ProtocolVerified bool
@@ -92,7 +93,7 @@ func ReadWindows(path string) (WindowData, error) {
 		if err != nil {
 			return result, err
 		}
-		out := WindowRow{RunID: row[0], Label: row[1], Target: row[2], ProtocolVerified: verified, Features: map[string]float64{}}
+		out := WindowRow{RunID: row[0], WindowStart: times[0], Label: row[1], Target: row[2], ProtocolVerified: verified, Features: map[string]float64{}}
 		for i, name := range rows[0][11:] {
 			value := row[11+i]
 			if value == "" {
@@ -104,6 +105,9 @@ func ReadWindows(path string) (WindowData, error) {
 			x, err := strconv.ParseFloat(value, 64)
 			if err != nil || math.IsNaN(x) || math.IsInf(x, 0) {
 				return result, fmt.Errorf("window row %d has invalid %s", line, name)
+			}
+			if x < 0 && !strings.HasSuffix(name, "_delta") {
+				return result, fmt.Errorf("window row %d has negative %s", line, name)
 			}
 			if strings.HasSuffix(name, "_missing_ratio") && (x < 0 || x > 1) {
 				return result, fmt.Errorf("window row %d has invalid missing ratio", line)
