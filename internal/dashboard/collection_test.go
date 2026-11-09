@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -19,6 +20,64 @@ type lockSpyClient struct{ calls int }
 func (c *lockSpyClient) Run(_ time.Duration, _ ...string) (string, error) {
 	c.calls++
 	return "", fmt.Errorf("cluster must not be accessed")
+}
+
+type sessionStopClient struct{ checkpointClient }
+
+func (c *sessionStopClient) Run(timeout time.Duration, args ...string) (string, error) {
+	if args[0] == "delete" {
+		return "", fmt.Errorf("fixture stops at fake delete")
+	}
+	return c.checkpointClient.Run(timeout, args...)
+}
+
+func TestDashboardBindsSessionFromServerNotRequest(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("COREPULSE_LOCK_DIR", filepath.Join(dir, "marker"))
+	runs := filepath.Join(dir, "runs")
+	client := &sessionStopClient{}
+	handler := NewWithSession(client, runs, nil, filepath.Join(dir, "none.json"), "configured-session")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8787/api/collection", nil))
+	var status struct {
+		SessionID string `json:"session_id"`
+	}
+	if json.Unmarshal(w.Body.Bytes(), &status) != nil || status.SessionID != "configured-session" {
+		t.Fatalf("configured session not visible: %s", w.Body.String())
+	}
+	r := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8787/api/experiments/pod-crash", strings.NewReader(`{"target":"amf","confirm":"DELETE_ONE_LAB_POD","session_id":"forged-request"}`))
+	r.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("fixture did not reach checkpointed fake delete: %d %s", w.Code, w.Body.String())
+	}
+	entries, err := os.ReadDir(runs)
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("session checkpoint missing: %v %v", entries, err)
+	}
+	data, err := os.ReadFile(filepath.Join(runs, entries[0].Name()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var record map[string]any
+	if json.Unmarshal(data, &record) != nil || record["session_id"] != "configured-session" || record["quality"] != "excluded" {
+		t.Fatalf("request rewrote session or checkpoint lost it: %s", data)
+	}
+}
+
+func TestInvalidServerSessionRefusesBeforeClientCalls(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("COREPULSE_LOCK_DIR", filepath.Join(dir, "marker"))
+	client := &lockSpyClient{}
+	handler := NewWithSession(client, filepath.Join(dir, "runs"), nil, "", "invalid session")
+	r := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8787/api/experiments/pod-crash", strings.NewReader(`{"target":"amf","confirm":"DELETE_ONE_LAB_POD"}`))
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+	if w.Code != http.StatusConflict || client.calls != 0 || !strings.Contains(w.Body.String(), "session-id") {
+		t.Fatalf("invalid declaration reached client: %d calls=%d %s", w.Code, client.calls, w.Body.String())
+	}
 }
 
 func TestOwnershipEndpointReadsMarkerWithoutClusterAccess(t *testing.T) {

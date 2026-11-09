@@ -21,11 +21,11 @@ def fixtures():
     epoch = datetime(2026, 11, 9, tzinfo=timezone.utc)
     for scenario_index, scenario in enumerate(('normal', 'amf', 'upf')):
         for repetition in range(1, 4):
-            start = epoch + timedelta(hours=3 * scenario_index + repetition - 1)
+            start = epoch + timedelta(hours=3 * (repetition - 1) + scenario_index)
             run_id = f'synthetic-{scenario}-{repetition}'
             record = {
                 'example_only': 'SYNTHETIC — not lab evidence',
-                'schema_version': 1, 'run_id': run_id,
+                'schema_version': 1, 'run_id': run_id, 'session_id': f'synthetic-session-{repetition}',
                 'fault': 'normal' if scenario == 'normal' else 'pod_crash',
                 'target': '' if scenario == 'normal' else scenario,
                 'context': 'open5gs-lab', 'namespace': 'open5gs',

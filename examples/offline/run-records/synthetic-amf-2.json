@@ -23,6 +23,7 @@
       "status": "healthy"
     }
   ],
+  "session_id": "synthetic-session-2",
   "started_at": "2026-11-09T04:00:00Z",
   "status": "recovered",
   "target": "amf"

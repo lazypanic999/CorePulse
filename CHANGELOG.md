@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Record explicit prospective session declarations in baseline/fault/dashboard checkpoints and optional window metadata. Add deterministic, hash-bound whole-session holdouts with schema-2 evaluation, complete-session embargo purging, refusal of unknown/insufficient groups and explicit dashboard grouping. Legacy run-mode data remains compatible; declarations do not certify independence.
+
 ## v0.2.2 — 2026-11-09 (preview)
 
 - Treat ping failures without valid positive transmitted-packet counts as unavailable, not observed packet loss. Preserve unknown/legacy 0/0 counters as empty CSV/window features while retaining genuine zero replies; unobserved final probes cannot qualify a fault as clean.

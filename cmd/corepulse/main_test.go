@@ -41,3 +41,12 @@ func TestCLICollectionRefusesBeforeClusterOrOutputAccess(t *testing.T) {
 		t.Fatalf("read-only dry run was blocked: %d %v", code, err)
 	}
 }
+
+func TestInvalidSessionFlagsRefuseBeforeCluster(t *testing.T) {
+	for _, args := range [][]string{{"baseline", "--session-id", "bad/session"}, {"pod-crash", "--target", "amf", "--apply", "--session-id", "bad session"}, {"serve", "--session-id", "bad session"}} {
+		code, err := run(args)
+		if code != 1 || err == nil || !strings.Contains(err.Error(), "session-id") {
+			t.Fatalf("invalid declaration was not rejected first: %v => %d %v", args, code, err)
+		}
+	}
+}

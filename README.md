@@ -112,7 +112,7 @@ The [synthetic walkthrough](examples/offline/README.md) includes nine invented r
 
 ## Where it is going
 
-Recorded experiments can be prepared offline with `corepulse windows` (30-second, run-aligned features with explicit missingness) and `corepulse split` (deterministic whole-run train/test partitions). Both require verified protocol starting conditions by default. `corepulse evaluate` fits simple resource baselines on training runs and reports every held-out prediction alongside majority/probe comparisons. See [windowed datasets](docs/windowed-dataset.md) and [offline evaluation](docs/offline-evaluation.md) for the schemas, methods and limits. These offline results are separate from the live dashboard.
+Recorded experiments can be prepared offline with `corepulse windows` (30-second, run-aligned features with explicit missingness) and `corepulse split` (deterministic whole-run train/test partitions). Both require verified protocol starting conditions by default. `corepulse evaluate` fits simple resource baselines on training runs and reports every held-out prediction alongside majority/probe comparisons. Explicit [prospective session declarations and whole-session holdouts](docs/session-holdouts.md) keep all runs from a declared collection occasion together; unknown legacy sessions refuse that mode. Session IDs are metadata, not proof of independent conditions. See [windowed datasets](docs/windowed-dataset.md) and [offline evaluation](docs/offline-evaluation.md) for the schemas, methods and limits. These offline results are separate from the live dashboard.
 
 The full plan with status per milestone is in [docs/ROADMAP.md](docs/ROADMAP.md). The phases:
 

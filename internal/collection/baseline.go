@@ -14,6 +14,7 @@ import (
 )
 
 type BaselineRecord struct {
+	SessionID        string                    `json:"session_id,omitempty"`
 	SchemaVersion    int                       `json:"schema_version"`
 	RunID            string                    `json:"run_id"`
 	Fault            string                    `json:"fault"`
@@ -57,7 +58,23 @@ func BaselineContext(ctx context.Context, client corepulse.Client, store *teleme
 	return baseline(ctx, client, store, runsDir, samples, interval, waitContext)
 }
 
-func baseline(ctx context.Context, client corepulse.Client, store *telemetry.Store, runsDir string, samples int, interval time.Duration, wait func(context.Context, time.Duration) error) (record BaselineRecord, runErr error) {
+// BaselineSessionContext adds an explicit declaration to the same guarded
+// lifecycle. The caller holds ownership; an empty declaration stays unknown.
+func BaselineSessionContext(ctx context.Context, client corepulse.Client, store *telemetry.Store, runsDir string, samples int, interval time.Duration, sessionID string) (BaselineRecord, error) {
+	return baseline(ctx, client, store, runsDir, samples, interval, waitContext, sessionID)
+}
+
+func baseline(ctx context.Context, client corepulse.Client, store *telemetry.Store, runsDir string, samples int, interval time.Duration, wait func(context.Context, time.Duration) error, sessions ...string) (record BaselineRecord, runErr error) {
+	sessionID := ""
+	if len(sessions) > 1 {
+		return record, fmt.Errorf("only one session declaration permitted")
+	}
+	if len(sessions) == 1 {
+		sessionID = sessions[0]
+	}
+	if err := runrecord.ValidateSessionID(sessionID); err != nil {
+		return record, err
+	}
 	if err := ctx.Err(); err != nil {
 		return record, err
 	}
@@ -69,6 +86,7 @@ func baseline(ctx context.Context, client corepulse.Client, store *telemetry.Sto
 		return BaselineRecord{}, err
 	}
 	record = BaselineRecord{SchemaVersion: 1, RunID: id, Fault: "normal", Context: corepulse.LabContext, Namespace: corepulse.LabNamespace, Status: "unverified", Quality: "excluded", ServiceProbes: []corepulse.ServiceProbe{}}
+	record.SessionID = sessionID
 	contextName, err := client.Run(10*time.Second, "config", "current-context")
 	if err != nil {
 		return record, err

@@ -23,6 +23,7 @@
       "status": "healthy"
     }
   ],
+  "session_id": "synthetic-session-1",
   "started_at": "2026-11-09T00:00:00Z",
   "status": "verified",
   "target": ""

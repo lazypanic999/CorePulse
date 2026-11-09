@@ -23,6 +23,7 @@
       "status": "degraded"
     }
   ],
+  "session_id": "synthetic-session-3",
   "started_at": "2026-11-09T08:00:00Z",
   "status": "recovered",
   "target": "upf"

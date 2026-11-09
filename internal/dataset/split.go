@@ -17,6 +17,7 @@ import (
 )
 
 type WindowRow struct {
+	SessionID        string
 	WindowEnd        time.Time
 	RunID            string
 	WindowStart      time.Time
@@ -33,7 +34,7 @@ type WindowData struct {
 
 func WindowFeatureNames() []string { return append([]string(nil), windowHeader()[11:]...) }
 
-// ReadWindows validates the exact version-one export schema and keeps metadata
+// ReadWindows validates legacy and session-aware headers and keeps metadata
 // separate from numerical inputs. Empty numeric fields stay absent, never zero.
 func ReadWindows(path string) (WindowData, error) {
 	data, err := os.ReadFile(path)
@@ -46,10 +47,15 @@ func ReadWindows(path string) (WindowData, error) {
 	if err != nil {
 		return result, err
 	}
-	if len(rows) == 0 || !slices.Equal(rows[0], windowHeader()) {
+	if len(rows) == 0 || (!slices.Equal(rows[0], windowHeader()) && !slices.Equal(rows[0], sessionWindowHeader())) {
 		return result, fmt.Errorf("unsupported window CSV schema")
 	}
+	featureOffset := 11
+	if slices.Equal(rows[0], sessionWindowHeader()) {
+		featureOffset = 12
+	}
 	classes := map[string]string{}
+	sessions := map[string]string{}
 	seen := map[string]bool{}
 	for index, row := range rows[1:] {
 		line := index + 2
@@ -64,6 +70,17 @@ func ReadWindows(path string) (WindowData, error) {
 			return result, fmt.Errorf("run %s has conflicting labels", row[0])
 		}
 		classes[row[0]] = class
+		sessionID := ""
+		if featureOffset == 12 {
+			sessionID = row[11]
+		}
+		if err := runrecord.ValidateSessionID(sessionID); err != nil {
+			return result, fmt.Errorf("window row %d: %w", line, err)
+		}
+		if previous, ok := sessions[row[0]]; ok && previous != sessionID {
+			return result, fmt.Errorf("run %s has conflicting session declarations", row[0])
+		}
+		sessions[row[0]] = sessionID
 		times := make([]time.Time, 4)
 		for i := range times {
 			times[i], err = time.Parse(time.RFC3339Nano, row[3+i])
@@ -94,9 +111,9 @@ func ReadWindows(path string) (WindowData, error) {
 		if err != nil {
 			return result, err
 		}
-		out := WindowRow{RunID: row[0], WindowStart: times[0], WindowEnd: times[1], Label: row[1], Target: row[2], ProtocolVerified: verified, Features: map[string]float64{}}
-		for i, name := range rows[0][11:] {
-			value := row[11+i]
+		out := WindowRow{RunID: row[0], SessionID: sessionID, WindowStart: times[0], WindowEnd: times[1], Label: row[1], Target: row[2], ProtocolVerified: verified, Features: map[string]float64{}}
+		for i, name := range rows[0][featureOffset:] {
+			value := row[featureOffset+i]
 			if value == "" {
 				if strings.HasSuffix(name, "_missing_ratio") {
 					return result, fmt.Errorf("window row %d missing coverage ratio", line)
@@ -121,6 +138,7 @@ func ReadWindows(path string) (WindowData, error) {
 }
 
 type SplitOptions struct {
+	GroupBy         string
 	Embargo         time.Duration
 	TestFraction    float64
 	Seed            int64
@@ -131,23 +149,31 @@ type ClassSplit struct {
 	TestRuns  int `json:"test_runs"`
 }
 type SplitManifest struct {
-	EmbargoSeconds  float64               `json:"embargo_seconds"`
-	PurgedRuns      []string              `json:"purged_runs"`
-	SchemaVersion   int                   `json:"schema_version"`
-	WindowsSHA256   string                `json:"windows_sha256"`
-	Seed            int64                 `json:"seed"`
-	TestFraction    float64               `json:"test_fraction"`
-	RequireProtocol bool                  `json:"require_protocol"`
-	FeatureNames    []string              `json:"feature_names"`
-	TrainRuns       []string              `json:"train_runs"`
-	TestRuns        []string              `json:"test_runs"`
-	Classes         map[string]ClassSplit `json:"classes"`
+	Grouping           string                `json:"grouping,omitempty"`
+	SessionAssignments map[string]string     `json:"session_assignments,omitempty"`
+	TrainSessions      []string              `json:"train_sessions,omitempty"`
+	TestSessions       []string              `json:"test_sessions,omitempty"`
+	PurgedSessions     []string              `json:"purged_sessions,omitempty"`
+	EmbargoSeconds     float64               `json:"embargo_seconds"`
+	PurgedRuns         []string              `json:"purged_runs"`
+	SchemaVersion      int                   `json:"schema_version"`
+	WindowsSHA256      string                `json:"windows_sha256"`
+	Seed               int64                 `json:"seed"`
+	TestFraction       float64               `json:"test_fraction"`
+	RequireProtocol    bool                  `json:"require_protocol"`
+	FeatureNames       []string              `json:"feature_names"`
+	TrainRuns          []string              `json:"train_runs"`
+	TestRuns           []string              `json:"test_runs"`
+	Classes            map[string]ClassSplit `json:"classes"`
 }
 
 // Split assigns whole runs, stratified by known experiment scenario. A class
 // with fewer than two distinct runs is an error, not a misleading score.
 func Split(inputPath, outputPath string, options SplitOptions) (SplitManifest, error) {
 	m := SplitManifest{SchemaVersion: 1, Seed: options.Seed, TestFraction: options.TestFraction, RequireProtocol: options.RequireProtocol, FeatureNames: WindowFeatureNames(), TrainRuns: []string{}, TestRuns: []string{}, Classes: map[string]ClassSplit{}}
+	if options.GroupBy != "" && options.GroupBy != "run" && options.GroupBy != "session" {
+		return m, fmt.Errorf("group-by must be run or session")
+	}
 	if math.IsNaN(options.TestFraction) || options.TestFraction <= 0 || options.TestFraction >= 1 {
 		return m, fmt.Errorf("test fraction must be greater than zero and less than one")
 	}
@@ -164,6 +190,16 @@ func Split(inputPath, outputPath string, options SplitOptions) (SplitManifest, e
 		return m, err
 	}
 	m.WindowsSHA256 = data.SHA256
+	if options.GroupBy == "session" {
+		m, err = splitSessions(data, m, options)
+		if err != nil {
+			return m, err
+		}
+		if err := runrecord.Save(outputPath, m); err != nil {
+			return m, err
+		}
+		return m, nil
+	}
 	groups := map[string][]string{}
 	seen := map[string]bool{}
 	for _, row := range data.Rows {

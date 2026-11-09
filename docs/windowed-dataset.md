@@ -45,3 +45,8 @@ Splitting groups all windows from one `run_id` together and stratifies by experi
 The JSON manifest records the schema version, exact input CSV SHA-256, seed, fraction, protocol requirement, numeric feature allowlist, disjoint train/test run IDs, and per-scenario run counts. Repeating the command on identical input with the same seed gives identical output. Rebuild the manifest if the CSV changes. Choose the seed before examining held-out results.
 
 Future evaluators must fit transformations and models on training runs only, verify the CSV hash and split membership, and keep labels/target/run metadata out of model inputs. Report both window-level and run-level results, class support, missingness, and partial-window policy. Single-node/single-UE measurements and a small number of independent runs remain substantial limits.
+
+
+## Explicit session holdouts
+
+Use [prospective session declarations and `--group-by session`](session-holdouts.md) when holding out collection occasions. Session-aware CSV adds a `session_id` metadata column, while the numeric allowlist remains unchanged. The legacy header stays exact when no eligible run declares a session. Unknown IDs are never inferred. Session mode uses a source-hash-bound schema-2 manifest, purges entire near-test training sessions, and refuses missing class/session support; default run mode remains schema 1.

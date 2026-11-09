@@ -16,8 +16,11 @@ import (
 // fitted parameters, labels, split independence or source CSV hash.
 func ValidateSnapshot(r Report) error {
 	hash, err := hex.DecodeString(r.WindowsSHA256)
-	if err != nil || len(hash) != 32 || r.SchemaVersion != 1 || r.Split.SchemaVersion != 1 || r.Split.WindowsSHA256 != r.WindowsSHA256 {
+	if err != nil || len(hash) != 32 || (r.SchemaVersion != 1 && r.SchemaVersion != 2) || r.SchemaVersion != r.Split.SchemaVersion || r.Split.WindowsSHA256 != r.WindowsSHA256 {
 		return fmt.Errorf("unsupported report schema or inconsistent source hash")
+	}
+	if err := dataset.ValidateGrouping(r.Split); err != nil {
+		return err
 	}
 	if r.TrainWindows < 1 || r.TestWindows < 1 || r.NormalTrainingWindows < 2 || r.NormalTrainingWindows > r.TrainWindows || r.PurgedWindows < 0 || !finite(r.ZScoreThreshold) || r.ZScoreThreshold <= 0 {
 		return fmt.Errorf("invalid report support or threshold")

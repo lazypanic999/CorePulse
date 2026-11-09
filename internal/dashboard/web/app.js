@@ -102,6 +102,9 @@ async function refreshOwnership() {
     if (!response.ok) throw new Error('Collection ownership unavailable');
     state.collection = await response.json();
     const owner = state.collection.owner;
+    $('#collection-session').textContent = state.collection.session_id
+      ? `New runs declare collection session: ${state.collection.session_id}. This declaration does not prove independent conditions.`
+      : 'Collection session is not declared. New runs cannot qualify for a session-grouped holdout.';
     $('#collection-state').textContent = state.collection.available !== true
       ? state.collection.message || 'Collection ownership cannot be checked; a new run cannot start.'
       : state.collection.locked
@@ -111,6 +114,7 @@ async function refreshOwnership() {
         : 'No shared collection marker is held. The server acquires ownership again before preflight.';
   } catch {
     state.collection = null;
+    $('#collection-session').textContent = 'Collection session could not be checked.';
     $('#collection-state').textContent = 'Collection ownership cannot be checked; a new run cannot start.';
   }
   updateGates();
@@ -242,6 +246,9 @@ async function refreshEvaluation() {
     $('#evaluation-synthetic').hidden = report.synthetic !== true;
     $('#evaluation-support').textContent = `${report.train_windows} training windows from ${report.split.train_runs.length} runs; ${report.test_windows} held-out windows from ${report.split.test_runs.length} runs. Seed ${report.split.seed}.`;
     $('#evaluation-support').textContent += ` ${report.purged_windows || 0} windows excluded by a ${report.split.embargo_seconds || 0}s capture-time embargo.`;
+    $('#evaluation-support').textContent += report.split.grouping === 'session'
+      ? ` Whole-session grouping: ${report.split.train_sessions.length} training, ${report.split.test_sessions.length} held-out, ${(report.split.purged_sessions || []).length} purged sessions.`
+      : ' Whole-run grouping; session independence is not established.';
     const body = $('#evaluation-body');
     const predictions = $('#evaluation-predictions');
     body.replaceChildren(); predictions.replaceChildren();

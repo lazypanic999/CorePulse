@@ -48,7 +48,19 @@ def main():
         assert result['models']['probe_rule']['window_metrics']['abstained'] > 0
         assert any(p['predicted'] and p['predicted'] != p['truth']
                    for m in result['models'].values() for p in m['predictions'])
-    print('Synthetic pipeline passed: windows -> disjoint split -> explicitly synthetic evaluation; mistakes and abstentions retained')
+        session_split, session_report = temp / 'session-split.json', temp / 'session-evaluation.json'
+        run('split', '--input', windows, '--output', session_split, '--seed', '42', '--embargo', '2m', '--group-by', 'session')
+        run('evaluate', '--input', windows, '--split', session_split, '--output', session_report, '--synthetic')
+        grouped = json.loads(session_report.read_bytes())
+        policy = grouped['split']
+        assert grouped['schema_version'] == 2 and policy['schema_version'] == 2 and policy['grouping'] == 'session'
+        assert grouped['synthetic'] and grouped['train_windows'] == 12 and grouped['test_windows'] == 6
+        assert len(policy['train_sessions']) == 2 and len(policy['test_sessions']) == 1
+        assert set(policy['train_sessions']).isdisjoint(policy['test_sessions'])
+        for role in ('train', 'test'):
+            assert {policy['session_assignments'][identity] for identity in policy[role + '_runs']} == set(policy[role + '_sessions'])
+        assert all(c['train_runs'] == 2 and c['test_runs'] == 1 for c in policy['classes'].values())
+    print('Synthetic pipeline passed: windows -> run/session holdouts -> explicitly synthetic evaluation; mistakes and abstentions retained')
 
 
 if __name__ == '__main__':

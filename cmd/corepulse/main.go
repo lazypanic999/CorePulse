@@ -19,6 +19,7 @@ import (
 	"github.com/lazypanic999/CorePulse/internal/dashboard"
 	"github.com/lazypanic999/CorePulse/internal/dataset"
 	"github.com/lazypanic999/CorePulse/internal/evaluation"
+	"github.com/lazypanic999/CorePulse/internal/runrecord"
 	"github.com/lazypanic999/CorePulse/internal/telemetry"
 )
 
@@ -84,6 +85,7 @@ func run(args []string) (int, error) {
 		client := corepulse.Kubectl{Context: ctx}
 		flags := flag.NewFlagSet("baseline", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)
+		sessionID := flags.String("session-id", "", "explicit collection session declaration; absent means unknown")
 		runs := flags.Int("runs", 3, "number of separate verified baseline runs")
 		samples := flags.Int("samples", 4, "samples per run")
 		interval := flags.Duration("interval", 10*time.Second, "interval between samples")
@@ -92,6 +94,9 @@ func run(args []string) (int, error) {
 		runsDir := flags.String("runs-dir", "runs", "run record directory")
 		output := flags.String("output", filepath.Join("data", "dataset.csv"), "curated CSV output")
 		if err := flags.Parse(args[1:]); err != nil {
+			return 1, err
+		}
+		if err := runrecord.ValidateSessionID(*sessionID); err != nil {
 			return 1, err
 		}
 		if flags.NArg() != 0 || *runs < 1 || *runs > 100 {
@@ -113,7 +118,7 @@ func run(args []string) (int, error) {
 					}
 					fmt.Fprintf(os.Stderr, "Resource metrics cover %d essential pods after %d checks.\n", len(ready.Pods), ready.Checks)
 				}
-				record, err := collection.BaselineContext(ctx, client, store, *runsDir, *samples, *interval)
+				record, err := collection.BaselineSessionContext(ctx, client, store, *runsDir, *samples, *interval, *sessionID)
 				if record.RunID != "" {
 					_ = printJSON(record)
 				}
@@ -170,10 +175,11 @@ func run(args []string) (int, error) {
 		flags := flag.NewFlagSet("split", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)
 		input := flags.String("input", filepath.Join("data", "windows.csv"), "window CSV input")
-		output := flags.String("output", filepath.Join("data", "split.json"), "whole-run split manifest")
-		fraction := flags.Float64("test-fraction", 0.25, "held-out fraction per experiment scenario")
-		seed := flags.Int64("seed", 42, "deterministic run split seed")
-		embargo := flags.Duration("embargo", 0, "purge training runs near held-out capture ranges (up to 24h)")
+		output := flags.String("output", filepath.Join("data", "split.json"), "whole-run or whole-session split manifest")
+		fraction := flags.Float64("test-fraction", 0.25, "held-out fraction per scenario in run mode, or of whole sessions")
+		groupBy := flags.String("group-by", "run", "holdout grouping: run or session")
+		seed := flags.Int64("seed", 42, "deterministic holdout seed")
+		embargo := flags.Duration("embargo", 0, "purge training groups near held-out capture ranges (up to 24h)")
 		legacy := flags.Bool("allow-legacy", false, "allow unverified protocol starts (exploration only)")
 		if err := flags.Parse(args[1:]); err != nil {
 			return 1, err
@@ -181,7 +187,7 @@ func run(args []string) (int, error) {
 		if flags.NArg() != 0 {
 			return 1, errors.New("unexpected positional arguments")
 		}
-		manifest, err := dataset.Split(*input, *output, dataset.SplitOptions{TestFraction: *fraction, Seed: *seed, RequireProtocol: !*legacy, Embargo: *embargo})
+		manifest, err := dataset.Split(*input, *output, dataset.SplitOptions{TestFraction: *fraction, Seed: *seed, RequireProtocol: !*legacy, Embargo: *embargo, GroupBy: *groupBy})
 		if err != nil {
 			return 1, err
 		}
@@ -189,10 +195,14 @@ func run(args []string) (int, error) {
 	case "serve":
 		flags := flag.NewFlagSet("serve", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)
+		sessionID := flags.String("session-id", "", "explicit collection session declaration; absent means unknown")
 		addr := flags.String("addr", "127.0.0.1:8787", "local dashboard address")
 		runsDir := flags.String("runs-dir", "runs", "run record directory")
 		evaluationPath := flags.String("evaluation", filepath.Join("reports", "evaluation.json"), "saved offline evaluation report to display")
 		if err := flags.Parse(args[1:]); err != nil {
+			return 1, err
+		}
+		if err := runrecord.ValidateSessionID(*sessionID); err != nil {
 			return 1, err
 		}
 		if flags.NArg() != 0 {
@@ -209,12 +219,12 @@ func run(args []string) (int, error) {
 		fmt.Fprintf(os.Stderr, "CorePulse dashboard: http://%s\n", *addr)
 		store := telemetry.NewStore(filepath.Join("data", "telemetry.jsonl"))
 		store.Start(context.Background(), client, 10*time.Second)
-		return 1, http.ListenAndServe(*addr, dashboard.NewWithEvaluation(client, *runsDir, store, *evaluationPath))
+		return 1, http.ListenAndServe(*addr, dashboard.NewWithSession(client, *runsDir, store, *evaluationPath, *sessionID))
 	case "evaluate":
 		flags := flag.NewFlagSet("evaluate", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)
 		input := flags.String("input", filepath.Join("data", "windows.csv"), "window CSV input")
-		split := flags.String("split", filepath.Join("data", "split.json"), "whole-run split manifest")
+		split := flags.String("split", filepath.Join("data", "split.json"), "whole-run or whole-session split manifest")
 		output := flags.String("output", filepath.Join("reports", "evaluation.json"), "offline baseline evaluation report")
 		threshold := flags.Float64("z-threshold", 3, "normal-only maximum absolute z-score threshold")
 		synthetic := flags.Bool("synthetic", false, "explicitly mark invented example inputs; scores are not lab performance")
@@ -267,10 +277,14 @@ func run(args []string) (int, error) {
 	case "pod-crash":
 		flags := flag.NewFlagSet("pod-crash", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)
+		sessionID := flags.String("session-id", "", "explicit collection session declaration; absent means unknown")
 		target := flags.String("target", "", "amf or upf")
 		apply := flags.Bool("apply", false, "delete one lab pod")
 		runsDir := flags.String("runs-dir", "runs", "run record directory")
 		if err := flags.Parse(args[1:]); err != nil {
+			return 1, err
+		}
+		if err := runrecord.ValidateSessionID(*sessionID); err != nil {
 			return 1, err
 		}
 		if flags.NArg() != 0 {
@@ -282,6 +296,9 @@ func run(args []string) (int, error) {
 				return 1, err
 			}
 			plan["mode"] = "dry-run"
+			if *sessionID != "" {
+				plan["session_id"] = *sessionID
+			}
 			return 0, printJSON(plan)
 		}
 		return collection.WithOwnership("pod-crash:"+*target, func() (int, error) {
@@ -296,7 +313,7 @@ func run(args []string) (int, error) {
 				return 1, fmt.Errorf("fault run requires ready essential workloads: %w", err)
 			}
 			store := telemetry.NewStore(filepath.Join("data", "telemetry.jsonl"))
-			result, err := collection.RunFault(client, *target, *runsDir, preProbe, func() error { return store.Capture(client) })
+			result, err := collection.RunFaultSession(client, *target, *runsDir, preProbe, func() error { return store.Capture(client) }, *sessionID)
 			if err != nil {
 				return 1, err
 			}
