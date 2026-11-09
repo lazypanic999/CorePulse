@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Recompute saved evaluation scores from retained predictions before dashboard display. Reject mismatched confusion matrices, support, run votes, window identities, split roles or omitted comparisons without fitting models or reading the raw dataset.
+
 - Use consistent half-open run intervals in sample and window exports: a capture at adjacent runs' shared boundary belongs only to the next run, and a capture at the final end remains excluded.
 
 - Serialize CLI baseline batches and applied CLI/dashboard faults with shared, inspectable collection ownership before preflight. Forced termination retains ownership for conservative manual recovery; cross-user/WSL callers must configure a common marker directory.

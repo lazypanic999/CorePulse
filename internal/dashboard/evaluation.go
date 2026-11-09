@@ -1,7 +1,6 @@
 package dashboard
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -39,46 +38,5 @@ func (s *Server) evaluation(w http.ResponseWriter, _ *http.Request) {
 }
 
 func displayableReport(r evaluation.Report) bool {
-	hash, err := hex.DecodeString(r.WindowsSHA256)
-	if err != nil || len(hash) != 32 || r.SchemaVersion != 1 || r.TestWindows < 1 || r.TrainWindows < 1 || len(r.Models) == 0 {
-		return false
-	}
-	if r.Split.SchemaVersion != 1 || r.Split.WindowsSHA256 != r.WindowsSHA256 || len(r.Split.TrainRuns) == 0 || len(r.Split.TestRuns) == 0 {
-		return false
-	}
-	heldOut := map[string]bool{}
-	for _, id := range r.Split.TestRuns {
-		if heldOut[id] {
-			return false
-		}
-		heldOut[id] = true
-	}
-	for _, id := range r.Split.TrainRuns {
-		if heldOut[id] {
-			return false
-		}
-	}
-	for _, m := range r.Models {
-		metrics := m.WindowMetrics
-		if metrics.Total != r.TestWindows || len(m.Predictions) != r.TestWindows || metrics.Predicted < 0 || metrics.Abstained < 0 || metrics.Total != metrics.Predicted+metrics.Abstained || len(metrics.Labels) == 0 || len(metrics.Confusion) != len(metrics.Labels) {
-			return false
-		}
-		for _, row := range metrics.Confusion {
-			if len(row) != len(metrics.Labels) {
-				return false
-			}
-		}
-		if metrics.Coverage < 0 || metrics.Coverage > 1 || metrics.Accuracy < 0 || metrics.Accuracy > 1 || metrics.MacroF1 < 0 || metrics.MacroF1 > 1 {
-			return false
-		}
-		if m.RunMetrics.Total != len(heldOut) {
-			return false
-		}
-		for _, prediction := range m.Predictions {
-			if !heldOut[prediction.RunID] {
-				return false
-			}
-		}
-	}
-	return true
+	return evaluation.ValidateSnapshot(r) == nil
 }
