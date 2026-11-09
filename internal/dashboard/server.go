@@ -3,7 +3,6 @@ package dashboard
 import (
 	"embed"
 	"encoding/json"
-	"fmt"
 	"io/fs"
 	"net"
 	"net/http"
@@ -15,7 +14,6 @@ import (
 
 	"github.com/lazypanic999/CorePulse/internal/collection"
 	"github.com/lazypanic999/CorePulse/internal/corepulse"
-	"github.com/lazypanic999/CorePulse/internal/dataset"
 	"github.com/lazypanic999/CorePulse/internal/runrecord"
 	"github.com/lazypanic999/CorePulse/internal/telemetry"
 )
@@ -241,23 +239,12 @@ func (s *Server) runPodCrash(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	if s.Telemetry != nil {
-		_ = s.Telemetry.Capture(s.Client)
-	}
-	preProbe, preErr := corepulse.ProbeService(s.Client)
-	if preErr != nil || preProbe.Status != "healthy" {
-		writeJSON(w, http.StatusConflict, map[string]string{"error": "A healthy UE-to-UPF path is required before a fault run"})
-		return
-	}
-	if _, err := corepulse.StableLabPods(s.Client); err != nil {
-		writeJSON(w, http.StatusConflict, map[string]string{"error": "Ready essential lab workloads are required before a fault run"})
-		return
-	}
-	var capture func() error
-	if s.Telemetry != nil {
-		capture = func() error { return s.Telemetry.Capture(s.Client) }
-	}
-	result, err := collection.RunFault(s.Client, request.Target, s.RunsDir, preProbe, capture)
+	var result map[string]any
+	_, err := collection.WithOwnership("pod-crash:"+request.Target, func() (int, error) {
+		var collectErr error
+		result, collectErr = s.collectPodCrash(request.Target)
+		return 0, collectErr
+	})
 	if err != nil {
 		status := http.StatusConflict
 		if result != nil {
@@ -266,17 +253,6 @@ func (s *Server) runPodCrash(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, status, map[string]string{"error": err.Error()})
 		return
 	}
-	path := filepath.Join(s.RunsDir, fmt.Sprint(result["run_id"])+".json")
-	if s.Telemetry != nil {
-		_ = s.Telemetry.Capture(s.Client)
-		datasetPath := filepath.Join(filepath.Dir(s.Telemetry.Path()), "dataset.csv")
-		if summary, err := dataset.Build(s.Telemetry.Path(), s.RunsDir, datasetPath); err == nil {
-			result["dataset"] = summary
-		} else {
-			result["dataset_error"] = err.Error()
-		}
-	}
-	result["run_record"] = path
 	status := http.StatusOK
 	if result["status"] != "recovered" || result["service_recovery"].(collection.Recovery).Status != "service_recovered" || collection.ControlPlaneLost(result) {
 		status = http.StatusAccepted

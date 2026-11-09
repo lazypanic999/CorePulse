@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Serialize CLI baseline batches and applied CLI/dashboard faults with shared, inspectable collection ownership before preflight. Forced termination retains ownership for conservative manual recovery; cross-user/WSL callers must configure a common marker directory.
+
 - Preserve optional per-pod Metrics API source timestamps and averaging windows in new telemetry. Reject malformed metadata while retaining unknown legacy intervals; capture-time labels, resource values and fitted features remain unchanged.
 
 ## v0.2.0 — 2026-11-09 (preview)

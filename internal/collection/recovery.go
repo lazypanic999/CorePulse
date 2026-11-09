@@ -22,6 +22,7 @@ func FinishFault(client corepulse.Client, result map[string]any, samples int, ca
 
 // RunFault shares the same durable lifecycle between the CLI and dashboard.
 // The caller must validate the healthy pre-probe and essential workloads first.
+// CLI/dashboard entry points hold shared ownership across preflight and this call.
 func RunFault(client corepulse.Client, target, runsDir string, preProbe corepulse.ServiceProbe, capture func() error) (map[string]any, error) {
 	if _, err := corepulse.PlanPodCrash(target); err != nil {
 		return nil, err
