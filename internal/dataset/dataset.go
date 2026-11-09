@@ -18,6 +18,7 @@ import (
 )
 
 type Run struct {
+	SessionID        string
 	ID               string
 	Fault            string
 	Target           string
@@ -54,6 +55,7 @@ func loadRuns(dir string) ([]Run, error) {
 			return nil, err
 		}
 		var raw struct {
+			SessionID string `json:"session_id"`
 			ID        string `json:"run_id"`
 			Fault     string `json:"fault"`
 			Target    string `json:"target"`
@@ -83,6 +85,9 @@ func loadRuns(dir string) ([]Run, error) {
 		if (raw.Fault == "normal" && raw.Status != "verified") || (raw.Fault != "normal" && raw.Status != "recovered") {
 			continue
 		}
+		if err := runrecord.ValidateSessionID(raw.SessionID); err != nil {
+			return nil, fmt.Errorf("run %s: %w", entry.Name(), err)
+		}
 		started, err := time.Parse(time.RFC3339Nano, raw.Started)
 		if err != nil {
 			return nil, fmt.Errorf("run %s start: %w", entry.Name(), err)
@@ -104,7 +109,7 @@ func loadRuns(dir string) ([]Run, error) {
 			probes = append(probes, []probeJSON{*raw.ServiceProbe})
 		}
 		protocolVerified := raw.PreProtocolCheck != nil && !raw.PreProtocolCheck.CheckedAt.IsZero() && !raw.PreProtocolCheck.CheckedAt.After(started) && raw.PreProtocolCheck.Links.N2 == corepulse.LinkUp && raw.PreProtocolCheck.Links.N4 == corepulse.LinkUp
-		runs = append(runs, Run{ID: raw.ID, Fault: raw.Fault, Target: raw.Target, Started: started, Ended: ended, ProtocolVerified: protocolVerified, evidence: newEvidence(probes, raw.ProtocolEvents)})
+		runs = append(runs, Run{ID: raw.ID, SessionID: raw.SessionID, Fault: raw.Fault, Target: raw.Target, Started: started, Ended: ended, ProtocolVerified: protocolVerified, evidence: newEvidence(probes, raw.ProtocolEvents)})
 	}
 	sort.Slice(runs, func(i, j int) bool { return runs[i].Started.Before(runs[j].Started) })
 	return runs, nil

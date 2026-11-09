@@ -24,6 +24,15 @@ func FinishFault(client corepulse.Client, result map[string]any, samples int, ca
 // The caller must validate the healthy pre-probe and essential workloads first.
 // CLI/dashboard entry points hold shared ownership across preflight and this call.
 func RunFault(client corepulse.Client, target, runsDir string, preProbe corepulse.ServiceProbe, capture func() error) (map[string]any, error) {
+	return RunFaultSession(client, target, runsDir, preProbe, capture, "")
+}
+
+// RunFaultSession retains the declared session from the first checkpoint;
+// ownership and the caller's healthy workload/probe checks remain required.
+func RunFaultSession(client corepulse.Client, target, runsDir string, preProbe corepulse.ServiceProbe, capture func() error, sessionID string) (map[string]any, error) {
+	if err := runrecord.ValidateSessionID(sessionID); err != nil {
+		return nil, err
+	}
 	if _, err := corepulse.PlanPodCrash(target); err != nil {
 		return nil, err
 	}
@@ -33,6 +42,9 @@ func RunFault(client corepulse.Client, target, runsDir string, preProbe corepuls
 	}
 	samples := 0
 	checkpoint := func(result map[string]any) error {
+		if sessionID != "" {
+			result["session_id"] = sessionID
+		}
 		result["pre_service_probe"] = preProbe
 		result["pre_protocol_check"] = preProtocol
 		result["quality"] = "excluded"

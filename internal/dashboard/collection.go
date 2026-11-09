@@ -7,10 +7,14 @@ import (
 	"github.com/lazypanic999/CorePulse/internal/collection"
 	"github.com/lazypanic999/CorePulse/internal/corepulse"
 	"github.com/lazypanic999/CorePulse/internal/dataset"
+	"github.com/lazypanic999/CorePulse/internal/runrecord"
 )
 
 // collectPodCrash runs only while the request owns the shared collection lock.
 func (s *Server) collectPodCrash(target string) (map[string]any, error) {
+	if err := runrecord.ValidateSessionID(s.SessionID); err != nil {
+		return nil, err
+	}
 	if s.Telemetry != nil {
 		_ = s.Telemetry.Capture(s.Client)
 	}
@@ -25,7 +29,7 @@ func (s *Server) collectPodCrash(target string) (map[string]any, error) {
 	if s.Telemetry != nil {
 		capture = func() error { return s.Telemetry.Capture(s.Client) }
 	}
-	result, err := collection.RunFault(s.Client, target, s.RunsDir, preProbe, capture)
+	result, err := collection.RunFaultSession(s.Client, target, s.RunsDir, preProbe, capture, s.SessionID)
 	if err != nil {
 		return result, err
 	}

@@ -27,7 +27,7 @@ func (c interruptedClient) Run(timeout time.Duration, args ...string) (string, e
 
 func TestFaultProcessInterruptionRetainsCheckpoint(t *testing.T) {
 	if dir := os.Getenv("COREPULSE_CRASH_TEST_DIR"); dir != "" {
-		_, err := RunFault(interruptedClient{}, "amf", dir, corepulse.ServiceProbe{Status: "healthy"}, nil)
+		_, err := RunFaultSession(interruptedClient{}, "amf", dir, corepulse.ServiceProbe{Status: "healthy"}, nil, "prospective-fault")
 		t.Fatalf("expected child termination, got %v", err)
 	}
 	dir := t.TempDir()
@@ -50,6 +50,9 @@ func TestFaultProcessInterruptionRetainsCheckpoint(t *testing.T) {
 	}
 	if r["pre_protocol_check"] == nil {
 		t.Fatal("starting protocol evidence was not checkpointed")
+	}
+	if r["session_id"] != "prospective-fault" {
+		t.Fatal("process interruption lost declared session")
 	}
 	raw := filepath.Join(dir, "raw.jsonl")
 	if err := os.WriteFile(raw, nil, 0644); err != nil {

@@ -10,7 +10,7 @@ This roadmap turns the phase table in the [README](../README.md#where-it-is-goin
 | --- | --- | --- | --- |
 | 0. Discovery | Done | `discover`, `signals`, [validated signal inventory](validated-signals.md) | Open5GS exposes no verified Prometheus KPI endpoint |
 | 1. Injector | Partial | Guarded `pod_crash` for AMF/UPF with checkpoints and recovery observation | `packet_loss`, `high_latency`, `sctp_drop` |
-| 2. Dataset | Partial | Verified `baseline` runs, curated `dataset` CSV, run-level quality gates | Broader fault parameters, session-grouped holdouts, additional independent sessions |
+| 2. Dataset | Partial | Verified `baseline` runs, curated `dataset` CSV, run-level quality gates | Broader fault parameters, source-time validation, additional independent sessions |
 | 3. Models | Partial | Offline deviation/centroid references, whole-run evaluation, majority/probe comparisons | Larger independent cohorts, cross-session validation, live inference |
 | 4. Dashboard | Partial | Live topology, resource charts, guarded runs, saved offline evaluations | Live prediction view, WebSocket stream |
 | 5. Polish | Partial | Release binaries, GHCR image, WSL start/stop scripts | One-command setup on a clean machine, demo recording |
@@ -53,6 +53,7 @@ Goal: a dataset a model can honestly be evaluated on.
 - [ ] Parameter sweeps per fault (several loss/latency levels) to avoid one-value-per-class leakage.
 - [x] Target size: at least 10 verified baseline runs and 5 clean runs per fault class. Reached locally on 8 November: 12 baselines, 7 UPF, 5 AMF (267 rows). The data stays out of Git. These historical counts predate protocol-start gates. The new [strict cohort](datasets/2026-11-09-local-preview.md) has 12 normal, 5 AMF and 5 UPF runs; it remains a small single-session study.
 - [x] Run-level train/test split helper; windows from one run never cross the split.
+- [x] Explicit prospective session declarations and optional whole-session holdouts, with unknown/insufficient-session refusal and source-hash-bound verification. This is grouping infrastructure; the original cohort still has unknown sessions and no cross-session performance claim. See [session semantics](session-holdouts.md).
 - [x] Dataset card in `docs/` describing collection conditions, class balance, and known biases (single node, single UE).
 - [ ] Optional Parquet export next to CSV.
 

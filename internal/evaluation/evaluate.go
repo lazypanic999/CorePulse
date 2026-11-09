@@ -85,11 +85,15 @@ func Evaluate(windowsPath, splitPath, outputPath string, options Options) (Repor
 	if err := json.Unmarshal(bytes, &r.Split); err != nil {
 		return r, err
 	}
+	r.SchemaVersion = r.Split.SchemaVersion
 	train, test, labels, err := validateSplit(data, r.Split, options.AllowLegacy)
 	if err != nil {
 		return r, err
 	}
 	r.TrainWindows, r.TestWindows = len(train), len(test)
+	if r.Split.SchemaVersion == 2 {
+		r.Limitations = append(r.Limitations, "Whole-session holdouts use explicitly declared session IDs. Declarations are not authenticated proof of independent environments or source-measurement intervals.")
+	}
 	r.PurgedWindows = len(data.Rows) - len(train) - len(test)
 	normal := []dataset.WindowRow{}
 	for _, row := range train {
@@ -203,8 +207,11 @@ func validateSplit(data dataset.WindowData, m dataset.SplitManifest, allowLegacy
 	if m.TestFraction <= 0 || m.TestFraction >= 1 {
 		return nil, nil, nil, fmt.Errorf("invalid test fraction in split manifest")
 	}
-	if m.SchemaVersion != 1 || m.WindowsSHA256 != data.SHA256 || !slices.Equal(m.FeatureNames, dataset.WindowFeatureNames()) {
+	if m.WindowsSHA256 != data.SHA256 || !slices.Equal(m.FeatureNames, dataset.WindowFeatureNames()) {
 		return nil, nil, nil, fmt.Errorf("split schema, feature allowlist or CSV hash mismatch; rebuild the split manifest")
+	}
+	if err := dataset.VerifySessionAssignments(data, m); err != nil {
+		return nil, nil, nil, err
 	}
 	if !allowLegacy && !m.RequireProtocol {
 		return nil, nil, nil, fmt.Errorf("legacy split requires explicit allow-legacy")

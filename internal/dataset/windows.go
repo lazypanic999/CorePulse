@@ -69,6 +69,7 @@ func BuildWindows(rawPath, runsDir, outputPath string, options WindowOptions) (W
 	}
 	eligible := make([]Run, 0, len(runs))
 	eligibleIDs := map[string]bool{}
+	includeSession := false
 	for _, run := range runs {
 		if options.RequireProtocol && !run.ProtocolVerified {
 			summary.ExcludedLegacyRuns++
@@ -82,6 +83,7 @@ func BuildWindows(rawPath, runsDir, outputPath string, options WindowOptions) (W
 		}
 		eligibleIDs[run.ID] = true
 		eligible = append(eligible, run)
+		includeSession = includeSession || run.SessionID != ""
 	}
 	input, err := os.Open(rawPath)
 	if err != nil {
@@ -157,9 +159,12 @@ func BuildWindows(rawPath, runsDir, outputPath string, options WindowOptions) (W
 		return ordered[i].start.Before(ordered[j].start)
 	})
 	rows := [][]string{windowHeader()}
+	if includeSession {
+		rows[0] = sessionWindowHeader()
+	}
 	for _, bucket := range ordered {
 		sort.Slice(bucket.samples, func(i, j int) bool { return bucket.samples[i].at.Before(bucket.samples[j].at) })
-		row, err := bucket.row()
+		row, err := bucket.row(includeSession)
 		if err != nil {
 			return summary, err
 		}
@@ -195,9 +200,19 @@ func windowHeader() []string {
 	return columns
 }
 
-func (b *windowBucket) row() ([]string, error) {
+func sessionWindowHeader() []string {
+	legacy := windowHeader()
+	header := append([]string(nil), legacy[:11]...)
+	header = append(header, "session_id")
+	return append(header, legacy[11:]...)
+}
+
+func (b *windowBucket) row(includeSession bool) ([]string, error) {
 	first, last := b.samples[0].at, b.samples[len(b.samples)-1].at
 	row := []string{b.run.ID, b.run.Fault, b.run.Target, b.start.Format(time.RFC3339Nano), b.end.Format(time.RFC3339Nano), first.Format(time.RFC3339Nano), last.Format(time.RFC3339Nano), strconv.Itoa(len(b.samples)), number(last.Sub(first).Seconds()), strconv.FormatBool(b.partial), strconv.FormatBool(b.run.ProtocolVerified)}
+	if includeSession {
+		row = append(row, b.run.SessionID)
+	}
 	for i := range WindowSignals {
 		values := []float64{}
 		for _, s := range b.samples {

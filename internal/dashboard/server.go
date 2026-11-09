@@ -22,6 +22,7 @@ import (
 var webFiles embed.FS
 
 type Server struct {
+	SessionID      string
 	Client         corepulse.Client
 	RunsDir        string
 	Telemetry      *telemetry.Store
@@ -45,7 +46,11 @@ func NewWithTelemetry(client corepulse.Client, runsDir string, store *telemetry.
 }
 
 func NewWithEvaluation(client corepulse.Client, runsDir string, store *telemetry.Store, evaluationPath string) http.Handler {
-	s := &Server{Client: client, RunsDir: runsDir, Telemetry: store, EvaluationPath: evaluationPath}
+	return NewWithSession(client, runsDir, store, evaluationPath, "")
+}
+
+func NewWithSession(client corepulse.Client, runsDir string, store *telemetry.Store, evaluationPath, sessionID string) http.Handler {
+	s := &Server{Client: client, RunsDir: runsDir, Telemetry: store, EvaluationPath: evaluationPath, SessionID: sessionID}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/overview", s.overview)
 	mux.HandleFunc("GET /api/plan", s.plan)
@@ -55,7 +60,10 @@ func NewWithEvaluation(client corepulse.Client, runsDir string, store *telemetry
 	mux.HandleFunc("GET /api/protocol", s.protocol)
 	mux.HandleFunc("GET /api/evaluation", s.evaluation)
 	mux.HandleFunc("GET /api/collection", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, collection.InspectOwnership())
+		writeJSON(w, http.StatusOK, struct {
+			collection.OwnershipState
+			SessionID string `json:"session_id,omitempty"`
+		}{collection.InspectOwnership(), s.SessionID})
 	})
 	mux.HandleFunc("POST /api/experiments/pod-crash", s.runPodCrash)
 	web, _ := fs.Sub(webFiles, "web")

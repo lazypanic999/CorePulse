@@ -15,7 +15,7 @@ In Windows PowerShell, build with `go build -o corepulse.exe ./cmd/corepulse` an
 
 ## What to inspect
 
-There are nine separately named toy intervals: three normal, three AMF and three UPF. Four captures per interval produce **18 windows**, with **12 training** and **6 held-out windows** at the fixed seed. Every run remains in one partition. Runs are spaced an invented hour apart, so the two-minute capture-time embargo purges none. Disjoint toy IDs and timestamps do not establish real measurement independence.
+There are nine separately named toy intervals: three normal, three AMF and three UPF. They explicitly declare three invented session blocks, each containing all three scenarios. Four captures per interval produce **18 windows**, with **12 training** and **6 held-out windows** at the fixed seed. Every run remains in one partition. Runs are spaced an invented hour apart, so the two-minute capture-time embargo purges none. Disjoint toy IDs and timestamps do not establish real measurement independence.
 
 - Normal and AMF resource values are intentionally identical: resources alone cannot identify their difference. Wrong predictions remain in the report instead of making this a perfect-score demonstration.
 - In each UPF interval, the first window has no reporting UPF pod and no earlier probe. Empty means unknown, not zero use or zero successful packets. The packet rule must abstain there.
@@ -25,7 +25,16 @@ There are nine separately named toy intervals: three normal, three AMF and three
 
 The JSON contains all four reference methods, full predictions, confusion matrices, per-class support/F1, coverage and abstentions. Scenario and binary tasks use different labels; do not rank their F1 as one task. The [methods](../../docs/offline-evaluation.md) and [real local dataset card](../../docs/datasets/2026-11-09-local-preview.md) explain the distinction.
 
-To view this report in the dashboard:
+To exercise the session-grouped mode with those same invented inputs:
+
+```bash
+./corepulse split --input reports/offline-example/windows.csv --output reports/offline-example/session-split.json --group-by session --seed 42 --embargo 2m
+./corepulse evaluate --input reports/offline-example/windows.csv --split reports/offline-example/session-split.json --output reports/offline-example/session-evaluation.json --synthetic
+```
+
+This schema-2 report holds out one whole invented session (six windows), trains on two (twelve windows), and retains class support. The original default run split remains schema 1 and does not establish session separation. Neither mode turns toy session names into real independence; see [prospective sessions](../../docs/session-holdouts.md).
+
+To view a report in the dashboard (use `session-evaluation.json` instead to inspect grouped support):
 
 ```bash
 ./corepulse serve --addr 127.0.0.1:8790 --runs-dir reports/offline-example/no-real-runs --evaluation reports/offline-example/evaluation.json
