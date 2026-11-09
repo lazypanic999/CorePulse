@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Distinguish live capture times from Metrics API source intervals in the resource panel. Show per-pod metadata coverage and averaging windows; historical unknown intervals remain explicit instead of implying fresh measurements.
+
 - Add a deterministic, explicitly synthetic no-cluster walkthrough through windows, splitting and evaluation. A synthetic report marker/warning keeps invented tutorial scores separate from lab measurements; CI checks the complete example pipeline.
 
 - Recompute saved evaluation scores from retained predictions before dashboard display. Reject mismatched confusion matrices, support, run votes, window identities, split roles or omitted comparisons without fitting models or reading the raw dataset.

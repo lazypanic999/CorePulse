@@ -290,7 +290,16 @@ async function refreshTelemetry() {
     $('#cpu-max').textContent = `high ${cpu.max.toFixed(0)} m`;
     $('#memory-min').textContent = `low ${memory.min.toFixed(0)} MiB`;
     $('#memory-max').textContent = `high ${memory.max.toFixed(0)} MiB`;
-    $('#telemetry-time').textContent = `${samples.length} samples from ${latest.pod_count} pods. Latest at ${clockTime(latest.timestamp)}.`;
+    $('#telemetry-time').textContent = `${samples.length} captures from ${latest.pod_count} pods. Latest capture at ${clockTime(latest.timestamp)}.`;
+    const known = (latest.pods || []).filter(pod => pod.measurement && Number.isFinite(Date.parse(pod.measurement.timestamp)));
+    const sourceNote = $('#telemetry-source-time');
+    if (!known.length) {
+      sourceNote.textContent = 'Source measurement intervals are unknown for this capture. Capture time does not establish fresh CPU measurements.';
+    } else {
+      const oldest = Math.min(...known.map(pod => Date.parse(pod.measurement.timestamp)));
+      const windows = [...new Set(known.map(pod => pod.measurement.window))].sort().join(', ');
+      sourceNote.textContent = `Source intervals known for ${known.length}/${latest.pod_count} pods. Oldest source timestamp ${displayTime(new Date(oldest).toISOString())}; averaging windows: ${windows}. Captures can repeat the same source average.`;
+    }
   } catch (error) {
     $('#telemetry-live').hidden = true;
     $('#telemetry-empty').hidden = false;

@@ -38,6 +38,10 @@ The Metrics API reports a source `timestamp` and `window`; CPU is averaged over 
 
 This metadata does **not** deduplicate samples, enforce freshness, change run labels, alter CSV columns, or become a fitted feature. A 30-second feature mean across captured CPU averages is not a new 30-second CPU measurement. Polling faster than the Metrics API updates can repeat the same source frame. A capture-time embargo alone cannot prove that underlying CPU intervals are disjoint. Source-time staleness, repeated-frame handling and train/test interval overlap need explicit follow-up policies. See the [Kubernetes resource metrics pipeline](https://kubernetes.io/docs/tasks/debug/debug-cluster/resource-metrics-pipeline/) and [window semantics](windowed-dataset.md).
 
+The resource panel distinguishes capture times from source intervals, shows how many reporting pods carry known source metadata, and lists their averaging windows. Historical unknown intervals stay explicit. This is a provenance view, not a freshness cutoff or a new count of independent measurements.
+
+![Live resource panel with source interval coverage and all six experiment gates](../assets/dashboard-source-intervals.jpg)
+
 ## Missing component metrics in CSV
 
 `amf_cpu_millicores`, `amf_memory_bytes`, `upf_cpu_millicores` and `upf_memory_bytes`
