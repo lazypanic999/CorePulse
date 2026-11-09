@@ -63,8 +63,31 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  native-smoke:
+    name: Packaged smoke (${{ matrix.goos }}/${{ matrix.goarch }})
+    needs: binaries
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-latest, goos: linux, goarch: amd64, extension: tar.gz }
+          - { runner: windows-latest, goos: windows, goarch: amd64, extension: zip }
+          - { runner: macos-latest, goos: darwin, goarch: arm64, extension: tar.gz }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: corepulse-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist
+      - name: Execute the actual packaged binary and offline walkthrough
+        run: python scripts/check-release-archive.py --archive dist/corepulse_${{ github.ref_name }}_${{ matrix.goos }}_${{ matrix.goarch }}.${{ matrix.extension }} --version ${{ github.ref_name }} --goos ${{ matrix.goos }} --goarch ${{ matrix.goarch }}
+
   package:
-    needs: validate
+    needs: [validate, native-smoke]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -85,7 +108,7 @@ jobs:
           build-args: VERSION=${{ github.ref_name }}
 
   release:
-    needs: [binaries, package]
+    needs: [binaries, native-smoke, package]
     runs-on: ubuntu-latest
     permissions:
       contents: write
