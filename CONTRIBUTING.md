@@ -4,8 +4,9 @@
 
 Browse [good first issues](https://github.com/lazypanic999/CorePulse/labels/good%20first%20issue) for small, scoped contributions or [help wanted](https://github.com/lazypanic999/CorePulse/labels/help%20wanted) for larger tasks. Each issue lists acceptance criteria, relevant files and whether a live lab is required. Comment with the issue you want to work on and a short approach so contributors can coordinate.
 
-- [Resource quantity validation (#1)](https://github.com/lazypanic999/CorePulse/issues/1) and [offline contributor documentation (#2)](https://github.com/lazypanic999/CorePulse/issues/2) can be started without Kubernetes.
-- Telecom and observability contributors can help design the [timestamped protocol event parser (#6)](https://github.com/lazypanic999/CorePulse/issues/6).
+- [Synthetic offline evaluation walkthrough (#31)](https://github.com/lazypanic999/CorePulse/issues/31) is a documentation/example task that needs no Kubernetes.
+- Go contributors can help design [cross-process collection ownership (#32)](https://github.com/lazypanic999/CorePulse/issues/32), using subprocesses and fake clients.
+- Dataset and ML contributors can help with [collection-session holdouts (#33)](https://github.com/lazypanic999/CorePulse/issues/33), also using fixtures alone.
 
 Fork the repository, create a focused branch and link the issue in your pull request. Keep documentation and issue discussions in English. For the local lab lifecycle and reset procedure, see [lab operations](docs/lab-operations.md).
 
@@ -65,6 +66,7 @@ Open `http://127.0.0.1:8787`. The server only binds to loopback addresses and re
 | `internal/collection` | Baseline runs, fault lifecycle, checkpoints, and service recovery observation |
 | `internal/telemetry` | `metrics.k8s.io` parsing, resource quantity validation, JSONL sample store |
 | `internal/dataset` | Curated CSV built only from verified run intervals |
+| `internal/evaluation` | Offline baselines, training-only preprocessing, and held-out metrics |
 | `internal/runrecord` | Atomic run record writes |
 | `internal/dashboard` | Loopback HTTP API and the embedded web UI in `web/` |
 
@@ -74,7 +76,8 @@ Open `http://127.0.0.1:8787`. The server only binds to loopback addresses and re
 - **Dataset labeling and CSV export** (`internal/dataset`): run interval filtering, exclusion counts, and missing-value handling, tested with temporary JSONL and run record files.
 - **Discovery analysis** (`internal/corepulse`): `AnalyzeSnapshot` on synthetic Kubernetes lists like `examples/discovery-snapshot.json`.
 - **Dashboard API and UI** (`internal/dashboard`): handlers are tested with a fake client; the preview state can be checked in a browser.
-- **Protocol log parsing** ([#6](https://github.com/lazypanic999/CorePulse/issues/6)): a pure parser tested against small anonymized log fixtures.
+- **Protocol log parsing** (`internal/logevents`): a pure parser tested against small anonymized log fixtures.
+- **Windowing and evaluation** (`internal/dataset`, `internal/evaluation`): missingness, whole-run holdouts, source hashes, and deterministic metrics tested with synthetic inputs.
 
 Never commit real kubeconfigs, credentials, subscriber identifiers, raw telemetry, or run records as fixtures. Use synthetic or anonymized data.
 

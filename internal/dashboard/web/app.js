@@ -187,7 +187,7 @@ async function refreshRuns() {
   body.replaceChildren();
   $('#runs-count').textContent = state.runs.length ? `(${state.runs.length})` : '';
   $('#runs-empty').hidden = state.runs.length > 0;
-  $('.table-wrap').hidden = state.runs.length === 0;
+  $('#runs .table-wrap').hidden = state.runs.length === 0;
   for (const run of state.runs) {
     const row = document.createElement('tr');
     const outcome = runOutcome(run);
@@ -199,6 +199,54 @@ async function refreshRuns() {
     cell(row, outcome.quality.text, '', outcome.quality.tone);
     cell(row, String(run.run_id || '').slice(0, 8), 'id-cell');
     body.append(row);
+  }
+}
+
+async function refreshEvaluation() {
+  const results = $('#evaluation-results');
+  const empty = $('#evaluation-empty');
+  try {
+    const response = await fetch('/api/evaluation', { cache: 'no-store' });
+    if (!response.ok) throw new Error('The saved evaluation report could not be loaded.');
+    const data = await response.json();
+    results.hidden = !data.available;
+    empty.hidden = Boolean(data.available);
+    if (!data.available) {
+      $('#evaluation-message').textContent = data.message || 'No offline evaluation report is available.';
+      return;
+    }
+    const report = data.report;
+    $('#evaluation-support').textContent = `${report.train_windows} training windows from ${report.split.train_runs.length} runs; ${report.test_windows} held-out windows from ${report.split.test_runs.length} runs. Seed ${report.split.seed}.`;
+    const body = $('#evaluation-body');
+    const predictions = $('#evaluation-predictions');
+    body.replaceChildren(); predictions.replaceChildren();
+    const methods = { nearest_centroid: 'Nearest centroid', majority_scenario: 'Majority scenario', normal_zscore: 'Normal-only deviation', probe_rule: 'Packet rule' };
+    for (const [name, model] of Object.entries(report.models)) {
+      const row = document.createElement('tr');
+      const wrong = model.predictions.filter(p => p.predicted && p.predicted !== p.truth).length;
+      cell(row, methods[name] || name);
+      cell(row, model.task === 'scenario_classification' ? 'Scenario' : 'Normal / fault interval');
+      cell(row, Number(model.window_metrics.macro_f1).toFixed(3));
+      cell(row, Number(model.run_metrics.macro_f1).toFixed(3));
+      cell(row, `${(100 * model.window_metrics.coverage).toFixed(0)}%`);
+      cell(row, String(wrong)); cell(row, String(model.window_metrics.abstained));
+      body.append(row);
+      for (const prediction of model.predictions) {
+        const detail = document.createElement('tr');
+        cell(detail, methods[name] || name);
+        cell(detail, prediction.run_id.slice(0, 8), 'id-cell');
+        cell(detail, clockTime(prediction.window_start));
+        cell(detail, prediction.truth);
+        cell(detail, prediction.predicted || 'Abstained', '', !prediction.predicted ? 'partial' : prediction.predicted === prediction.truth ? 'good' : 'bad');
+        predictions.append(detail);
+      }
+    }
+    $('#evaluation-source').textContent = `CSV SHA-256 ${report.windows_sha256}. This snapshot changes only after evaluation is rerun.`;
+    const limitations = $('#evaluation-limitations'); limitations.replaceChildren();
+    for (const text of report.limitations) { const li = document.createElement('li'); li.textContent = text; limitations.append(li); }
+  } catch (error) {
+    results.hidden = true; empty.hidden = false;
+    $('#evaluation-message').textContent = error.message;
   }
 }
 
@@ -357,7 +405,7 @@ async function runExperiment() {
 
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => $(`#${button.dataset.close}`).close()));
 document.querySelectorAll('input[name="target"]').forEach((input) => input.addEventListener('change', updateGates));
-$('#refresh-button').addEventListener('click', () => { refreshOverview(); refreshService(); refreshProtocol(); });
+$('#refresh-button').addEventListener('click', () => { refreshOverview(); refreshService(); refreshProtocol(); refreshEvaluation(); });
 $('#plan-button').addEventListener('click', showPlan);
 $('#run-button').addEventListener('click', () => {
   if ($('#run-button').disabled) return;
@@ -377,4 +425,5 @@ setInterval(refreshOverview, 30000);
 setInterval(refreshTelemetry, 10000);
 setInterval(refreshService, 30000);
 setInterval(refreshProtocol, 30000);
-Promise.all([refreshOverview(), refreshRuns(), refreshTelemetry(), refreshService(), refreshProtocol()]);
+setInterval(refreshEvaluation, 30000);
+Promise.all([refreshOverview(), refreshRuns(), refreshTelemetry(), refreshService(), refreshProtocol(), refreshEvaluation()]);

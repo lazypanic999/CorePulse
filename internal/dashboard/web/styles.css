@@ -202,6 +202,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 2rem clamp(1rem, 4vw, 3rem) 1
 .runs h2 { margin-bottom: 1rem; }
 .count { font-weight: 400; color: var(--graphite); font-variant-numeric: tabular-nums; }
 .table-wrap { overflow-x: auto; }
+#evaluation-source { overflow-wrap: anywhere; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 th { text-align: left; font-weight: 600; font-size: 0.85rem; color: var(--graphite); padding: 0 0.75rem 0.5rem 0; border-bottom: 1px solid var(--rule); white-space: nowrap; }
 td { padding: 0.6rem 0.75rem 0.6rem 0; border-bottom: 1px solid var(--paper); vertical-align: baseline; white-space: nowrap; }

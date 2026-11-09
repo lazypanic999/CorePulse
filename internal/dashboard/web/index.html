@@ -134,6 +134,29 @@
         <p>Runs started here or with <code>corepulse pod-crash --apply</code> are listed from the local <code>runs/</code> folder.</p>
       </div>
     </section>
+    <section class="panel runs" id="evaluation" aria-labelledby="evaluation-heading">
+      <h2 id="evaluation-heading">Offline evaluation</h2>
+      <p class="panel-lede">A saved held-out experiment benchmark. These are offline predictions, separate from live service checks.</p>
+      <div class="empty" id="evaluation-empty">
+        <strong>No evaluation report yet</strong>
+        <p id="evaluation-message">Collect independent verified runs, then run <code>corepulse windows</code>, <code>corepulse split</code>, and <code>corepulse evaluate</code>.</p>
+      </div>
+      <div id="evaluation-results" hidden>
+        <p class="chart-foot" id="evaluation-support"></p>
+        <div class="table-wrap">
+          <table aria-label="Offline baseline comparison">
+            <thead><tr><th scope="col">Method</th><th scope="col">Task</th><th scope="col">Window macro F1</th><th scope="col">Run macro F1</th><th scope="col">Coverage</th><th scope="col">Wrong windows</th><th scope="col">Abstained</th></tr></thead>
+            <tbody id="evaluation-body"></tbody>
+          </table>
+        </div>
+        <details class="raw">
+          <summary>Held-out predictions, including mistakes</summary>
+          <div class="table-wrap"><table aria-label="Held-out predictions"><thead><tr><th scope="col">Method</th><th scope="col">Run</th><th scope="col">Window</th><th scope="col">Known interval</th><th scope="col">Prediction</th></tr></thead><tbody id="evaluation-predictions"></tbody></table></div>
+        </details>
+        <p class="chart-foot" id="evaluation-source"></p>
+        <ul class="panel-lede" id="evaluation-limitations"></ul>
+      </div>
+    </section>
   </main>
 
   <footer class="footer">
