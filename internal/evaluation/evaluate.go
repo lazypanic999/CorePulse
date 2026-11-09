@@ -53,7 +53,7 @@ func Evaluate(windowsPath, splitPath, outputPath string, options Options) (Repor
 	r := Report{SchemaVersion: 1, ZScoreThreshold: options.Threshold, Models: map[string]ModelReport{}, Limitations: []string{
 		"Ground truth labels describe controlled experiment intervals, not continuous service degradation.",
 		"Single-node, single-UE local lab; held-out runs from this environment do not establish generalization to another network.",
-		"Resource sample timestamps are capture times; original metric timestamps and averaging windows are not yet retained. Nearby runs may share underlying CPU measurement intervals. A capture-time embargo reduces proximity, but cannot certify measurement-time independence.",
+		"Window CSV attribution uses capture times and does not retain per-pod source intervals, even when raw telemetry has them. Nearby runs may share underlying CPU measurement intervals. A capture-time embargo reduces proximity, but cannot certify measurement-time independence.",
 		"Training uses equally weighted windows; long runs contribute more windows. Both window and majority-vote run metrics are reported.",
 		"Sparse and partial windows remain included; missing resource values use training-only medians and missing-ratio features.",
 		"Probe rule abstains when evidence is absent. Protocol event counts are excluded from fitted models because their availability depends on post-run log collection.",
