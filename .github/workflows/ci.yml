@@ -26,3 +26,29 @@ jobs:
         run: ./corepulse pod-crash --target amf
       - name: Offline synthetic walkthrough
         run: python3 scripts/check-offline-example.py --binary ./corepulse
+
+  portable:
+    name: Offline checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, binary: corepulse.exe }
+          - { os: macos-latest, binary: corepulse }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Test native checkpoint, ownership and offline behavior
+        run: go test ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Build native executable
+        run: go build -o ${{ matrix.binary }} ./cmd/corepulse
+      - name: Check deterministic fixtures and both holdout modes
+        run: python scripts/check-offline-example.py --binary ./${{ matrix.binary }}
