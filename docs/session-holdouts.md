@@ -1,5 +1,7 @@
 # Prospective collection sessions and whole-session holdouts
 
+Available in the v0.2.3 preview and newer source builds; earlier release binaries do not implement these flags or schema-2 reports.
+
 An optional `--session-id` declares which collection occasion a new baseline or fault belongs to. Set it **before collection**, consistently across the CLI/dashboard calls in that occasion. It is not a process ID, a new random label per run or proof of independent network conditions. Describe configuration, node/UE, collection conditions and deliberate session boundaries in the dataset card. Do not manufacture historical sessions from timestamps, run names or file modification times.
 
 ## Collect explicitly
