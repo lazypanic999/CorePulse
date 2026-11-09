@@ -103,6 +103,9 @@ func Discover(client Client) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	if context != LabContext {
+		return nil, fmt.Errorf("current context %q differs from lab context %q", context, LabContext)
+	}
 	snapshot, err := client.GetJSON("get", "deployments,pods,services", "--namespace", LabNamespace, "--request-timeout=10s")
 	if err != nil {
 		return nil, err
