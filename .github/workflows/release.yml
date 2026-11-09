@@ -104,6 +104,7 @@ jobs:
         with:
           context: .
           push: true
+          sbom: true
           tags: ghcr.io/lazypanic999/corepulse:${{ github.ref_name }}
           build-args: VERSION=${{ github.ref_name }}
 
