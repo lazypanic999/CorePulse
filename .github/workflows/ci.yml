@@ -18,6 +18,8 @@ jobs:
         run: go test ./...
       - name: Vet
         run: go vet ./...
+      - name: Lab script fixtures
+        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py'
       - name: Build
         run: go build -o corepulse ./cmd/corepulse
       - name: Check CLI dry run
