@@ -68,6 +68,8 @@ go build -o corepulse ./cmd/corepulse
 
 The [contributor quickstart](CONTRIBUTING.md#quickstart-without-a-kubernetes-lab) covers the offline commands and the dashboard preview in more detail.
 
+Release builds use the maintained Go version in `.go-version`. Linux CI separately checks the Go 1.22 source minimum; on current macOS use Go 1.24 or newer (prefer the release toolchain), because older linkers omit the Mach-O UUID required by its loader. See the [Go linker notes](https://go.dev/doc/go1.24#linker). The Go 1.27 release archives require [macOS 13 Ventura or later](https://go.dev/doc/go1.27#darwin).
+
 To run against a real lab you need Go 1.22 or newer, `kubectl`, and the [Open5GS + UERANSIM lab](https://github.com/lazypanic999/open5gs-ueransim-kubernetes) with a Kubernetes context named `open5gs-lab`. CorePulse is a separate project and never changes that lab's deployment files. On this Windows machine the lab runs in Ubuntu WSL:
 
 ```powershell
