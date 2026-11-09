@@ -171,6 +171,7 @@ func run(args []string) (int, error) {
 		output := flags.String("output", filepath.Join("data", "split.json"), "whole-run split manifest")
 		fraction := flags.Float64("test-fraction", 0.25, "held-out fraction per experiment scenario")
 		seed := flags.Int64("seed", 42, "deterministic run split seed")
+		embargo := flags.Duration("embargo", 0, "purge training runs near held-out capture ranges (up to 24h)")
 		legacy := flags.Bool("allow-legacy", false, "allow unverified protocol starts (exploration only)")
 		if err := flags.Parse(args[1:]); err != nil {
 			return 1, err
@@ -178,7 +179,7 @@ func run(args []string) (int, error) {
 		if flags.NArg() != 0 {
 			return 1, errors.New("unexpected positional arguments")
 		}
-		manifest, err := dataset.Split(*input, *output, dataset.SplitOptions{TestFraction: *fraction, Seed: *seed, RequireProtocol: !*legacy})
+		manifest, err := dataset.Split(*input, *output, dataset.SplitOptions{TestFraction: *fraction, Seed: *seed, RequireProtocol: !*legacy, Embargo: *embargo})
 		if err != nil {
 			return 1, err
 		}

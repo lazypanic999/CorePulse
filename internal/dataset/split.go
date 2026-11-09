@@ -17,6 +17,7 @@ import (
 )
 
 type WindowRow struct {
+	WindowEnd        time.Time
 	RunID            string
 	WindowStart      time.Time
 	Label            string
@@ -93,7 +94,7 @@ func ReadWindows(path string) (WindowData, error) {
 		if err != nil {
 			return result, err
 		}
-		out := WindowRow{RunID: row[0], WindowStart: times[0], Label: row[1], Target: row[2], ProtocolVerified: verified, Features: map[string]float64{}}
+		out := WindowRow{RunID: row[0], WindowStart: times[0], WindowEnd: times[1], Label: row[1], Target: row[2], ProtocolVerified: verified, Features: map[string]float64{}}
 		for i, name := range rows[0][11:] {
 			value := row[11+i]
 			if value == "" {
@@ -120,6 +121,7 @@ func ReadWindows(path string) (WindowData, error) {
 }
 
 type SplitOptions struct {
+	Embargo         time.Duration
 	TestFraction    float64
 	Seed            int64
 	RequireProtocol bool
@@ -129,6 +131,8 @@ type ClassSplit struct {
 	TestRuns  int `json:"test_runs"`
 }
 type SplitManifest struct {
+	EmbargoSeconds  float64               `json:"embargo_seconds"`
+	PurgedRuns      []string              `json:"purged_runs"`
 	SchemaVersion   int                   `json:"schema_version"`
 	WindowsSHA256   string                `json:"windows_sha256"`
 	Seed            int64                 `json:"seed"`
@@ -141,7 +145,7 @@ type SplitManifest struct {
 }
 
 // Split assigns whole runs, stratified by known experiment scenario. A class
-// with fewer than two independent runs is an error, not a misleading score.
+// with fewer than two distinct runs is an error, not a misleading score.
 func Split(inputPath, outputPath string, options SplitOptions) (SplitManifest, error) {
 	m := SplitManifest{SchemaVersion: 1, Seed: options.Seed, TestFraction: options.TestFraction, RequireProtocol: options.RequireProtocol, FeatureNames: WindowFeatureNames(), TrainRuns: []string{}, TestRuns: []string{}, Classes: map[string]ClassSplit{}}
 	if math.IsNaN(options.TestFraction) || options.TestFraction <= 0 || options.TestFraction >= 1 {
@@ -150,6 +154,11 @@ func Split(inputPath, outputPath string, options SplitOptions) (SplitManifest, e
 	if err := distinctPaths(inputPath, outputPath); err != nil {
 		return m, err
 	}
+	if options.Embargo < 0 || options.Embargo > 24*time.Hour {
+		return m, fmt.Errorf("embargo must be between 0 and 24h")
+	}
+	m.EmbargoSeconds = options.Embargo.Seconds()
+	m.PurgedRuns = []string{}
 	data, err := ReadWindows(inputPath)
 	if err != nil {
 		return m, err
@@ -173,7 +182,7 @@ func Split(inputPath, outputPath string, options SplitOptions) (SplitManifest, e
 	}
 	for class, ids := range groups {
 		if len(ids) < 2 {
-			return m, fmt.Errorf("class %s needs at least two independent runs, found %d", class, len(ids))
+			return m, fmt.Errorf("class %s needs at least two distinct runs, found %d", class, len(ids))
 		}
 		sort.Slice(ids, func(i, j int) bool { return splitKey(options.Seed, ids[i]) < splitKey(options.Seed, ids[j]) })
 		n := int(math.Ceil(float64(len(ids)) * options.TestFraction))
@@ -186,6 +195,44 @@ func Split(inputPath, outputPath string, options SplitOptions) (SplitManifest, e
 	}
 	sort.Strings(m.TrainRuns)
 	sort.Strings(m.TestRuns)
+	if options.Embargo > 0 {
+		ranges := windowRanges(data)
+		kept := []string{}
+		for _, id := range m.TrainRuns {
+			purge := false
+			for _, testID := range m.TestRuns {
+				if near(ranges[id], ranges[testID], options.Embargo) {
+					purge = true
+					break
+				}
+			}
+			if purge {
+				m.PurgedRuns = append(m.PurgedRuns, id)
+			} else {
+				kept = append(kept, id)
+			}
+		}
+		m.TrainRuns = kept
+		purged := map[string]bool{}
+		for _, id := range m.PurgedRuns {
+			purged[id] = true
+		}
+		counted := map[string]bool{}
+		for _, row := range data.Rows {
+			if purged[row.RunID] && !counted[row.RunID] {
+				class, _ := scenario(row.Label, row.Target)
+				c := m.Classes[class]
+				c.TrainRuns--
+				m.Classes[class] = c
+				counted[row.RunID] = true
+			}
+		}
+		for class, c := range m.Classes {
+			if c.TrainRuns < 1 {
+				return m, fmt.Errorf("time embargo leaves class %s without a training run; collect more separated runs without tuning against test scores", class)
+			}
+		}
+	}
 	if err := runrecord.Save(outputPath, m); err != nil {
 		return m, err
 	}

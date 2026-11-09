@@ -217,6 +217,7 @@ async function refreshEvaluation() {
     }
     const report = data.report;
     $('#evaluation-support').textContent = `${report.train_windows} training windows from ${report.split.train_runs.length} runs; ${report.test_windows} held-out windows from ${report.split.test_runs.length} runs. Seed ${report.split.seed}.`;
+    $('#evaluation-support').textContent += ` ${report.purged_windows || 0} windows excluded by a ${report.split.embargo_seconds || 0}s capture-time embargo.`;
     const body = $('#evaluation-body');
     const predictions = $('#evaluation-predictions');
     body.replaceChildren(); predictions.replaceChildren();

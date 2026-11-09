@@ -34,6 +34,12 @@ Resource signals are pod count, total CPU/memory, and AMF/UPF CPU/memory. Probe 
 
 ## Split manifest
 
+### Optional capture-time embargo
+
+Use `corepulse split --embargo 2m` to purge whole training runs whose window ranges overlap the held-out ranges expanded by the requested margin. Held-out selection is unchanged; purged run IDs and the margin are recorded. The evaluator independently verifies retained temporal separation and accounts for excluded windows. If purging removes all training support for a scenario, splitting fails; collect more separated runs rather than selecting a seed for a better score. Zero is the backward-compatible default, and margins up to 24 hours are supported.
+
+The margin is a capture-time policy, not a verified measurement-time boundary. Kubernetes reports CPU averages over the Metrics API `window` ([resource metrics documentation](https://kubernetes.io/docs/tasks/debug/debug-cluster/resource-metrics-pipeline/)). The local API exposed approximately one minute on 9 November, while CorePulse currently preserves capture timestamps but not the source measurement timestamps/windows. A 30-second feature window can therefore contain repeated/overlapping source averages, and neighboring runs can share underlying measurements. The first local evaluation uses an explicit two-minute embargo chosen before scores are computed, but remains exploratory because historical source timing cannot be certified. Retaining that metadata is tracked in [#39](https://github.com/lazypanic999/CorePulse/issues/39).
+
 Splitting groups all windows from one `run_id` together and stratifies by experiment scenario: `normal`, `pod_crash:amf`, and `pod_crash:upf`. A seeded SHA-256 ordering selects held-out runs deterministically. Each scenario must have at least two independent runs; otherwise the command fails instead of splitting windows from the same run. The requested fraction is rounded up per scenario and capped to leave at least one training run. This is a minimum mechanical requirement, not evidence that a tiny test set is representative.
 
 The JSON manifest records the schema version, exact input CSV SHA-256, seed, fraction, protocol requirement, numeric feature allowlist, disjoint train/test run IDs, and per-scenario run counts. Repeating the command on identical input with the same seed gives identical output. Rebuild the manifest if the CSV changes. Choose the seed before examining held-out results.

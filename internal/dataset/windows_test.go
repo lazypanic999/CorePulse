@@ -232,3 +232,82 @@ func TestSplitRefusesUnverifiedOrInsufficientRuns(t *testing.T) {
 		})
 	}
 }
+
+func TestTemporalEmbargoPurgesWholeNearbyTrainingRuns(t *testing.T) {
+	dir := t.TempDir()
+	input := splitFixture(t, dir)
+	out := filepath.Join(dir, "split.json")
+	base, err := Split(input, out, SplitOptions{TestFraction: .25, Seed: 42, RequireProtocol: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(input)
+	rows, _ := csv.NewReader(strings.NewReader(string(data))).ReadAll()
+	start := time.Date(2026, 11, 9, 0, 0, 0, 0, time.UTC)
+	starts := map[string]time.Time{}
+	for _, id := range base.TestRuns {
+		offset := time.Duration(0)
+		if strings.HasPrefix(id, "a") {
+			offset = 3 * time.Hour
+		}
+		starts[id] = start.Add(offset)
+	}
+	nearAssigned := map[string]bool{}
+	for _, id := range base.TrainRuns {
+		prefix := id[:1]
+		offset := time.Hour
+		if prefix == "a" {
+			offset = 4 * time.Hour
+		}
+		if !nearAssigned[prefix] {
+			offset = 90 * time.Second
+			if prefix == "a" {
+				offset += 3 * time.Hour
+			}
+			nearAssigned[prefix] = true
+		}
+		starts[id] = start.Add(offset)
+	}
+	indices := map[string]int{}
+	for _, row := range rows[1:] {
+		at := starts[row[0]].Add(time.Duration(indices[row[0]]) * 30 * time.Second)
+		indices[row[0]]++
+		row[3], row[4], row[5], row[6] = at.Format(time.RFC3339), at.Add(30*time.Second).Format(time.RFC3339), at.Add(time.Second).Format(time.RFC3339), at.Add(5*time.Second).Format(time.RFC3339)
+	}
+	if err := writeCSV(input, rows); err != nil {
+		t.Fatal(err)
+	}
+	m, err := Split(input, out, SplitOptions{TestFraction: .25, Seed: 42, RequireProtocol: true, Embargo: 2 * time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m.PurgedRuns) != 2 || len(m.TrainRuns) != 2 || !slices.Equal(base.TestRuns, m.TestRuns) || m.EmbargoSeconds != 120 {
+		t.Fatalf("bad purged assignment: %+v", m)
+	}
+	parsed, err := ReadWindows(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyTemporalSeparation(parsed, m.TrainRuns, m.TestRuns, 2*time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyTemporalSeparation(parsed, append(m.TrainRuns, m.PurgedRuns...), m.TestRuns, 2*time.Minute); err == nil {
+		t.Fatal("nearby training runs passed embargo verification")
+	}
+}
+
+func TestEmbargoFailurePreservesManifest(t *testing.T) {
+	dir := t.TempDir()
+	input := splitFixture(t, dir)
+	out := filepath.Join(dir, "split.json")
+	if err := os.WriteFile(out, []byte("keep"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Split(input, out, SplitOptions{TestFraction: .25, Seed: 42, RequireProtocol: true, Embargo: time.Minute}); err == nil {
+		t.Fatal("purging all training support should fail")
+	}
+	saved, _ := os.ReadFile(out)
+	if string(saved) != "keep" {
+		t.Fatal("failed temporal split replaced output")
+	}
+}
