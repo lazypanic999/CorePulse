@@ -1,6 +1,6 @@
 # Fault run record v1
 
-Updated source builds serialize CLI/dashboard experiment entry points with [shared collection ownership](collection-ownership.md). Interrupted markers require conservative manual inspection; the v0.2.0 release predates this guard.
+The v0.2.1 preview and updated source builds serialize CLI/dashboard experiment entry points with [shared collection ownership](collection-ownership.md). Interrupted markers require conservative manual inspection; the v0.2.0 release predates this guard.
 
 ## Protocol starting conditions
 
