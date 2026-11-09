@@ -50,3 +50,22 @@ func TestInvalidSessionFlagsRefuseBeforeCluster(t *testing.T) {
 		}
 	}
 }
+
+func TestDoctorArgumentsAndLockedCollection(t *testing.T) {
+	if code, err := run([]string{"doctor", "--apply"}); code != 1 || err == nil {
+		t.Fatalf("doctor accepted mutation arguments: %d %v", code, err)
+	}
+	t.Setenv("COREPULSE_LOCK_DIR", filepath.Join(t.TempDir(), "marker"))
+	owner, err := collection.AcquireOwnership("existing-collection")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := owner.Release(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	if code, err := run([]string{"doctor"}); code != 2 || err != nil {
+		t.Fatalf("locked doctor did not return diagnostic exit code: %d %v", code, err)
+	}
+}
