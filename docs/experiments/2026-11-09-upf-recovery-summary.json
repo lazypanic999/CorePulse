@@ -1,0 +1,171 @@
+{
+  "attempts": [
+    {
+      "after_smf_restart": [
+        {
+          "n2": "up",
+          "n4": "up",
+          "packet_counts_observed": true,
+          "probe_status_recorded": "degraded",
+          "received": 0,
+          "sent": 2
+        },
+        {
+          "n2": "up",
+          "n4": "up",
+          "packet_counts_observed": true,
+          "probe_status_recorded": "degraded",
+          "received": 0,
+          "sent": 2
+        }
+      ],
+      "after_ue_restart": [
+        {
+          "n2": "up",
+          "n4": "up",
+          "packet_counts_observed": false,
+          "probe_status_recorded": "degraded",
+          "received": 0,
+          "sent": 0
+        },
+        {
+          "n2": "up",
+          "n4": "up",
+          "packet_counts_observed": false,
+          "probe_status_recorded": "degraded",
+          "received": 0,
+          "sent": 0
+        },
+        {
+          "n2": "up",
+          "n4": "up",
+          "packet_counts_observed": true,
+          "probe_status_recorded": "healthy",
+          "received": 2,
+          "sent": 2
+        },
+        {
+          "n2": "up",
+          "n4": "up",
+          "packet_counts_observed": true,
+          "probe_status_recorded": "healthy",
+          "received": 2,
+          "sent": 2
+        }
+      ],
+      "after_upf_fault": {
+        "n2": "up",
+        "n4": "stale_peer",
+        "packet_counts_observed": true,
+        "probe_status_recorded": "degraded",
+        "received": 0,
+        "sent": 2
+      },
+      "attempt": 1,
+      "before_fault": {
+        "n2": "up",
+        "n4": "up",
+        "packet_counts_observed": true,
+        "probe_status_recorded": "healthy",
+        "received": 2,
+        "sent": 2
+      },
+      "diagnostic_sha256": "800061f8f46a8c3b84531bca71a921104613f11f1cd62eea7267e0bb5631ef33",
+      "full_reset_fallback_used": false,
+      "gnb_amf_udr_and_replacement_upf_pod_names_unchanged": true,
+      "smf_and_ue_pod_names_changed": true
+    },
+    {
+      "after_smf_restart": [
+        {
+          "n2": "up",
+          "n4": "up",
+          "packet_counts_observed": true,
+          "probe_status_recorded": "degraded",
+          "received": 0,
+          "sent": 2
+        },
+        {
+          "n2": "up",
+          "n4": "up",
+          "packet_counts_observed": true,
+          "probe_status_recorded": "degraded",
+          "received": 0,
+          "sent": 2
+        }
+      ],
+      "after_ue_restart": [
+        {
+          "n2": "up",
+          "n4": "up",
+          "packet_counts_observed": false,
+          "probe_status_recorded": "degraded",
+          "received": 0,
+          "sent": 0
+        },
+        {
+          "n2": "up",
+          "n4": "up",
+          "packet_counts_observed": false,
+          "probe_status_recorded": "degraded",
+          "received": 0,
+          "sent": 0
+        },
+        {
+          "n2": "up",
+          "n4": "up",
+          "packet_counts_observed": true,
+          "probe_status_recorded": "healthy",
+          "received": 2,
+          "sent": 2
+        },
+        {
+          "n2": "up",
+          "n4": "up",
+          "packet_counts_observed": true,
+          "probe_status_recorded": "healthy",
+          "received": 2,
+          "sent": 2
+        }
+      ],
+      "after_upf_fault": {
+        "n2": "up",
+        "n4": "stale_peer",
+        "packet_counts_observed": true,
+        "probe_status_recorded": "degraded",
+        "received": 0,
+        "sent": 2
+      },
+      "attempt": 2,
+      "before_fault": {
+        "n2": "up",
+        "n4": "up",
+        "packet_counts_observed": true,
+        "probe_status_recorded": "healthy",
+        "received": 2,
+        "sent": 2
+      },
+      "diagnostic_sha256": "f41fccd50daf47fae24802efdb7ca83f82d866bf99a341cc42ced117d82d9b17",
+      "full_reset_fallback_used": false,
+      "gnb_amf_udr_and_replacement_upf_pod_names_unchanged": true,
+      "smf_and_ue_pod_names_changed": true
+    }
+  ],
+  "date": "2026-11-09",
+  "images": {
+    "open5gs-smf": "docker.io/gradiant/open5gs:2.7.5",
+    "open5gs-upf": "docker.io/gradiant/open5gs:2.7.5",
+    "ueransim-ue": "towards5gs/ueransim-ue:v3.2.6"
+  },
+  "included_in_frozen_reference_cohort": false,
+  "kind": "local_recovery_diagnostic",
+  "limits": [
+    "Two sequential repetitions do not establish general recovery reliability; no time-matched untreated control proves the UE restart was necessary.",
+    "SMF restart changes both peer discovery and SMF process/session state; this does not isolate their causal contributions.",
+    "Early post-UE-restart probes recorded 0/0 without a packet summary; these are unobserved counts, not measured zero-packet loss.",
+    "The diagnostic restarts deliberately remain separate from the completed UPF fault intervals and the frozen 22-run study."
+  ],
+  "raw_records_distributed": false,
+  "schema_version": 1,
+  "scope": "one node, one UE, one lab session"
+}
