@@ -49,6 +49,8 @@ jobs:
       - name: Vet
         run: go vet ./...
       - name: Build native executable
-        run: go build -o ${{ matrix.binary }} ./cmd/corepulse
+        env:
+          CGO_ENABLED: '0'
+        run: go build -trimpath -ldflags="-s -w" -o ${{ matrix.binary }} ./cmd/corepulse
       - name: Check deterministic fixtures and both holdout modes
         run: python scripts/check-offline-example.py --binary ./${{ matrix.binary }}
