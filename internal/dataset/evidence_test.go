@@ -13,6 +13,29 @@ import (
 	"github.com/lazypanic999/CorePulse/internal/telemetry"
 )
 
+func TestProbeEvidenceKeepsUnknownCountsDistinctFromZeroReplies(t *testing.T) {
+	at := time.Date(2026, 11, 9, 0, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		status         string
+		sent, received int
+		want           []string
+	}{
+		{"unavailable", 0, 0, []string{"unavailable", "", ""}},
+		{"unavailable", 2, 0, []string{"unavailable", "", ""}},
+		// Older collectors used degraded 0/0 for local command failures.
+		{"degraded", 0, 0, []string{"degraded", "", ""}},
+		{"degraded", 2, 0, []string{"degraded", "2", "0"}},
+		{"healthy", 2, 2, []string{"healthy", "2", "2"}},
+		{"degraded", 2, 3, []string{"degraded", "", ""}},
+		{"degraded", -1, 0, []string{"degraded", "", ""}},
+	} {
+		e := newEvidence([][]probeJSON{{{Status: tc.status, Sent: tc.sent, Received: tc.received, CheckedAt: at.Format(time.RFC3339Nano)}}}, nil)
+		if got := e.fields(Run{Started: at}, at)[:3]; !slices.Equal(got, tc.want) {
+			t.Fatalf("%+v: %v", tc, got)
+		}
+	}
+}
+
 func TestBuildAddsProbeAndEventEvidence(t *testing.T) {
 	dir := t.TempDir()
 	telemetryPath, runsDir, output := filepath.Join(dir, "telemetry.jsonl"), filepath.Join(dir, "runs"), filepath.Join(dir, "dataset.csv")

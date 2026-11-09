@@ -67,6 +67,8 @@ Seven columns follow the resource columns. They come from the run record, not fr
 | `gnb_n2_terminations` | gNB `n2_association_terminated` events since the run started. |
 | `ue_registrations`, `ue_pdu_sessions` | UE registration and PDU session successes since the run started. |
 
+A ping command failure without a recognizable positive transmitted-packet summary is `unavailable`, rather than measured packet loss. Its JSON integer count fields remain zero for shape compatibility and must not be consumed as observations. Exports retain the status but leave both packet counters empty for unavailable/invalid counts and historical `degraded, 0/0` records. A valid `2 transmitted, 0 received` remains an observed numeric zero reply count. Unknown counts contribute to missing ratios and cause the packet rule to abstain when a window has no valid probe. A fault whose final recovery probe is unavailable stays excluded, even if Kubernetes recovered the deployment. Raw run records and telemetry are not rewritten.
+
 Runs written from 8 November 2026 store `protocol_events`, read once with `--timestamps --tail=300` after the run ends. A count is filled only when that component's log was read without error, its window starts at or before the run start, and it was read after the sample. Otherwise the cell is empty: a replacement pod's log, a truncated log, or a failed read cannot show what happened before it. Older runs have probes but no events, so only the probe columns are filled for them. Counts are cumulative within a run; differences between rows give per-interval counts.
 
 ## Timestamped protocol log events

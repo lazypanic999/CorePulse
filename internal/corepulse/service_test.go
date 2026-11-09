@@ -72,6 +72,33 @@ func TestProbeServiceReportsPacketFailure(t *testing.T) {
 	}
 }
 
+func TestProbeDoesNotInventPacketLossWithoutCounts(t *testing.T) {
+	for _, output := range []string{"", "ping: SO_BINDTODEVICE: Invalid argument", "ping timed out before a packet summary", "0 packets transmitted, 0 received", "2 packets transmitted, 3 received", "9999999999999999999999999 packets transmitted, 0 received", "-1 packets transmitted, 0 received"} {
+		t.Run(output, func(t *testing.T) {
+			probe, err := ProbeService(&probeClient{context: LabContext, output: output, execErr: errors.New("probe command failed")})
+			if err != nil || probe.Status != "unavailable" || probe.Sent != 0 || probe.Received != 0 || probe.Detail == "" {
+				t.Fatalf("unobserved/invalid counts became packet loss: %+v %v", probe, err)
+			}
+		})
+	}
+}
+
+func TestProbeAcceptsLinuxAndPacketsReceivedSummaries(t *testing.T) {
+	for _, output := range []string{"PING example\n--- statistics ---\n2 packets transmitted, 2 received, 0% packet loss\n", "2 packets transmitted, 2 packets received, 0% packet loss"} {
+		probe, err := ProbeService(&probeClient{context: LabContext, output: output})
+		if err != nil || probe.Status != "healthy" || probe.Sent != 2 || probe.Received != 2 {
+			t.Fatalf("valid packet counts lost: %+v %v", probe, err)
+		}
+	}
+}
+
+func TestMissingSummaryIsUnavailableEvenWithoutCommandError(t *testing.T) {
+	probe, err := ProbeService(&probeClient{context: LabContext, output: "no packet summary"})
+	if err != nil || probe.Status != "unavailable" || probe.Detail == "" {
+		t.Fatalf("summary absence became observed loss: %+v %v", probe, err)
+	}
+}
+
 func TestInspectSignalsDistinguishesLogEventsFromCurrentProbe(t *testing.T) {
 	client := &probeClient{context: LabContext, logs: "Initial Registration is successful\nPDU Session establishment is successful", output: "2 packets transmitted, 0 received, 100% packet loss"}
 	snapshot, err := InspectSignals(client)
