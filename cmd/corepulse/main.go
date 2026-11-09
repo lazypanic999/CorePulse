@@ -45,10 +45,26 @@ func saveJSON(path string, value any) error {
 
 func run(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("usage: corepulse <version|discover|signals|verify-service|pod-crash|baseline|dataset|windows|split|evaluate|serve> [options]")
+		return 1, errors.New("usage: corepulse <version|discover|doctor|signals|verify-service|pod-crash|baseline|dataset|windows|split|evaluate|serve> [options]")
 	}
 	client := corepulse.Kubectl{}
 	switch args[0] {
+	case "doctor":
+		if len(args) != 1 {
+			return 1, errors.New("doctor takes no arguments")
+		}
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+		defer cancel()
+		report := collection.Diagnose(ctx, corepulse.Kubectl{Context: ctx})
+		if err := printJSON(report); err != nil {
+			return 1, err
+		}
+		if !report.Ready {
+			return 2, nil
+		}
+		return 0, nil
 	case "signals":
 		if len(args) != 1 {
 			return 1, errors.New("signals takes no arguments")
