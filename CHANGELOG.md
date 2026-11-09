@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reproducible offline resource baselines with training-only preprocessing, held-out predictions, window/run confusion metrics, majority/probe comparisons and input-hash validation.
+
 - Require observed N2 and PFCP readiness before starting experiments; baseline intervals also retain repeated protocol checks.
 - Offline run-aligned feature windows with explicit missingness and deterministic scenario-stratified whole-run split manifests.
 

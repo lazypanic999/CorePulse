@@ -13,7 +13,7 @@ CorePulse breaks a small 5G core on purpose and records what happens. It runs ag
 
 ![CorePulse service path view: AMF, SMF, UE, gNB and UPF all ready, and 2 of 2 pings reaching the UPF](assets/dashboard-service-path.png)
 
-> **Status:** early development. The CLI and dashboard work against the live lab today: discovery, a guarded pod-crash experiment, packet checks, resource metrics, and a curated dataset. Protocol-level telemetry, trained models, and predictions are not built yet.
+> **Status:** early development. The CLI and dashboard work against the live lab: guarded pod-crash experiments, packet checks, resource metrics, timestamped protocol-log observations, and a curated dataset. The CLI also prepares whole-run splits and evaluates simple offline baselines. Continuous protocol KPIs and live model predictions remain future work.
 
 ## Why this exists
 
@@ -53,7 +53,7 @@ When things break, the same view looks like this. This capture is from 8 Novembe
 
 Every pod reports ready. N2 is lost because the gNB never set up N2 with the replacement AMF. N4 shows the old UPF address because SMF keeps retrying the IP of the deleted UPF pod. Pings to the UPF fail. The N2 and N4 links come from the latest gNB and SMF log events; `scripts/recover-service.sh` cleared all three.
 
-The delete button lists the four checks it needs and stays disabled until all of them pass. The server repeats them before it touches anything. CPU and memory come from `metrics.k8s.io`. They are Kubernetes resource metrics, not 5G protocol counters and not model predictions. When the lab is offline, the page says so and shows the expected layout as not observed instead of inventing data.
+The delete button lists the six checks it needs and stays disabled until all of them pass. The server repeats them before it touches anything. CPU and memory come from `metrics.k8s.io`. They are Kubernetes resource metrics, not 5G protocol counters and not model predictions. When the lab is offline, the page says so and shows the expected layout as not observed instead of inventing data.
 
 ## Try it
 
@@ -100,7 +100,7 @@ Run records go to `runs/` and raw samples to `data/`. Both folders are ignored b
 
 ## Where it is going
 
-Recorded experiments can be prepared offline with `corepulse windows` (30-second, run-aligned features with explicit missingness) and `corepulse split` (deterministic whole-run train/test partitions). Both require verified protocol starting conditions by default. See [windowed datasets](docs/windowed-dataset.md) for the schema and evaluation limits. These commands prepare data; there is no trained detector yet.
+Recorded experiments can be prepared offline with `corepulse windows` (30-second, run-aligned features with explicit missingness) and `corepulse split` (deterministic whole-run train/test partitions). Both require verified protocol starting conditions by default. `corepulse evaluate` fits simple resource baselines on training runs and reports every held-out prediction alongside majority/probe comparisons. See [windowed datasets](docs/windowed-dataset.md) and [offline evaluation](docs/offline-evaluation.md) for the schemas, methods and limits. These offline results are separate from the live dashboard.
 
 The full plan with status per milestone is in [docs/ROADMAP.md](docs/ROADMAP.md). The phases:
 
@@ -113,7 +113,7 @@ The full plan with status per milestone is in [docs/ROADMAP.md](docs/ROADMAP.md)
 | 4. Dashboard | Live predictions next to known labels | A full demo works end to end, wrong predictions included |
 | 5. Polish | One-command setup and a demo recording | Works on a clean machine |
 
-Discovery is done. The injector has one fault so far, the dataset has its first clean runs, and the dashboard has no prediction view yet because there is no model to show.
+Discovery is done. The injector has one fault type so far, the dataset has verified starting conditions and whole-run splits, and the first offline baselines can be evaluated reproducibly. Serving model predictions in the dashboard remains future work.
 
 ## Ground rules
 
