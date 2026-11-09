@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Use consistent half-open run intervals in sample and window exports: a capture at adjacent runs' shared boundary belongs only to the next run, and a capture at the final end remains excluded.
+
 - Serialize CLI baseline batches and applied CLI/dashboard faults with shared, inspectable collection ownership before preflight. Forced termination retains ownership for conservative manual recovery; cross-user/WSL callers must configure a common marker directory.
 
 - Preserve optional per-pod Metrics API source timestamps and averaging windows in new telemetry. Reject malformed metadata while retaining unknown legacy intervals; capture-time labels, resource values and fitted features remain unchanged.

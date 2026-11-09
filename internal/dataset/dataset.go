@@ -114,7 +114,9 @@ func label(sample telemetry.Sample, runs []Run) (string, *Run, error) {
 	var match *Run
 	for i := range runs {
 		run := &runs[i]
-		if sample.Timestamp.Before(run.Started) || sample.Timestamp.After(run.Ended) {
+		// Runs share the window export's [start, end) convention. A capture
+		// at a shared boundary belongs only to the next interval.
+		if sample.Timestamp.Before(run.Started) || !sample.Timestamp.Before(run.Ended) {
 			continue
 		}
 		if match != nil {

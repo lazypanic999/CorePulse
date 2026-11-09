@@ -116,7 +116,7 @@ func TestWindowsNeverMixAdjacentRuns(t *testing.T) {
 	windowRun(t, runs, "first", "normal", "", start, 20*time.Second, true)
 	windowRun(t, runs, "second", "pod_crash", "amf", start.Add(20*time.Second), 20*time.Second, true)
 	var data []byte
-	for _, second := range []int{5, 25} {
+	for _, second := range []int{5, 20, 25, 40} {
 		s := telemetry.Sample{Timestamp: start.Add(time.Duration(second) * time.Second), Source: telemetry.Source, Context: corepulse.LabContext, Namespace: corepulse.LabNamespace, CPUMilli: float64(second)}
 		line, _ := json.Marshal(s)
 		data = append(data, append(line, '\n')...)
@@ -125,14 +125,14 @@ func TestWindowsNeverMixAdjacentRuns(t *testing.T) {
 		t.Fatal(err)
 	}
 	summary, err := BuildWindows(raw, runs, out, WindowOptions{Duration: 30 * time.Second, RequireProtocol: true})
-	if err != nil || summary.Windows != 2 || summary.Runs != 2 {
+	if err != nil || summary.Windows != 2 || summary.Runs != 2 || summary.Samples != 3 || summary.ExcludedSamples != 1 {
 		t.Fatalf("runs mixed: %+v %v", summary, err)
 	}
 	result, err := ReadWindows(out)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Rows[0].RunID != "first" || result.Rows[1].RunID != "second" || result.Rows[0].Features["cpu_millicores_mean"] != 5 || result.Rows[1].Features["cpu_millicores_mean"] != 25 {
+	if result.Rows[0].RunID != "first" || result.Rows[1].RunID != "second" || result.Rows[0].Features["cpu_millicores_mean"] != 5 || result.Rows[1].Features["cpu_millicores_mean"] != 22.5 {
 		t.Fatalf("independent intervals merged: %+v", result.Rows)
 	}
 }
