@@ -40,3 +40,17 @@ All-missing training features are dropped, remaining gaps use training medians,
 and population means/scales are training-only. Observed zero remains distinct from
 missing in the loaded rows. Test/validation rows can only be transformed afterward.
 Go's nanosecond window identities are retained without datetime truncation.
+
+## Grouped inner validation
+
+`grouped_folds(dataset, n_splits=2, seed=17)` uses only the verified outer training
+partition. Schema 1 groups whole runs, stratified by training scenario; schema 2
+groups whole declared sessions, including every scenario they contain. Validation
+groups are selected deterministically before scores exist. Unknown/insufficient
+groups or lost class support refuse; no silent fold reduction or seed retuning.
+The outer capture-time margin also purges entire near-validation training groups.
+It retains its source-measurement limitations and does not certify independence.
+
+Use `fit_inner_preprocessor(dataset, fold)` to fit medians/scales only on the inner
+fit rows. Validation and outer test/purged rows never enter that fit. Fold hashes,
+complete group membership and class support are revalidated before preprocessing.
