@@ -151,6 +151,7 @@ class WindowDataset:
     split_sha256: str
     _manifest_json: str
     features: tuple[str, ...]
+    schema_version: int
 
     @property
     def manifest(self) -> dict:
@@ -346,6 +347,7 @@ def load_windows(
         hashlib.sha256(split_raw).hexdigest(),
         json.dumps(manifest, sort_keys=True),
         selected,
+        manifest["schema_version"],
     )
 
 

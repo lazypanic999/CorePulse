@@ -22,7 +22,7 @@ def rehash(windows, split):
     split.write_text(json.dumps(manifest, sort_keys=True))
 
 
-def invented_windows(directory, schema=2):
+def invented_windows(directory, schema=2, occasions=3):
     """Three invented occasions, each with three scenarios and two windows/run."""
     directory.mkdir(parents=True, exist_ok=True)
     windows, split = directory / "windows.csv", directory / "split.json"
@@ -34,7 +34,7 @@ def invented_windows(directory, schema=2):
     def stamp(value):
         return value.strftime("%Y-%m-%dT%H:%M:%S") + ".000000001Z"
 
-    for occasion in range(3):
+    for occasion in range(occasions):
         for index, scenario in enumerate(scenarios):
             run = f"invented-{occasion}-{index}"
             session = f"invented-session-{occasion}"
@@ -77,16 +77,16 @@ def invented_windows(directory, schema=2):
         "feature_names": list(NUMERIC_COLUMNS),
         "embargo_seconds": 120,
         "purged_runs": [],
-        "train_runs": sorted(runs[:6]),
-        "test_runs": sorted(runs[6:]),
-        "classes": {label: {"train_runs": 2, "test_runs": 1} for label in scenarios},
+        "train_runs": sorted(runs[: (occasions - 1) * 3]),
+        "test_runs": sorted(runs[(occasions - 1) * 3 :]),
+        "classes": {label: {"train_runs": occasions - 1, "test_runs": 1} for label in scenarios},
     }
     if schema == 2:
         manifest.update(
             grouping="session",
             session_assignments=assignments,
-            train_sessions=["invented-session-0", "invented-session-1"],
-            test_sessions=["invented-session-2"],
+            train_sessions=[f"invented-session-{i}" for i in range(occasions - 1)],
+            test_sessions=[f"invented-session-{occasions - 1}"],
         )
     split.write_text(json.dumps(manifest, sort_keys=True))
     return windows, split
