@@ -44,9 +44,24 @@ Open `http://127.0.0.1:8790/#evaluation`. The evaluation section displays a **Sy
 
 ![Actual dashboard rendering of invented example results with the synthetic warning](../../assets/dashboard-synthetic-example.jpg)
 
+## Neural smoke and display checks
+
+These invented files also feed the [offline neural smoke workflow](../../ml/README.md#reproduce-the-synthetic-experiment).
+It retains all four Go references, adds both fixed seeds for an MLP and a
+normal-only autoencoder, and writes a synthetic schema-3 report and ignored JSON
+coefficients. Saved schema-1/2 references remain supported. No real-network
+neural score follows from these toy inputs. The linked workflow includes a DOM
+render check that needs no browser, dashboard server or cluster observations.
+For regular capture-time grids with observation masks, see [sequences](../../docs/sequences.md).
+
 ## Fixture maintenance
 
-Python is only needed to maintain/check the example. The standard-library generator writes deterministic UTF-8/LF files, and `--check` compares them without rewriting. The CLI checker uses temporary outputs and an empty executable search path, so it works without any cluster helper installed. CI runs the complete offline pipeline.
+The Go baseline pipeline needs no Python runtime. Python maintains/checks its
+fixtures; the optional neural workflow uses the separate locked CPU environment.
+The standard-library generator writes deterministic UTF-8/LF files, and `--check`
+compares them without rewriting. The CLI checker uses temporary outputs and an
+empty executable search path, so it works without any cluster helper installed.
+CI runs the complete offline pipeline.
 
 ```bash
 python3 examples/offline/generate.py --check

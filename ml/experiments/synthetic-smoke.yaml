@@ -10,7 +10,7 @@ seeds: [7, 23]
 inner_validation:
   folds: 2
   seed: 17
-# Training methods are added by the subsequent MLP/autoencoder task branches.
+# Every declared method runs with each fixed seed; no best-seed selection.
 methods:
   - kind: mlp
     hidden: [8]

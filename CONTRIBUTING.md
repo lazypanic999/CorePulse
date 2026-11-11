@@ -67,6 +67,8 @@ Open `http://127.0.0.1:8787`. The server only binds to loopback addresses and re
 | `internal/telemetry` | `metrics.k8s.io` parsing, resource quantity validation, JSONL sample store |
 | `internal/dataset` | Curated CSV built only from verified run intervals |
 | `internal/evaluation` | Offline baselines, training-only preprocessing, and held-out metrics |
+| `internal/inference` | Standard-library-only evaluation of versioned dense/ReLU JSON artifacts |
+| `ml/` | Offline CPU neural experiments, grouped validation, calibration and coefficient export |
 | `internal/runrecord` | Atomic run record writes |
 | `internal/dashboard` | Loopback HTTP API and the embedded web UI in `web/` |
 
@@ -80,6 +82,35 @@ Open `http://127.0.0.1:8787`. The server only binds to loopback addresses and re
 - **Windowing and evaluation** (`internal/dataset`, `internal/evaluation`): missingness, whole-run holdouts, source hashes, and deterministic metrics tested with synthetic inputs.
 
 Never commit real kubeconfigs, credentials, subscriber identifiers, raw telemetry, or run records as fixtures. Use synthetic or anonymized data.
+
+### Offline neural checks
+
+The [neural workspace](ml/README.md) uses Python 3.12 on Linux x86-64, CPU-only
+PyTorch and a hash-locked environment. Install uv 0.13.7 and keep Go available on
+the Linux executable path for the parity tests:
+
+```bash
+uv sync --project ml --locked --python 3.12
+uv run --project ml --locked ruff check ml
+uv run --project ml --locked pytest ml
+```
+
+The tests construct invented data, keep preprocessing and model selection inside
+the training partition, and actually compare Go inference with CPU PyTorch.
+They do not launch collectors, a dashboard server or fault commands. When Go is
+installed only on Windows, follow the cross-built test-binary instructions in
+the [artifact contract](docs/neural-artifacts.md); missing Go must fail parity
+rather than silently skipping it.
+
+Changes to neural data loading, reports, training or inference should run these
+checks alongside the Go/helper suites below. Preserve every reference method,
+held-out prediction, fixed seed and synthetic warning. Generated coefficients,
+reports and caches belong in ignored output directories. Include fixture-only
+validation and any unperformed live checks in the pull request description.
+
+After the [synthetic smoke workflow](ml/README.md#reproduce-the-synthetic-experiment),
+Node 24 can test the real evaluation renderer with DOM fixtures and no network:
+`node --test scripts/tests/dashboard-evaluation.test.cjs`.
 
 ## Community and reporting
 
