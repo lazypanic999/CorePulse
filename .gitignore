@@ -14,6 +14,13 @@
 # Legacy local Python build artifacts
 __pycache__/
 *.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.pt
+*.pth
+*.ckpt
+/ml/outputs/
 
 # Node / React
 node_modules/
