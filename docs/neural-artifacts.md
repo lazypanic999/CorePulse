@@ -57,3 +57,54 @@ check the declared CSV/split hashes against their intended sources. A valid JSON
 shape does not authenticate origin, parameters, session declarations or training
 independence. There is no pickle, cgo dependency, model service or online
 retraining requirement in this restricted format.
+
+## Go API and numerical checks
+
+`internal/inference.Load(io.Reader)` validates the whole bounded JSON document
+before returning a model. Duplicate keys, nulls, unknown/missing fields and
+trailing JSON refuse; numeric null never silently becomes zero. `Metadata()`
+returns copies of feature/label lists and declared source hashes. `Predict()`
+accepts a `map[string]*float64` containing only retained feature names. Omission
+or nil is missing; a pointer to `0.0` is observed zero. Negative deltas are valid,
+other observed resource values must be nonnegative, and missing ratios lie in
+`[0,1]`. Project the window's feature map before calling; metadata and unselected
+features refuse. Neither inputs nor model state are changed by prediction.
+
+`Result.Outputs` contains logits (MLP) or reconstructed standardized inputs
+(autoencoder). `Scores` contains MLP softmax values only; `Score` is their maximum
+or autoencoder reconstruction MSE. `Synthetic` propagates the artifact's explicit
+declaration. The package does not load source CSVs, verify a report's artifact
+hash automatically, update the dashboard, contact a cluster or execute commands.
+No inference result authorizes fault injection or changes live service status.
+
+Standardization uses float64 followed by float32 conversion. Dense products
+accumulate in float64 in Go and each layer output converts to float32. This can
+differ slightly from CPU PyTorch's float32 reduction order. Reconstruction
+differences/squares and the final mean convert to float32. Non-finite intermediate
+outputs refuse. Decisions extremely close to a threshold or a logit tie can be
+sensitive to floating-point rounding; parity on bounded fixtures is not a
+universal guarantee for arbitrary parameter magnitudes or unstable models.
+
+From the repository root in Linux, with Go and the locked ML environment:
+
+```bash
+CGO_ENABLED=0 go test ./internal/inference
+uv run --project ml --locked pytest ml/tests/test_go_parity.py -q
+```
+
+The Python test generates temporary hand-authored coefficients and computes
+expected outputs with CPU PyTorch. It actually invokes the Go test, checks an
+execution marker, compares logits/reconstructions, scores and class decisions
+at absolute tolerance **1e-5**, and covers MLP/autoencoder with two and all eleven
+features, missing inputs, observed zeros and deterministic bounded varied inputs.
+It must fail rather than skip if Go is unavailable. Ordinary Go-only tests skip
+the external fixture test when no Python fixture was supplied; the pytest parity
+check always supplies one and verifies execution. No coefficient fixture is saved
+to tracked source files.
+
+When Python runs in WSL and Go is installed only on Windows, cross-build the same
+test binary with `GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go test -c -o PATH
+./internal/inference`, then set `COREPULSE_GO_PARITY_BINARY` to its Linux-visible
+absolute path for pytest. Rebuild it after Go changes. Native Linux CI uses its
+installed Go compiler with module downloads and toolchain auto-download disabled
+inside the parity subprocess.

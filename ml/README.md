@@ -145,3 +145,9 @@ and disjoint normal calibration run IDs. Unknown operators, dimensions, versions
 metadata features, non-finite values and nonpositive scales refuse. This format
 contains no optimizer state or executable deserialization. See the
 [artifact contract](../docs/neural-artifacts.md) for limits and interpretation.
+
+The standard-library-only Go package `internal/inference` loads these artifacts
+and evaluates them offline with cgo disabled. The ML test suite requires Go (or a
+fresh cross-built Linux test binary via `COREPULSE_GO_PARITY_BINARY`) and actually
+compares Go outputs with CPU PyTorch on temporary hand-authored fixtures at
+absolute tolerance 1e-5. Models stay separate from the live dashboard/controller.
