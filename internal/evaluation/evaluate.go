@@ -30,6 +30,8 @@ type Prediction struct {
 	Score       *float64  `json:"score,omitempty"`
 }
 type ModelReport struct {
+	Family        string               `json:"family,omitempty"`
+	Seed          *int64               `json:"seed,omitempty"`
 	Task          string               `json:"task"`
 	WindowMetrics Metrics              `json:"window_metrics"`
 	RunMetrics    Metrics              `json:"run_metrics"`
@@ -38,6 +40,8 @@ type ModelReport struct {
 	Centroids     map[string][]float64 `json:"centroids,omitempty"`
 }
 type Report struct {
+	SeedSpread            map[string]SeedSummary `json:"seed_spread,omitempty"`
+	Experiment            json.RawMessage        `json:"experiment,omitempty"`
 	Synthetic             bool                   `json:"synthetic,omitempty"`
 	PurgedWindows         int                    `json:"purged_windows"`
 	SchemaVersion         int                    `json:"schema_version"`

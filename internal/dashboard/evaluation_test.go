@@ -61,6 +61,35 @@ func TestOfflineEvaluationEndpointNeedsNoLab(t *testing.T) {
 	}
 }
 
+func TestNeuralEvaluationEndpointRetainsExtraMethodsAndSyntheticWarning(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "evaluation.json")
+	r := evaluationFixture()
+	r.SchemaVersion, r.Synthetic = 3, true
+	r.Models["invented_network"] = r.Models["nearest_centroid"]
+	if err := runrecord.Save(path, r); err != nil {
+		t.Fatal(err)
+	}
+	client := &lockSpyClient{}
+	response := httptest.NewRecorder()
+	NewWithEvaluation(client, dir, nil, path).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8787/api/evaluation", nil))
+	var payload struct {
+		Available bool              `json:"available"`
+		Report    evaluation.Report `json:"report"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if !payload.Available || !payload.Report.Synthetic || len(payload.Report.Models) != 5 || payload.Report.Models["invented_network"].Task != "scenario_classification" || client.calls != 0 {
+		t.Fatalf("neural snapshot lost data or contacted lab: %s", response.Body.String())
+	}
+	response = httptest.NewRecorder()
+	NewWithEvaluation(client, dir, nil, path).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8787/", nil))
+	if !strings.Contains(response.Body.String(), "evaluation-synthetic") || !strings.Contains(response.Body.String(), "evaluation-seeds") || client.calls != 0 {
+		t.Fatal("offline page lost synthetic/seed containers or contacted lab")
+	}
+}
+
 func TestMissingOrInvalidEvaluationDoesNotInventScores(t *testing.T) {
 	for _, mode := range []string{"missing", "invalid_json", "incomplete", "wrong_hash", "training_prediction", "inflated_score", "duplicate_prediction", "omitted_comparison", "purged_overlap"} {
 		t.Run(mode, func(t *testing.T) {
