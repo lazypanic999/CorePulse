@@ -13,6 +13,7 @@ import yaml
 from corepulse_ml.autoencoder import read_options as read_autoencoder_options
 from corepulse_ml.autoencoder import train_autoencoder
 from corepulse_ml.data import RESOURCE_FEATURES, load_windows, strict_json, validate_features
+from corepulse_ml.export import artifact_for, ensure_artifact_destination, write_artifact
 from corepulse_ml.mlp import read_options as read_mlp_options
 from corepulse_ml.mlp import train_mlp
 from corepulse_ml.reporting import compose_report, write_report
@@ -123,8 +124,10 @@ def read_experiment(path: str | Path) -> Experiment:
     )
 
 
-def run_experiment(path: str | Path) -> dict:
+def run_experiment(path: str | Path, *, export_dir: str | Path | None = None) -> dict:
     config = read_experiment(path)
+    if export_dir is not None:
+        export_dir = ensure_artifact_destination(export_dir)
     dataset = load_windows(config.windows, config.split, config.features)
     folds = grouped_folds(dataset, config.inner_folds, config.inner_seed)
     reference = strict_json(config.references.read_bytes())
@@ -141,12 +144,24 @@ def run_experiment(path: str | Path) -> dict:
     # before doing any training. This checks consistency, not origin/authenticity.
     compose_report(dataset, reference, {}, metadata)
     methods = {}
+    artifacts = {}
     for method in config.methods:
         for seed in config.seeds:
             trainer = train_mlp if method["kind"] == "mlp" else train_autoencoder
             trained = trainer(dataset, folds, method, seed)
-            methods[f"{method['kind']}_seed_{seed}"] = trained.report
+            name = f"{method['kind']}_seed_{seed}"
+            methods[name] = trained.report
+            if export_dir is not None:
+                artifacts[name] = artifact_for(trained, dataset, synthetic=True)
     report = compose_report(dataset, reference, methods, metadata)
+    if export_dir is not None:
+        sources = [path, config.windows, config.split, config.references, config.output]
+        descriptors = {}
+        for name, artifact in artifacts.items():
+            filename = f"{name}.json"
+            digest = write_artifact(export_dir / filename, artifact, sources)
+            descriptors[name] = {"filename": filename, "sha256": digest, "schema_version": 1}
+        report["experiment"]["artifacts"] = descriptors
     write_report(config.output, report, [path, config.windows, config.split, config.references])
     return report
 
@@ -154,9 +169,12 @@ def run_experiment(path: str | Path) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("configuration", type=Path)
+    parser.add_argument(
+        "--export-dir", type=Path, help="ignored/local directory for versioned JSON coefficients"
+    )
     args = parser.parse_args()
     try:
-        report = run_experiment(args.configuration)
+        report = run_experiment(args.configuration, export_dir=args.export_dir)
     except (ValueError, OSError, yaml.YAMLError) as exc:
         parser.exit(1, f"Experiment refused: {exc}\n")
     print(

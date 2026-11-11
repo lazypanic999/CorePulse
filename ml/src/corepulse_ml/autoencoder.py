@@ -173,5 +173,12 @@ def train_autoencoder(
         training=training,
     )
     return TrainedMethod(
-        "autoencoder", model, preprocessor, ("normal", "fault"), report, training, threshold
+        "autoencoder",
+        model,
+        preprocessor,
+        ("normal", "fault"),
+        report,
+        training,
+        threshold,
+        split_sha256=dataset.split_sha256,
     )
