@@ -26,6 +26,11 @@ An autoencoder additionally requires finite nonnegative `threshold` and nonempty
 has neither field. Full training/validation policy and predictions live in the
 experiment report; source hashes bind declared input identities but are not
 signatures or proof that model fitting followed that policy.
+The Python exporter additionally checks labels against the verified cohort, full
+outer-training preprocessing identities for the final MLP, and normal-only fit/
+calibration identities for an autoencoder, including declared session separation
+and the inner capture-time embargo. Standalone Go loading has no source
+CSV and cannot independently authenticate those declared identities.
 
 Features are a nonempty unique subset of the eleven resource inputs documented in
 the ML workspace. Metadata, labels, targets, timestamps, probes and post-run event
