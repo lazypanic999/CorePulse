@@ -158,3 +158,15 @@ and evaluates them offline with cgo disabled. The ML test suite requires Go (or 
 fresh cross-built Linux test binary via `COREPULSE_GO_PARITY_BINARY`) and actually
 compares Go outputs with CPU PyTorch on temporary hand-authored fixtures at
 absolute tolerance 1e-5. Models stay separate from the live dashboard/controller.
+
+After the synthetic smoke report exists, Node 24 can check the actual dashboard
+render functions without a browser, server or network connection:
+
+```bash
+node --test scripts/tests/dashboard-evaluation.test.cjs
+```
+
+DOM fixtures verify all reference/neural methods and held-out rows, synthetic
+warnings, seed spread, mistakes/abstentions, schema-1/2 compatibility and clearing
+stale rows. The synthetic CI job runs this after generating and validating the
+invented report. This is functional rendering coverage, not a visual browser audit.
