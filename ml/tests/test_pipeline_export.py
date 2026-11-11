@@ -7,18 +7,36 @@ from corepulse_ml.data import NUMERIC_COLUMNS, load_windows
 from corepulse_ml.experiment import run_experiment
 
 from .go_runner import run_go_fixture
-from .helpers import invented_windows
+from .helpers import invented_windows, read_csv, rehash, write_csv
 from .test_autoencoder import options as autoencoder_options
 from .test_mlp import options as mlp_options
 from .test_reporting import config_file, invented_reference
 
 
 @pytest.mark.parametrize("schema", [1, 2])
+@pytest.mark.parametrize("missing_feature", [False, True])
 def test_synthetic_training_json_export_go_inference_matches_all_heldout_predictions(
-    tmp_path, schema
+    tmp_path, schema, missing_feature
 ):
     path, config = config_file(tmp_path)
     windows, split = invented_windows(tmp_path, schema=schema)
+    if missing_feature:
+        rows = read_csv(windows)
+        manifest = json.loads(split.read_text())
+        columns = {
+            name: rows[0].index("upf_cpu_millicores_" + name)
+            for name in ("mean", "max", "delta", "missing_ratio")
+        }
+        for row in rows[1:]:
+            if row[0] in manifest["train_runs"]:
+                for suffix in ("mean", "max", "delta"):
+                    row[columns[suffix]] = ""
+                row[columns["missing_ratio"]] = "1"
+            else:
+                row[columns["mean"]] = row[columns["max"]] = "9999"
+                row[columns["missing_ratio"]] = "0"
+        write_csv(windows, rows)
+        rehash(windows, split)
     dataset = load_windows(windows, split)
     (tmp_path / "refs.json").write_text(json.dumps(invented_reference(dataset)))
     config["methods"] = [mlp_options(), autoencoder_options()]
@@ -29,6 +47,9 @@ def test_synthetic_training_json_export_go_inference_matches_all_heldout_predict
     for name, descriptor in report["experiment"]["artifacts"].items():
         artifact_path = directory / descriptor["filename"]
         artifact = json.loads(artifact_path.read_text())
+        if missing_feature:
+            assert "upf_cpu_millicores_mean" in artifact["preprocessing"]["dropped_features"]
+            assert "upf_cpu_millicores_mean" not in artifact["preprocessing"]["feature_names"]
         model = report["models"][name]
         predictions = {(p["run_id"], p["window_start"]): p for p in model["predictions"]}
         cases = []

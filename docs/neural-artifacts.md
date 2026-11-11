@@ -122,8 +122,9 @@ The full ML suite additionally trains both methods with two fixed seeds on
 temporary invented inputs, exports four artifacts, verifies their exact report
 hashes in Go and compares all 24 held-out predictions/scores with the original
 trained PyTorch report. It repeats this check for run-split schema 1 and
-session-split schema 2 (48 predictions in total), with the same 1e-5 numerical
-tolerance. These temporary training outputs are distinct from the hand-authored
+session-split schema 2, including an all-missing training feature that is observed
+only in test data and must remain dropped (96 predictions in total). All comparisons
+use the same absolute tolerance of 1e-5. These temporary training outputs are distinct from the hand-authored
 coefficient parity fixtures and are never committed. This checks export/inference
 consistency, not detection quality or live readiness.
 
