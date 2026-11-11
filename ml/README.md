@@ -81,3 +81,23 @@ Bad input/metrics refuse before replacing a previous report. Until the subsequen
 model branches register training methods, the smoke configuration evaluates only
 the required references. These scores are invented development results, not lab
 performance or evidence of independence.
+
+## CPU MLP implementation
+
+`corepulse_ml.mlp.train_mlp(dataset, folds, configuration, seed)` trains a small
+dense/ReLU scenario classifier. Configuration declares one to three hidden
+layers (at most 256 units each), increasing epoch candidates (at most 1,000),
+learning rate and weight decay. Every outer-training row must be held out in
+exactly one inner validation fold. Each inner preprocessor fits only that fold's
+fit rows. Mean fold validation cross entropy selects the epoch budget; an exact
+tie selects the earlier epoch. No outer-test scores select epochs or seeds.
+
+The final network and preprocessor refit all outer training for that fixed epoch
+budget, then produce every outer-test prediction. Training equally weights
+windows, so longer runs contribute more examples. CPU RNG and deterministic-mode
+settings are scoped and restored. Fixed seeds make this environment repeatable;
+they do not promise bitwise equality across every future platform/library build.
+Reported maximum softmax values are not calibrated probabilities. Training
+refuses non-finite loss, gradients, parameters or predictions. Synthetic unit
+tests verify repeatability, disjoint groups and that changing only held-out
+values cannot change epoch selection, preprocessing or trained parameters.
