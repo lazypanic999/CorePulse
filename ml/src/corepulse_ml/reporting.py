@@ -189,7 +189,7 @@ def compose_report(
     return report
 
 
-def write_report(path: str | Path, report: dict, sources=()) -> None:
+def validate_output_path(path: str | Path, sources=()) -> Path:
     output = Path(path).resolve()
     for source in sources:
         source = Path(source).resolve()
@@ -197,6 +197,13 @@ def write_report(path: str | Path, report: dict, sources=()) -> None:
             output.exists() and source.exists() and output.samefile(source)
         ):
             raise ValueError("report output must not overwrite/alias an input")
+    if output.exists() and not output.is_file():
+        raise ValueError("output must be a file path, not an existing directory")
+    return output
+
+
+def write_report(path: str | Path, report: dict, sources=()) -> None:
+    output = validate_output_path(path, sources)
     # Serialize fully before changing the previous report or creating output directories.
     raw = (json.dumps(report, indent=2, sort_keys=True, allow_nan=False) + "\n").encode()
     output.parent.mkdir(parents=True, exist_ok=True)

@@ -140,6 +140,8 @@ each file is replaced atomically after complete validation. Replacing several
 artifacts and the report is not a cross-file transaction: after an I/O failure,
 check the report's hashes or rerun the fixed experiment. Never commit trained
 coefficients. CI's generated files use invented data only and are not uploaded.
+Report/model output paths, input aliases (including hardlinks), existing directories
+and cross-output collisions are checked before training or creating artifacts.
 
 Schema 1 contains CPU float32 dense/ReLU coefficients, explicit feature order,
 training-only medians/means/scales, dropped features, fit run IDs, source CSV/split
