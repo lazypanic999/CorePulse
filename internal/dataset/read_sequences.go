@@ -106,7 +106,7 @@ func ReadSequences(path string) (WindowData, error) {
 		if err != nil || math.IsNaN(seconds) || math.IsInf(seconds, 0) || seconds < 1 || seconds > 3600 {
 			return fail("invalid step duration")
 		}
-		step := time.Duration(seconds * float64(time.Second))
+		step := time.Duration(math.Round(seconds * float64(time.Second)))
 		if step.Seconds() != seconds || end.Sub(start) > step || partial != (end.Sub(start) < step) {
 			return fail("inconsistent step duration/partial flag")
 		}

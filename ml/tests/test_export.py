@@ -8,6 +8,8 @@ import pytest
 import torch
 from torch import nn
 
+from corepulse_ml import export as exporter
+from corepulse_ml.data import load_windows, timestamp_ns
 from corepulse_ml.export import (
     artifact_for,
     ensure_artifact_destination,
@@ -16,6 +18,8 @@ from corepulse_ml.export import (
 )
 
 from .artifact_helpers import hand_method
+from .helpers import read_csv, rehash, write_csv
+from .test_time_precision import shift_run
 
 
 @pytest.mark.parametrize("kind", ["mlp", "autoencoder"])
@@ -122,3 +126,103 @@ def test_coefficients_cannot_be_written_into_tracked_source_or_overwrite_inputs(
     with pytest.raises(ValueError, match="overwrite"):
         write_artifact(path, artifact, sources=[path])
     assert path.read_bytes() == before
+
+
+def test_export_requires_the_verified_scenario_labels_and_full_mlp_fit_identities(tmp_path):
+    dataset, method = hand_method(tmp_path)
+    incomplete_fit = replace(
+        method,
+        preprocessor=replace(method.preprocessor, fit_run_ids=method.preprocessor.fit_run_ids[:-1]),
+    )
+    with pytest.raises(ValueError, match="all outer training"):
+        artifact_for(incomplete_fit, dataset, synthetic=True)
+    # A two-class dense network is a valid standalone shape, but cannot silently
+    # drop a scenario from this verified three-class cohort.
+    model = copy.deepcopy(method.model)
+    model[-1] = nn.Linear(2, 2, device="cpu", dtype=torch.float32)
+    with torch.no_grad():
+        model[-1].weight.zero_()
+        model[-1].bias.zero_()
+    missing_class = replace(method, model=model, labels=("normal", "pod_crash:amf"))
+    with pytest.raises(ValueError, match="labels differ"):
+        artifact_for(missing_class, dataset, synthetic=True)
+
+
+@pytest.mark.parametrize("role", ["fit", "calibration"])
+def test_autoencoder_export_rejects_fault_run_ids_in_normal_only_provenance(tmp_path, role):
+    dataset, method = hand_method(tmp_path, "autoencoder")
+    fault_run = next(row.run_id for row in dataset.partition("train") if row.scenario != "normal")
+    if role == "fit":
+        method = replace(
+            method, preprocessor=replace(method.preprocessor, fit_run_ids=(fault_run,))
+        )
+    else:
+        method = replace(method, training={"normal_validation_run_ids": [fault_run]})
+    with pytest.raises(ValueError, match="normal outer training"):
+        artifact_for(method, dataset, synthetic=True)
+
+
+@pytest.mark.parametrize("mode", ["session", "embargo"])
+def test_autoencoder_export_rechecks_source_groups_and_inner_temporal_separation(tmp_path, mode):
+    dataset, method = hand_method(tmp_path, "autoencoder")
+    windows, split = tmp_path / "windows.csv", tmp_path / "split.json"
+    rows = read_csv(windows)
+    manifest = json.loads(split.read_text())
+    fit_run = method.preprocessor.fit_run_ids[0]
+    calibration_run = method.training["normal_validation_run_ids"][0]
+    if mode == "session":
+        session = manifest["session_assignments"][calibration_run]
+        manifest["session_assignments"][fit_run] = session
+        column = rows[0].index("session_id")
+        for row in rows[1:]:
+            if row[0] == fit_run:
+                row[column] = session
+    else:
+        calibration_start = min(
+            timestamp_ns(row[3]) for row in rows[1:] if row[0] == calibration_run
+        )
+        # A 60s fit run ends only 60s before calibration, inside the fixed 120s margin.
+        shift_run(rows, fit_run, calibration_start - 120_000_000_000)
+    write_csv(windows, rows)
+    split.write_text(json.dumps(manifest))
+    rehash(windows, split)
+    changed = load_windows(windows, split, features=dataset.features)
+    method = replace(
+        method,
+        split_sha256=changed.split_sha256,
+        preprocessor=replace(method.preprocessor, windows_sha256=changed.windows_sha256),
+    )
+    with pytest.raises(ValueError, match="whole-session|embargo"):
+        artifact_for(method, changed, synthetic=True)
+
+
+def test_installed_layout_still_protects_the_destination_repository(tmp_path, monkeypatch):
+    root = Path(__file__).resolve().parents[2]
+    installed = tmp_path / "venv/lib/python3.12/site-packages/corepulse_ml/export.py"
+    monkeypatch.setattr(exporter, "__file__", str(installed))
+    with pytest.raises(ValueError, match="ignored"):
+        ensure_artifact_destination(root / "ml" / "unsafe-installed-coefficients.json")
+    assert (
+        ensure_artifact_destination(root / "reports" / "local-model.json")
+        == (root / "reports" / "local-model.json").resolve()
+    )
+
+
+def test_source_layout_protection_survives_missing_markers(tmp_path, monkeypatch):
+    root = tmp_path / "source"
+    monkeypatch.setattr(exporter, "__file__", str(root / "ml/src/corepulse_ml/export.py"))
+    with pytest.raises(ValueError, match="ignored"):
+        ensure_artifact_destination(root / "ml" / "unsafe-model.json")
+
+
+def test_other_committed_source_workspace_is_detected_without_an_editable_binding(tmp_path):
+    root = tmp_path / "archive"
+    (root / "ml").mkdir(parents=True)
+    (root / "go.mod").write_text("module example.invalid/corepulse\n")
+    (root / "ml/pyproject.toml").write_text("[project]\nname = 'corepulse-ml'\n")
+    with pytest.raises(ValueError, match="ignored"):
+        ensure_artifact_destination(root / "ml/src/corepulse_ml/unsafe.json")
+    assert (
+        ensure_artifact_destination(root / "reports/model.json")
+        == (root / "reports/model.json").resolve()
+    )

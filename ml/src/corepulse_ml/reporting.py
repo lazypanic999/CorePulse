@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import copy
 import json
-import math
 import os
 import re
 import statistics
@@ -13,6 +12,7 @@ from pathlib import Path
 
 from corepulse_ml.data import WindowDataset, timestamp_ns
 from corepulse_ml.metrics import by_run, measure
+from corepulse_ml.numeric import is_finite_number
 
 REFERENCES = {
     "nearest_centroid": "scenario_classification",
@@ -35,11 +35,7 @@ def labels_for(dataset: WindowDataset, task: str) -> list[str]:
 
 def _equivalent(actual, expected) -> bool:
     if isinstance(expected, float):
-        return (
-            type(actual) in (int, float)
-            and math.isfinite(actual)
-            and abs(actual - expected) <= 1e-12
-        )
+        return is_finite_number(actual) and abs(actual - expected) <= 1e-12
     if isinstance(expected, dict):
         return (
             isinstance(actual, dict)
@@ -82,7 +78,7 @@ def validate_method(dataset: WindowDataset, name: str, model: dict) -> None:
         if prediction.get("predicted") not in ["", *labels]:
             raise ValueError("unsupported predicted class")
         score = prediction.get("score")
-        if score is not None and (type(score) not in (int, float) or not math.isfinite(score)):
+        if score is not None and not is_finite_number(score):
             raise ValueError("non-finite prediction score")
         seen.add(key)
     expected_window = measure(labels, predictions)
@@ -95,7 +91,7 @@ def validate_method(dataset: WindowDataset, name: str, model: dict) -> None:
 
 
 def spread(values: list[float]) -> dict:
-    if not values or not all(math.isfinite(v) for v in values):
+    if not values or not all(is_finite_number(v) for v in values):
         raise ValueError("seed spread requires finite observations")
     return {
         "mean": statistics.mean(values),
@@ -167,7 +163,7 @@ def compose_report(
     if not isinstance(limitations, list) or any(not isinstance(v, str) for v in limitations):
         raise ValueError("invalid reference limitations")
     threshold = reference.get("zscore_threshold")
-    if type(threshold) not in (int, float) or not math.isfinite(threshold) or threshold <= 0:
+    if not is_finite_number(threshold) or threshold <= 0:
         raise ValueError("invalid reference threshold")
     original = reference.get("models")
     if not isinstance(original, dict) or set(original) != set(REFERENCES):
@@ -193,7 +189,7 @@ def compose_report(
     return report
 
 
-def write_report(path: str | Path, report: dict, sources=()) -> None:
+def validate_output_path(path: str | Path, sources=()) -> Path:
     output = Path(path).resolve()
     for source in sources:
         source = Path(source).resolve()
@@ -201,6 +197,13 @@ def write_report(path: str | Path, report: dict, sources=()) -> None:
             output.exists() and source.exists() and output.samefile(source)
         ):
             raise ValueError("report output must not overwrite/alias an input")
+    if output.exists() and not output.is_file():
+        raise ValueError("output must be a file path, not an existing directory")
+    return output
+
+
+def write_report(path: str | Path, report: dict, sources=()) -> None:
+    output = validate_output_path(path, sources)
     # Serialize fully before changing the previous report or creating output directories.
     raw = (json.dumps(report, indent=2, sort_keys=True, allow_nan=False) + "\n").encode()
     output.parent.mkdir(parents=True, exist_ok=True)

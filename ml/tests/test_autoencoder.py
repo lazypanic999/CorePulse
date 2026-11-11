@@ -7,7 +7,7 @@ import torch
 import yaml
 
 from corepulse_ml.autoencoder import classify_error, read_options, train_autoencoder
-from corepulse_ml.data import load_windows
+from corepulse_ml.data import SIGNALS, load_windows
 from corepulse_ml.experiment import run_experiment
 from corepulse_ml.reporting import validate_method
 from corepulse_ml.validation import grouped_folds
@@ -140,3 +140,20 @@ def test_yaml_autoencoder_reports_every_seed_and_preserves_reference_methods(tmp
     assert report["seed_spread"]["autoencoder"]["seeds"] == [7, 23]
     assert report["seed_spread"]["autoencoder"]["task"] == "normal_vs_fault_interval"
     assert report["synthetic"] is True
+
+
+def test_autoencoder_cannot_borrow_fault_values_when_normal_resources_are_all_missing(tmp_path):
+    windows, split = invented_windows(tmp_path)
+    data = load_windows(windows, split)
+    rows = read_csv(windows)
+    columns = {name: rows[0].index(name) for name in rows[0]}
+    for row in rows[1:]:
+        if row[0] in data.manifest["train_runs"] and row[1] == "normal":
+            for signal in SIGNALS[:7]:
+                for suffix in ("mean", "max", "delta", "missing_ratio"):
+                    row[columns[signal + "_" + suffix]] = "1" if suffix == "missing_ratio" else ""
+    write_csv(windows, rows)
+    rehash(windows, split)
+    changed = load_windows(windows, split)
+    with pytest.raises(ValueError, match="no observed training resource"):
+        train_autoencoder(changed, grouped_folds(changed), options(), 7)

@@ -40,6 +40,8 @@ All-missing training features are dropped, remaining gaps use training medians,
 and population means/scales are training-only. Observed zero remains distinct from
 missing in the loaded rows. Test/validation rows can only be transformed afterward.
 Go's nanosecond window identities are retained without datetime truncation.
+Serialized capture-time margins recover whole nanoseconds without float-to-int
+truncation; sub-nanosecond margins and malformed timezone offsets refuse.
 
 ## Grouped inner validation
 
@@ -73,6 +75,9 @@ reports stay under ignored `reports/neural-synthetic/`; source inputs are preser
 
 Experiment YAML has strict keys, unique fixed model seeds and a separate inner
 validation seed. The report is schema 3 with an unchanged schema-1/2 outer split.
+The declared inner-fold count is bounded to 2..32, and impossible group counts
+refuse before allocating fold buckets. JSON exponent overflow and oversized
+integers in floating-point fields are validation errors, never valid infinities.
 All four Go reference methods remain required. Extra named methods retain every
 held-out prediction and recomputed window/run confusion, per-class F1, macro F1,
 coverage and abstentions. Seed-family summaries contain mean, population standard
@@ -137,6 +142,8 @@ each file is replaced atomically after complete validation. Replacing several
 artifacts and the report is not a cross-file transaction: after an I/O failure,
 check the report's hashes or rerun the fixed experiment. Never commit trained
 coefficients. CI's generated files use invented data only and are not uploaded.
+Report/model output paths, input aliases (including hardlinks), existing directories
+and cross-output collisions are checked before training or creating artifacts.
 
 Schema 1 contains CPU float32 dense/ReLU coefficients, explicit feature order,
 training-only medians/means/scales, dropped features, fit run IDs, source CSV/split
@@ -145,3 +152,21 @@ and disjoint normal calibration run IDs. Unknown operators, dimensions, versions
 metadata features, non-finite values and nonpositive scales refuse. This format
 contains no optimizer state or executable deserialization. See the
 [artifact contract](../docs/neural-artifacts.md) for limits and interpretation.
+
+The standard-library-only Go package `internal/inference` loads these artifacts
+and evaluates them offline with cgo disabled. The ML test suite requires Go (or a
+fresh cross-built Linux test binary via `COREPULSE_GO_PARITY_BINARY`) and actually
+compares Go outputs with CPU PyTorch on temporary hand-authored fixtures at
+absolute tolerance 1e-5. Models stay separate from the live dashboard/controller.
+
+After the synthetic smoke report exists, Node 24 can check the actual dashboard
+render functions without a browser, server or network connection:
+
+```bash
+node --test scripts/tests/dashboard-evaluation.test.cjs
+```
+
+DOM fixtures verify all reference/neural methods and held-out rows, synthetic
+warnings, seed spread, mistakes/abstentions, schema-1/2 compatibility and clearing
+stale rows. The synthetic CI job runs this after generating and validating the
+invented report. This is functional rendering coverage, not a visual browser audit.
