@@ -77,10 +77,13 @@ All four Go reference methods remain required. Extra named methods retain every
 held-out prediction and recomputed window/run confusion, per-class F1, macro F1,
 coverage and abstentions. Seed-family summaries contain mean, population standard
 deviation, minimum and maximum; different prediction tasks are never pooled.
-Bad input/metrics refuse before replacing a previous report. Until the subsequent
-model branches register training methods, the smoke configuration evaluates only
-the required references. These scores are invented development results, not lab
-performance or evidence of independence.
+Bad input/metrics refuse before replacing a previous report. The smoke configuration
+adds an MLP for each declared seed to the four references. The YAML method list may
+also be empty for a reference-only consistency check. CI creates inputs from the
+marked invented example, trains on CPU and passes the saved Python report through
+the Go snapshot validator. These are invented development results, not lab
+performance or evidence of independence. The `synthetic` field is an explicit
+declaration, not an automatic detector of where data came from.
 
 ## CPU MLP implementation
 
