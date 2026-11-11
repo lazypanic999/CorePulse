@@ -17,7 +17,7 @@ from pathlib import Path
 
 import numpy as np
 
-from corepulse_ml.numeric import is_finite_number
+from corepulse_ml.numeric import duration_ns, is_finite_number
 
 SIGNALS = (
     "pod_count",
@@ -80,6 +80,8 @@ def timestamp_ns(value: str) -> int:
     if not match:
         raise ValueError(f"invalid RFC3339 timestamp: {value!r}")
     day, clock, fraction, zone = match.groups()
+    if zone != "Z" and (int(zone[1:3]) > 23 or int(zone[4:6]) > 59):
+        raise ValueError("out-of-range RFC3339 timezone offset")
     try:
         dt = datetime.fromisoformat(f"{day}T{clock}{'+00:00' if zone == 'Z' else zone}")
         seconds = calendar.timegm(dt.utctimetuple())
@@ -345,7 +347,7 @@ def load_windows(
             or any(type(actual.get(k)) is not int or actual[k] < 1 for k in expected)
         ):
             raise ValueError("missing class partition support or incorrect class counts")
-    margin = int(manifest.get("embargo_seconds", 0) * 1_000_000_000)
+    margin = duration_ns(manifest.get("embargo_seconds", 0))
     ranges = run_ranges(rows)
     if margin:
         for train, role in roles.items():

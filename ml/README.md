@@ -40,6 +40,8 @@ All-missing training features are dropped, remaining gaps use training medians,
 and population means/scales are training-only. Observed zero remains distinct from
 missing in the loaded rows. Test/validation rows can only be transformed afterward.
 Go's nanosecond window identities are retained without datetime truncation.
+Serialized capture-time margins recover whole nanoseconds without float-to-int
+truncation; sub-nanosecond margins and malformed timezone offsets refuse.
 
 ## Grouped inner validation
 
