@@ -45,7 +45,7 @@ func saveJSON(path string, value any) error {
 
 func run(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("usage: corepulse <version|discover|doctor|signals|verify-service|pod-crash|baseline|dataset|windows|split|evaluate|serve> [options]")
+		return 1, errors.New("usage: corepulse <version|discover|doctor|signals|verify-service|pod-crash|baseline|dataset|windows|sequences|split|evaluate|serve> [options]")
 	}
 	client := corepulse.Kubectl{}
 	switch args[0] {
@@ -187,10 +187,29 @@ func run(args []string) (int, error) {
 			return 1, err
 		}
 		return 0, printJSON(summary)
+	case "sequences":
+		flags := flag.NewFlagSet("sequences", flag.ContinueOnError)
+		flags.SetOutput(os.Stderr)
+		raw := flags.String("telemetry", filepath.Join("data", "telemetry.jsonl"), "raw telemetry JSONL")
+		runs := flags.String("runs-dir", "runs", "run record directory")
+		output := flags.String("output", filepath.Join("data", "sequences.csv"), "run-aligned masked sequence steps")
+		step := flags.Duration("step", 5*time.Second, "non-overlapping sequence step (1s to 1h)")
+		legacy := flags.Bool("allow-legacy", false, "include clean runs without protocol starting evidence (exploration only)")
+		if err := flags.Parse(args[1:]); err != nil {
+			return 1, err
+		}
+		if flags.NArg() != 0 {
+			return 1, errors.New("unexpected positional arguments")
+		}
+		summary, err := dataset.BuildSequences(*raw, *runs, *output, dataset.SequenceOptions{Step: *step, RequireProtocol: !*legacy})
+		if err != nil {
+			return 1, err
+		}
+		return 0, printJSON(summary)
 	case "split":
 		flags := flag.NewFlagSet("split", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)
-		input := flags.String("input", filepath.Join("data", "windows.csv"), "window CSV input")
+		input := flags.String("input", filepath.Join("data", "windows.csv"), "window or masked sequence CSV input")
 		output := flags.String("output", filepath.Join("data", "split.json"), "whole-run or whole-session split manifest")
 		fraction := flags.Float64("test-fraction", 0.25, "held-out fraction per scenario in run mode, or of whole sessions")
 		groupBy := flags.String("group-by", "run", "holdout grouping: run or session")
