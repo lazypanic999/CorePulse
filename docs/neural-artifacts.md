@@ -108,3 +108,12 @@ test binary with `GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go test -c -o PATH
 absolute path for pytest. Rebuild it after Go changes. Native Linux CI uses its
 installed Go compiler with module downloads and toolchain auto-download disabled
 inside the parity subprocess.
+
+The full ML suite additionally trains both methods with two fixed seeds on
+temporary invented inputs, exports four artifacts, verifies their exact report
+hashes in Go and compares all 24 held-out predictions/scores with the original
+trained PyTorch report. It repeats this check for run-split schema 1 and
+session-split schema 2 (48 predictions in total), with the same 1e-5 numerical
+tolerance. These temporary training outputs are distinct from the hand-authored
+coefficient parity fixtures and are never committed. This checks export/inference
+consistency, not detection quality or live readiness.

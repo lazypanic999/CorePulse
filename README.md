@@ -114,6 +114,13 @@ The [synthetic walkthrough](examples/offline/README.md) includes nine invented r
 
 [GitHub Releases](https://github.com/lazypanic999/CorePulse/releases) has preview binaries for Linux, macOS, and Windows with SHA-256 checksums. The container image `ghcr.io/lazypanic999/corepulse:v0.2.4` is on [GitHub Packages](https://github.com/lazypanic999/CorePulse/pkgs/container/corepulse) and includes `kubectl`. For a Minikube lab inside WSL, use the native binary in Ubuntu, because the cluster API is only reachable from there.
 
+The experimental [offline neural workspace](ml/README.md) adds CPU MLP and
+normal-only autoencoder development, grouped inner validation, all-seed reports
+and [versioned JSON with pure-Go inference](docs/neural-artifacts.md). Its smoke
+workflow uses invented data only; real-network neural performance and live model
+integration remain unvalidated. [Masked capture-time sequences](docs/sequences.md)
+also retain empty 5-second steps without inventing measurements.
+
 ## Where it is going
 
 Recorded experiments can be prepared offline with `corepulse windows` (30-second, run-aligned features with explicit missingness) and `corepulse split` (deterministic whole-run train/test partitions). Both require verified protocol starting conditions by default. `corepulse evaluate` fits simple resource baselines on training runs and reports every held-out prediction alongside majority/probe comparisons. Explicit [prospective session declarations and whole-session holdouts](docs/session-holdouts.md) keep all runs from a declared collection occasion together; unknown legacy sessions refuse that mode. Session IDs are metadata, not proof of independent conditions. See [windowed datasets](docs/windowed-dataset.md) and [offline evaluation](docs/offline-evaluation.md) for the schemas, methods and limits. These offline results are separate from the live dashboard.
