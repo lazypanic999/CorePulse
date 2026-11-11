@@ -117,3 +117,9 @@ session-split schema 2 (48 predictions in total), with the same 1e-5 numerical
 tolerance. These temporary training outputs are distinct from the hand-authored
 coefficient parity fixtures and are never committed. This checks export/inference
 consistency, not detection quality or live readiness.
+
+For a bounded parser exercise, `CGO_ENABLED=0 go test ./internal/inference -run
+'^$' -fuzz '^FuzzLoadArtifact$' -fuzztime=30s -parallel=2` mutates hand-authored
+JSON seeds. Fuzz inputs are capped at 64 KiB for workload control; separate unit
+tests exercise valid-document byte limits, layer/width/coefficient bounds and
+numerical overflow. This is robustness testing, not an exhaustive security proof.
