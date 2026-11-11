@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 import re
 from pathlib import Path
 
@@ -12,6 +11,7 @@ import torch
 from torch import nn
 
 from corepulse_ml.data import WindowDataset, validate_features
+from corepulse_ml.numeric import is_finite_number
 from corepulse_ml.reporting import write_report
 from corepulse_ml.training import TrainedMethod
 
@@ -30,12 +30,7 @@ def _numbers(values, length, label, *, positive=False, float32=False):
         not isinstance(values, list)
         or len(values) != length
         or any(
-            type(x) not in (int, float)
-            or not math.isfinite(x)
-            or positive
-            and x <= 0
-            or float32
-            and abs(x) > _FLOAT32_MAX
+            not is_finite_number(x) or positive and x <= 0 or float32 and abs(x) > _FLOAT32_MAX
             for x in values
         )
     ):
@@ -117,7 +112,7 @@ def validate_artifact(artifact: dict) -> None:
         if artifact["task"] != "normal_vs_fault_interval" or labels != ["normal", "fault"]:
             raise ValueError("invalid autoencoder labels/task")
         threshold = artifact["threshold"]
-        if type(threshold) not in (int, float) or not math.isfinite(threshold) or threshold < 0:
+        if not is_finite_number(threshold) or threshold < 0:
             raise ValueError("invalid autoencoder threshold")
         _ids(artifact["calibration_run_ids"], "normal calibration identities")
         if set(artifact["calibration_run_ids"]) & set(pre["fit_run_ids"]):

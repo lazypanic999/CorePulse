@@ -73,6 +73,9 @@ reports stay under ignored `reports/neural-synthetic/`; source inputs are preser
 
 Experiment YAML has strict keys, unique fixed model seeds and a separate inner
 validation seed. The report is schema 3 with an unchanged schema-1/2 outer split.
+The declared inner-fold count is bounded to 2..32, and impossible group counts
+refuse before allocating fold buckets. JSON exponent overflow and oversized
+integers in floating-point fields are validation errors, never valid infinities.
 All four Go reference methods remain required. Extra named methods retain every
 held-out prediction and recomputed window/run confusion, per-class F1, macro F1,
 coverage and abstentions. Seed-family summaries contain mean, population standard

@@ -84,8 +84,8 @@ def read_experiment(path: str | Path) -> Experiment:
         raise ValueError("dataset requires exact windows/split paths")
     if not isinstance(inner, dict) or inner.keys() != {"folds", "seed"}:
         raise ValueError("inner validation requires exact folds/seed")
-    if type(inner["folds"]) is not int or inner["folds"] < 2:
-        raise ValueError("inner folds must be at least two")
+    if type(inner["folds"]) is not int or not 2 <= inner["folds"] <= 32:
+        raise ValueError("inner folds must be between 2 and 32")
     if type(inner["seed"]) is not int or not -(2**63) <= inner["seed"] < 2**63:
         raise ValueError("invalid inner seed")
     seeds = config["seeds"]

@@ -17,6 +17,8 @@ from pathlib import Path
 
 import numpy as np
 
+from corepulse_ml.numeric import is_finite_number
+
 SIGNALS = (
     "pod_count",
     "cpu_millicores",
@@ -72,6 +74,8 @@ _TIME = re.compile(
 
 def timestamp_ns(value: str) -> int:
     """Parse RFC3339 without datetime's truncation of Go's nanosecond identities."""
+    if not isinstance(value, str):
+        raise ValueError("RFC3339 timestamp must be a string")
     match = _TIME.fullmatch(value)
     if not match:
         raise ValueError(f"invalid RFC3339 timestamp: {value!r}")
@@ -96,7 +100,15 @@ def strict_json(raw: bytes | str) -> dict:
     def constant(value):
         raise ValueError(f"non-finite JSON constant: {value}")
 
-    value = json.loads(raw, object_pairs_hook=unique, parse_constant=constant)
+    def finite_float(text):
+        value = float(text)
+        if not is_finite_number(value):
+            raise ValueError(f"non-finite JSON number: {text}")
+        return value
+
+    value = json.loads(
+        raw, object_pairs_hook=unique, parse_constant=constant, parse_float=finite_float
+    )
     if not isinstance(value, dict):
         raise ValueError("JSON root must be an object")
     return value
@@ -292,10 +304,8 @@ def load_windows(
         ("embargo_seconds", 0, 86400, True),
     ):
         value = manifest.get(key, 0 if key == "embargo_seconds" else None)
-        if (
-            type(value) not in (int, float)
-            or not math.isfinite(value)
-            or not (low <= value <= high if inclusive else low < value < high)
+        if not is_finite_number(value) or not (
+            low <= value <= high if inclusive else low < value < high
         ):
             raise ValueError(f"invalid split {key}")
     roles = {}

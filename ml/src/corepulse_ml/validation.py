@@ -92,6 +92,9 @@ def grouped_folds(
         if not group:
             raise ValueError("unknown inner group provenance")
         members[group].append(index)
+    # Reject impossible requests before constructing a potentially enormous list.
+    if len(members) < n_splits:
+        raise ValueError("insufficient training groups for requested inner folds")
     buckets = [set() for _ in range(n_splits)]
     if grouping == "session":
         if len(members) < n_splits:
