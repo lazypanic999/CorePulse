@@ -1,0 +1,14 @@
+schema_version: 1
+name: synthetic-smoke
+synthetic: true
+dataset:
+  windows: reports/neural-synthetic/windows.csv
+  split: reports/neural-synthetic/split.json
+references: reports/neural-synthetic/references.json
+output: reports/neural-synthetic/evaluation.json
+seeds: [7, 23]
+inner_validation:
+  folds: 2
+  seed: 17
+# Training methods are added by the subsequent MLP/autoencoder task branches.
+methods: []
