@@ -265,6 +265,13 @@ td.id-cell { color: var(--graphite); font: 0.9rem var(--din); }
   .smf-gap { display: none; }
 }
 
+.neural-inputs { display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; margin: 1rem 0; }
+.neural-inputs label { display: grid; gap: 0.4rem; }
+.neural-inputs select { max-width: 100%; padding: 0.6rem; border: 1px solid var(--rule); border-radius: var(--radius); color: var(--ink); background: var(--surface); font: inherit; }
+.neural-prediction { padding: 1rem; margin-top: 1rem; border: 1px solid var(--rule); border-left: 3px solid var(--signal); border-radius: var(--radius); background: var(--paper); }
+.neural-prediction p { margin: 0.5rem 0 0; }
+#neural-progress { display: block; margin: 1rem 0; width: 100%; accent-color: var(--signal); }
+#neural-progress[hidden] { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .toast { transition: none; }
 }

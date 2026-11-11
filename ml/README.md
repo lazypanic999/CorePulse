@@ -59,6 +59,10 @@ complete group membership and class support are revalidated before preprocessing
 
 ## Reproduce the synthetic experiment
 
+The [dashboard neural workspace](../docs/neural-workspace-ui.md) also runs this
+fixed workflow through an optional Python worker and evaluates held-out samples
+in Go. It does not add live-network inference or real-data training.
+
 From the repository root in Linux, with Go and the locked workspace installed:
 
 ```bash
