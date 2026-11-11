@@ -10,6 +10,8 @@ from pathlib import Path
 
 import yaml
 
+from corepulse_ml.autoencoder import read_options as read_autoencoder_options
+from corepulse_ml.autoencoder import train_autoencoder
 from corepulse_ml.data import RESOURCE_FEATURES, load_windows, strict_json, validate_features
 from corepulse_ml.mlp import read_options as read_mlp_options
 from corepulse_ml.mlp import train_mlp
@@ -100,9 +102,9 @@ def read_experiment(path: str | Path) -> Experiment:
     kinds = set()
     for method in methods:
         kind = method.get("kind")
-        if kind != "mlp" or kind in kinds:
+        if kind not in ("mlp", "autoencoder") or kind in kinds:
             raise ValueError("unsupported or duplicate experiment method kind")
-        read_mlp_options(method)
+        (read_mlp_options if kind == "mlp" else read_autoencoder_options)(method)
         kinds.add(kind)
     paths = [dataset["windows"], dataset["split"], config["references"], config["output"]]
     if any(not isinstance(value, str) or not value.strip() for value in paths):
@@ -141,8 +143,9 @@ def run_experiment(path: str | Path) -> dict:
     methods = {}
     for method in config.methods:
         for seed in config.seeds:
-            trained = train_mlp(dataset, folds, method, seed)
-            methods[f"mlp_seed_{seed}"] = trained.report
+            trainer = train_mlp if method["kind"] == "mlp" else train_autoencoder
+            trained = trainer(dataset, folds, method, seed)
+            methods[f"{method['kind']}_seed_{seed}"] = trained.report
     report = compose_report(dataset, reference, methods, metadata)
     write_report(config.output, report, [path, config.windows, config.split, config.references])
     return report

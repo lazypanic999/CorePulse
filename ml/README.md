@@ -104,3 +104,26 @@ Reported maximum softmax values are not calibrated probabilities. Training
 refuses non-finite loss, gradients, parameters or predictions. Synthetic unit
 tests verify repeatability, disjoint groups and that changing only held-out
 values cannot change epoch selection, preprocessing or trained parameters.
+
+## Normal-only autoencoder
+
+The smoke YAML also declares a CPU dense/ReLU autoencoder for every seed. Its
+encoder widths, fixed epoch count, calibration fold and percentile are declared
+before errors exist. Decoder widths mirror the encoder; the final reconstruction
+layer is linear. The bottleneck must be smaller than the retained input dimension.
+
+Only normal rows from that inner fold's fit groups enter preprocessing and weight
+training. Separate normal validation groups calibrate an empirical reconstruction
+MSE threshold with NumPy's `percentile(..., method="higher")`; equality remains
+normal and only a strictly larger error predicts a fault interval. Require at least
+two normal windows on each side. Calibration rows are never refitted into weights
+or preprocessing afterward. Fault-training values and outer-test values cannot
+affect parameters or threshold. All held-out normal/fault predictions remain in
+the report, with calibration support, normal run identities and threshold policy.
+
+This tiny synthetic calibration demonstrates code paths only. Its empirical
+percentile does not guarantee a false-positive rate, independence, a calibrated
+anomaly probability or live service-health detection. The fixed calibration fold
+uses fewer outer-training rows than the MLP's final refit; do not compare training
+support as if the procedures were identical. A different declared configuration
+requires a fresh experiment, not tuning against outer-test results.

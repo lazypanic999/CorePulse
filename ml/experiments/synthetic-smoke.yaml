@@ -17,3 +17,10 @@ methods:
     epochs: [10, 25]
     learning_rate: 0.01
     weight_decay: 0.0
+  - kind: autoencoder
+    hidden: [4, 2]
+    epochs: 25
+    learning_rate: 0.01
+    weight_decay: 0.0
+    percentile: 95
+    calibration_fold: 0
