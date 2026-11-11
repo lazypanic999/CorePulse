@@ -14,6 +14,7 @@ import (
 
 	"github.com/lazypanic999/CorePulse/internal/collection"
 	"github.com/lazypanic999/CorePulse/internal/corepulse"
+	"github.com/lazypanic999/CorePulse/internal/neural"
 	"github.com/lazypanic999/CorePulse/internal/runrecord"
 	"github.com/lazypanic999/CorePulse/internal/telemetry"
 )
@@ -27,6 +28,7 @@ type Server struct {
 	RunsDir        string
 	Telemetry      *telemetry.Store
 	EvaluationPath string
+	Neural         *neural.Manager
 
 	// The protocol view reads four pod logs; several tabs polling every
 	// 30 s share one read per protocolCacheTTL.
@@ -50,7 +52,11 @@ func NewWithEvaluation(client corepulse.Client, runsDir string, store *telemetry
 }
 
 func NewWithSession(client corepulse.Client, runsDir string, store *telemetry.Store, evaluationPath, sessionID string) http.Handler {
-	s := &Server{Client: client, RunsDir: runsDir, Telemetry: store, EvaluationPath: evaluationPath, SessionID: sessionID}
+	return NewWithNeural(client, runsDir, store, evaluationPath, sessionID, nil)
+}
+
+func NewWithNeural(client corepulse.Client, runsDir string, store *telemetry.Store, evaluationPath, sessionID string, manager *neural.Manager) http.Handler {
+	s := &Server{Client: client, RunsDir: runsDir, Telemetry: store, EvaluationPath: evaluationPath, SessionID: sessionID, Neural: manager}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/overview", s.overview)
 	mux.HandleFunc("GET /api/plan", s.plan)
@@ -59,6 +65,9 @@ func NewWithSession(client corepulse.Client, runsDir string, store *telemetry.St
 	mux.HandleFunc("GET /api/service-check", s.serviceCheck)
 	mux.HandleFunc("GET /api/protocol", s.protocol)
 	mux.HandleFunc("GET /api/evaluation", s.evaluation)
+	mux.HandleFunc("GET /api/neural", s.neuralStatus)
+	mux.HandleFunc("POST /api/neural/start", s.neuralStart)
+	mux.HandleFunc("POST /api/neural/predict", s.neuralPredict)
 	mux.HandleFunc("GET /api/collection", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, struct {
 			collection.OwnershipState
