@@ -1,10 +1,13 @@
+import hashlib
 import json
+from pathlib import Path
 
 import pytest
 import yaml
 
 from corepulse_ml import experiment
 from corepulse_ml.experiment import read_experiment, run_experiment
+from corepulse_ml.export import validate_artifact
 from corepulse_ml.reporting import REFERENCES
 
 from .test_mlp import options
@@ -49,6 +52,25 @@ def test_bad_references_refuse_before_training_or_replacing_report(tmp_path, mon
     with pytest.raises(ValueError, match="four reference"):
         run_experiment(path)
     assert output.read_bytes() == before
+
+
+def test_yaml_exports_local_json_with_hashes_but_never_into_source(tmp_path):
+    path, config = config_file(tmp_path)
+    config["methods"] = [options()]
+    path.write_text(yaml.safe_dump(config))
+    directory = tmp_path / "local-artifacts"
+    report = run_experiment(path, export_dir=directory)
+    descriptors = report["experiment"]["artifacts"]
+    assert set(descriptors) == {"mlp_seed_7", "mlp_seed_23"}
+    for name, descriptor in descriptors.items():
+        artifact = directory / descriptor["filename"]
+        assert artifact.name == f"{name}.json"
+        assert hashlib.sha256(artifact.read_bytes()).hexdigest() == descriptor["sha256"]
+        validate_artifact(json.loads(artifact.read_text()))
+    source = Path(__file__).resolve().parents[2] / "ml" / "unsafe-models"
+    with pytest.raises(ValueError, match="ignored"):
+        run_experiment(path, export_dir=source)
+    assert not source.exists()
 
 
 @pytest.mark.parametrize("methods", [[{"kind": "unknown"}], [options(), options()]])

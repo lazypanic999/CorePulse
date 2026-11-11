@@ -63,7 +63,7 @@ From the repository root in Linux, with Go and the locked workspace installed:
 mkdir -p reports/neural-synthetic
 go build -o reports/neural-synthetic/corepulse ./cmd/corepulse
 python3 scripts/prepare-neural-synthetic.py --binary reports/neural-synthetic/corepulse
-uv run --project ml --locked python -m corepulse_ml.experiment ml/experiments/synthetic-smoke.yaml
+uv run --project ml --locked python -m corepulse_ml.experiment ml/experiments/synthetic-smoke.yaml --export-dir reports/neural-synthetic/models
 ```
 
 Preparation accepts only marked invented examples and runs `windows`, a session
@@ -127,3 +127,21 @@ anomaly probability or live service-health detection. The fixed calibration fold
 uses fewer outer-training rows than the MLP's final refit; do not compare training
 support as if the procedures were identical. A different declared configuration
 requires a fresh experiment, not tuning against outer-test results.
+
+## JSON coefficient export
+
+`--export-dir` writes one versioned JSON artifact per method/seed and includes
+each file's SHA-256 in the report. Only ignored `reports/`, `artifacts/`, `models/`,
+`ml/outputs/` or paths outside the repository are accepted. Input aliases refuse;
+each file is replaced atomically after complete validation. Replacing several
+artifacts and the report is not a cross-file transaction: after an I/O failure,
+check the report's hashes or rerun the fixed experiment. Never commit trained
+coefficients. CI's generated files use invented data only and are not uploaded.
+
+Schema 1 contains CPU float32 dense/ReLU coefficients, explicit feature order,
+training-only medians/means/scales, dropped features, fit run IDs, source CSV/split
+hashes, task/labels and seed. Autoencoders also retain their calibrated threshold
+and disjoint normal calibration run IDs. Unknown operators, dimensions, versions,
+metadata features, non-finite values and nonpositive scales refuse. This format
+contains no optimizer state or executable deserialization. See the
+[artifact contract](../docs/neural-artifacts.md) for limits and interpretation.
