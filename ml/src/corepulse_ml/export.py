@@ -229,12 +229,26 @@ def artifact_for(method: TrainedMethod, dataset: WindowDataset, *, synthetic: bo
 
 def ensure_artifact_destination(path: str | Path) -> Path:
     path = Path(path).resolve()
-    root = Path(__file__).resolve().parents[3]
-    allowed = [root / name for name in ("reports", "artifacts", "models", "ml/outputs")]
-    if path.is_relative_to(root) and not any(path.is_relative_to(p) for p in allowed):
-        raise ValueError(
-            "trained coefficients must stay in ignored output directories or outside the repository"
-        )
+    roots = set()
+    module = Path(__file__)
+    # Preserve source-tree protection even when project markers are temporarily
+    # absent. An installed wheel has a different layout and must not invent a
+    # repository root inside site-packages (or the wheel's own path).
+    if (
+        module.parent.parent.name.casefold() == "src"
+        and module.parent.parent.parent.name.casefold() == "ml"
+    ):
+        roots.add(module.parents[3].resolve())
+    for candidate in (path, *path.parents):
+        if (candidate / "go.mod").is_file() and (candidate / "ml/pyproject.toml").is_file():
+            roots.add(candidate)
+    for root in roots:
+        allowed = [root / name for name in ("reports", "artifacts", "models", "ml/outputs")]
+        if path.is_relative_to(root) and not any(path.is_relative_to(p) for p in allowed):
+            raise ValueError(
+                "trained coefficients must stay in ignored output directories "
+                "or outside the repository"
+            )
     return path
 
 

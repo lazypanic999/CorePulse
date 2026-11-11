@@ -8,6 +8,7 @@ import pytest
 import torch
 from torch import nn
 
+from corepulse_ml import export as exporter
 from corepulse_ml.data import load_windows, timestamp_ns
 from corepulse_ml.export import (
     artifact_for,
@@ -193,3 +194,35 @@ def test_autoencoder_export_rechecks_source_groups_and_inner_temporal_separation
     )
     with pytest.raises(ValueError, match="whole-session|embargo"):
         artifact_for(method, changed, synthetic=True)
+
+
+def test_installed_layout_still_protects_the_destination_repository(tmp_path, monkeypatch):
+    root = Path(__file__).resolve().parents[2]
+    installed = tmp_path / "venv/lib/python3.12/site-packages/corepulse_ml/export.py"
+    monkeypatch.setattr(exporter, "__file__", str(installed))
+    with pytest.raises(ValueError, match="ignored"):
+        ensure_artifact_destination(root / "ml" / "unsafe-installed-coefficients.json")
+    assert (
+        ensure_artifact_destination(root / "reports" / "local-model.json")
+        == (root / "reports" / "local-model.json").resolve()
+    )
+
+
+def test_source_layout_protection_survives_missing_markers(tmp_path, monkeypatch):
+    root = tmp_path / "source"
+    monkeypatch.setattr(exporter, "__file__", str(root / "ml/src/corepulse_ml/export.py"))
+    with pytest.raises(ValueError, match="ignored"):
+        ensure_artifact_destination(root / "ml" / "unsafe-model.json")
+
+
+def test_other_committed_source_workspace_is_detected_without_an_editable_binding(tmp_path):
+    root = tmp_path / "archive"
+    (root / "ml").mkdir(parents=True)
+    (root / "go.mod").write_text("module example.invalid/corepulse\n")
+    (root / "ml/pyproject.toml").write_text("[project]\nname = 'corepulse-ml'\n")
+    with pytest.raises(ValueError, match="ignored"):
+        ensure_artifact_destination(root / "ml/src/corepulse_ml/unsafe.json")
+    assert (
+        ensure_artifact_destination(root / "reports/model.json")
+        == (root / "reports/model.json").resolve()
+    )

@@ -62,6 +62,10 @@ check the declared CSV/split hashes against their intended sources. A valid JSON
 shape does not authenticate origin, parameters, session declarations or training
 independence. There is no pickle, cgo dependency, model service or online
 retraining requirement in this restricted format.
+Destination-workspace detection keeps tracked-source protection when Python is
+used from a wheel or from a different source archive; it does not assume an
+editable install. The source-layout fallback retains protection if workspace
+markers are absent. Trained outputs still belong in ignored directories.
 
 ## Go API and numerical checks
 
