@@ -1,5 +1,10 @@
 # Offline neural session — 2026-11-11
 
+> **12 November publication follow-up:** all twelve branches are now published
+> with the draft PR links below. Publication was authorized after the offline
+> session, including the existing network-isolated client-only CI check. The
+> cluster-access prohibition remains in force. README media uses invented data.
+
 The requested implementation queue is complete locally, using invented fixtures
 only. No result in this session measures real-network accuracy or service health.
 Work began around 16:15 UTC (19:15 Europe/Istanbul), from
@@ -9,23 +14,24 @@ Work began around 16:15 UTC (19:15 Europe/Istanbul), from
 ## Task status and branches
 
 “Done” means implemented and validated locally. The synthetic GitHub Actions job
-is defined but has not run on GitHub. No branch was published and no PR was opened;
-the publishing constraint is explained below. Each branch starts from its predecessor.
+was defined but had not run on GitHub at the end of the 11 November session.
+Branches and draft PRs were published on 12 November; the initial publication
+constraint is explained below. Each branch starts from its predecessor.
 
 | Task | Status | Branch | Implementation commit | PR |
 | --- | --- | --- | --- | --- |
-| N2.1 Python 3.12 CPU workspace, locked dependencies, Ruff, pytest, synthetic CI | Done locally | `nn/n2-1-ml-workspace` | `73207c7` | None |
-| N2.2 Hash/split verification, feature allowlist, training-only preprocessing | Done locally | `nn/n2-2-data-loader` | `76334b9` | None |
-| N2.3 Inner validation grouped by run/session | Done locally | `nn/n2-3-inner-validation` | `71cb64d` | None |
-| N2.4 Strict experiment YAML and complete held-out reports | Done locally | `nn/n2-4-experiment-reports` | `cb693be` | None |
-| N2.5 Extensible schema-3 snapshot and offline dashboard display | Done locally | `nn/n2-5-dashboard-schema` | `e12ac73` | None |
-| N2.6 Training/inference ADR 0004 | Done locally | `nn/n2-6-neural-adr` | `7d48370` | None |
-| N1.5 Masked sequence export and compatible provenance/splits | Done locally | `nn/n1-5-sequence-export` | `746a17d` | None |
-| N3.1 Group-validated CPU MLP | Done locally | `nn/n3-1-mlp` | `9f03ebf` | None |
-| N3.2 Every fixed MLP seed in the synthetic smoke workflow | Done locally | `nn/n3-2-synthetic-smoke` | `a247850` | None |
-| N5.1 Normal-only autoencoder with validation-percentile threshold | Done locally | `nn/n5-1-autoencoder` | `7cc30d3` | None |
-| N6.1 Source-bound versioned JSON coefficient export | Done locally | `nn/n6-1-json-export` | `5bfc0a1` | None |
-| N6.2 Pure-Go inference and actual CPU PyTorch parity | Done locally | `nn/n6-2-go-inference` | `467ef6c` | None |
+| N2.1 Python 3.12 CPU workspace, locked dependencies, Ruff, pytest, synthetic CI | Done locally | `nn/n2-1-ml-workspace` | `73207c7` | [Draft #66](https://github.com/lazypanic999/CorePulse/pull/66) |
+| N2.2 Hash/split verification, feature allowlist, training-only preprocessing | Done locally | `nn/n2-2-data-loader` | `76334b9` | [Draft #67](https://github.com/lazypanic999/CorePulse/pull/67) |
+| N2.3 Inner validation grouped by run/session | Done locally | `nn/n2-3-inner-validation` | `71cb64d` | [Draft #68](https://github.com/lazypanic999/CorePulse/pull/68) |
+| N2.4 Strict experiment YAML and complete held-out reports | Done locally | `nn/n2-4-experiment-reports` | `cb693be` | [Draft #69](https://github.com/lazypanic999/CorePulse/pull/69) |
+| N2.5 Extensible schema-3 snapshot and offline dashboard display | Done locally | `nn/n2-5-dashboard-schema` | `e12ac73` | [Draft #70](https://github.com/lazypanic999/CorePulse/pull/70) |
+| N2.6 Training/inference ADR 0004 | Done locally | `nn/n2-6-neural-adr` | `7d48370` | [Draft #71](https://github.com/lazypanic999/CorePulse/pull/71) |
+| N1.5 Masked sequence export and compatible provenance/splits | Done locally | `nn/n1-5-sequence-export` | `746a17d` | [Draft #72](https://github.com/lazypanic999/CorePulse/pull/72) |
+| N3.1 Group-validated CPU MLP | Done locally | `nn/n3-1-mlp` | `9f03ebf` | [Draft #73](https://github.com/lazypanic999/CorePulse/pull/73) |
+| N3.2 Every fixed MLP seed in the synthetic smoke workflow | Done locally | `nn/n3-2-synthetic-smoke` | `a247850` | [Draft #74](https://github.com/lazypanic999/CorePulse/pull/74) |
+| N5.1 Normal-only autoencoder with validation-percentile threshold | Done locally | `nn/n5-1-autoencoder` | `7cc30d3` | [Draft #75](https://github.com/lazypanic999/CorePulse/pull/75) |
+| N6.1 Source-bound versioned JSON coefficient export | Done locally | `nn/n6-1-json-export` | `5bfc0a1` | [Draft #76](https://github.com/lazypanic999/CorePulse/pull/76) |
+| N6.2 Pure-Go inference and actual CPU PyTorch parity | Done locally | `nn/n6-2-go-inference` | `467ef6c` | [Draft #77](https://github.com/lazypanic999/CorePulse/pull/77) |
 
 Further focused commits on the last branch add numeric/resource limits, output
 preflight, trained-export integration, exact nanosecond boundaries, parser/fuzz
@@ -84,7 +90,7 @@ These stay within the requested tasks; no new roadmap item was started.
   report hashes or rerun the fixed experiment. A training failure before writes
   preserves the previous report and model files.
 
-## Why there are no pushed branches or draft PRs
+## Why publication was deferred on 11 November
 
 The existing, unchanged [CI workflow](../../.github/workflows/ci.yml) runs this
 container client check on pushes and pull requests:
@@ -97,9 +103,10 @@ That check is client-only and network-isolated; it does not contact a cluster.
 Nevertheless, the session instruction says never to run `kubectl`. I treated
 triggering it through publication as outside the authorized scope, so kept all work
 in local commits. I did not disable, skip or weaken existing CI to publish.
-A later session can publish the stack and open draft PRs once this client-only
-check is explicitly allowed. This was an instruction boundary, not an automatic
-approval-review rejection or a demonstrated GitHub authentication failure.
+The 12 November follow-up authorized publication including this client-only
+check, so the stack and draft PRs are now published. The original deferral was an
+instruction boundary, not an automatic approval-review rejection or a
+demonstrated GitHub authentication failure.
 
 ## Validation evidence
 
@@ -210,8 +217,10 @@ fresh Linux test-binary alternative; skipping parity is not an alternative.
 
 ## Checks and decisions still outside this session
 
-- Publishing the branch stack and running hosted CI need the client-only CLI
-  restriction resolved. No merges, release or package publication was performed.
+- Branch publication and the network-isolated client-only CI check were
+  authorized on 12 November. The synthetic hosted job passed for the original
+  final stack commit; current hosted status is available on the draft PRs.
+  No merges, release or package publication was performed.
 - Real-lab neural quality, independent-session support and live service-health
   behavior remain unmeasured. Any future lab check needs separate authorization
   and adequate capture/protocol provenance; no synthetic score should be used as
