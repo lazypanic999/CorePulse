@@ -307,6 +307,7 @@ func loadOutputs(dir string) (json.RawMessage, map[string]loaded, []Model, error
 				Means   []float64 `json:"means"`
 				Scales  []float64 `json:"scales"`
 			} `json:"preprocessing"`
+			Threshold *float64 `json:"threshold"`
 		}
 		if err := json.Unmarshal(b, &definition); err != nil {
 			return nil, nil, nil, err
@@ -374,7 +375,7 @@ func loadOutputs(dir string) (json.RawMessage, map[string]loaded, []Model, error
 					return nil, nil, nil, fmt.Errorf("CPU reference input differs from source preprocessing")
 				}
 			}
-			if err := verifyNumerics(meta.Kind, got, cpu); err != nil {
+			if err := verifyNumerics(meta.Kind, got, cpu, definition.Threshold); err != nil {
 				return nil, nil, nil, fmt.Errorf("%s/%s: %w", name, p.RunID, err)
 			}
 			sample := Sample{len(item.samples), row.RunID, row.WindowStart.Format(time.RFC3339Nano), p.Truth}

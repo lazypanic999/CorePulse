@@ -27,14 +27,18 @@ type cpuReferences struct {
 // Raw outputs retain absolute 1e-5 parity. A derived float32 MSE cannot have
 // universal absolute 1e-5 precision: one ULP already exceeds it around 128.
 // Bound score differences by the measured output difference plus the standard
-// positive-sum/division float32 rounding budget. Classification must still match.
-// Existing fixed-fixture score assertions remain absolute 1e-5 and unchanged.
-func verifyNumerics(kind string, got inference.Result, reference referenceCase) error {
+// positive-sum/division float32 rounding budget. Classification must still match,
+// with one exception: an autoencoder score that both runtimes place within that
+// budget of the threshold. The threshold is a calibration window's own score and
+// equality is normal, so a held-out window identical to it scores exactly at the
+// threshold in PyTorch while Go may land one float32 ULP above. Existing
+// fixed-fixture score assertions remain absolute 1e-5 and unchanged.
+func verifyNumerics(kind string, got inference.Result, reference referenceCase, threshold *float64) error {
 	if math.IsNaN(got.Score) || math.IsInf(got.Score, 0) || math.IsNaN(reference.Score) || math.IsInf(reference.Score, 0) {
 		return fmt.Errorf("non-finite parity score")
 	}
-	if len(got.Outputs) != len(reference.Outputs) || len(got.Outputs) == 0 || got.Predicted != reference.Predicted {
-		return fmt.Errorf("Go output dimensions/class differ from CPU PyTorch")
+	if len(got.Outputs) != len(reference.Outputs) || len(got.Outputs) == 0 {
+		return fmt.Errorf("Go output dimensions differ from CPU PyTorch")
 	}
 	for i, value := range got.Outputs {
 		if math.IsNaN(value) || math.IsInf(value, 0) || math.IsNaN(reference.Outputs[i]) || math.IsInf(reference.Outputs[i], 0) || math.Abs(value-reference.Outputs[i]) > 1e-5 {
@@ -56,6 +60,13 @@ func verifyNumerics(kind string, got inference.Result, reference referenceCase) 
 	}
 	if math.Abs(got.Score-reference.Score) > tolerance {
 		return fmt.Errorf("Go derived score exceeds its numerical error budget")
+	}
+	if got.Predicted != reference.Predicted {
+		atBoundary := kind == "autoencoder" && threshold != nil &&
+			math.Abs(got.Score-*threshold) <= tolerance && math.Abs(reference.Score-*threshold) <= tolerance
+		if !atBoundary {
+			return fmt.Errorf("Go class differs from CPU PyTorch")
+		}
 	}
 	return nil
 }
