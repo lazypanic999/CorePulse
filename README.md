@@ -112,6 +112,12 @@ The [synthetic walkthrough](examples/offline/README.md) includes nine invented r
 
 ## Offline neural experiments
 
+The dashboard's optional [Neural experiments workspace](docs/neural-workspace-ui.md)
+can train the fixed synthetic cohort and run exported models through pure-Go
+inference. Enable it with `corepulse serve --ml-python /absolute/path/to/the/locked/python`.
+Live lab observations stay separate; every neural training result is labelled
+synthetic. Without the flag the worker is disabled.
+
 ![CorePulse workflow: hash-bound windows, grouped validation, CPU neural training and versioned JSON for pure-Go inference](assets/neural-workflow.svg)
 
 The experimental [offline neural workspace](ml/README.md) adds CPU MLP and
@@ -121,7 +127,7 @@ workflow uses invented data only; real-network neural performance and live model
 integration remain unvalidated. [Masked capture-time sequences](docs/sequences.md)
 also retain empty 5-second steps without inventing measurements.
 
-![Actual offline evaluation UI with all four references, two MLP seeds, two autoencoder seeds, mistakes and the synthetic-data warning](assets/dashboard-neural-synthetic.png)
+![Actual neural workspace with synthetic training, four exported models and a held-out prediction evaluated in Go](assets/dashboard-neural-workspace.png)
 
 This capture uses **invented data only**. The MLP predicts the declared scenario;
 the normal-only autoencoder detects unusual reconstruction error. Their tasks

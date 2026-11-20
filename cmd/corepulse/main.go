@@ -19,6 +19,7 @@ import (
 	"github.com/lazypanic999/CorePulse/internal/dashboard"
 	"github.com/lazypanic999/CorePulse/internal/dataset"
 	"github.com/lazypanic999/CorePulse/internal/evaluation"
+	"github.com/lazypanic999/CorePulse/internal/neural"
 	"github.com/lazypanic999/CorePulse/internal/runrecord"
 	"github.com/lazypanic999/CorePulse/internal/telemetry"
 )
@@ -234,6 +235,7 @@ func run(args []string) (int, error) {
 		addr := flags.String("addr", "127.0.0.1:8787", "local dashboard address")
 		runsDir := flags.String("runs-dir", "runs", "run record directory")
 		evaluationPath := flags.String("evaluation", filepath.Join("reports", "evaluation.json"), "saved offline evaluation report to display")
+		mlPython := flags.String("ml-python", "", "absolute locked Python 3.12 executable; enables offline synthetic neural training")
 		if err := flags.Parse(args[1:]); err != nil {
 			return 1, err
 		}
@@ -251,10 +253,25 @@ func run(args []string) (int, error) {
 		if host != "localhost" && (ip == nil || !ip.IsLoopback()) {
 			return 1, errors.New("dashboard must bind to a loopback address")
 		}
+		var manager *neural.Manager
+		if *mlPython != "" {
+			root, err := os.Getwd()
+			if err != nil {
+				return 1, err
+			}
+			binary, err := os.Executable()
+			if err != nil {
+				return 1, err
+			}
+			manager, err = neural.New(root, *mlPython, binary)
+			if err != nil {
+				return 1, err
+			}
+		}
 		fmt.Fprintf(os.Stderr, "CorePulse dashboard: http://%s\n", *addr)
 		store := telemetry.NewStore(filepath.Join("data", "telemetry.jsonl"))
 		store.Start(context.Background(), client, 10*time.Second)
-		return 1, http.ListenAndServe(*addr, dashboard.NewWithSession(client, *runsDir, store, *evaluationPath, *sessionID))
+		return 1, http.ListenAndServe(*addr, dashboard.NewWithNeural(client, *runsDir, store, *evaluationPath, *sessionID, manager))
 	case "evaluate":
 		flags := flag.NewFlagSet("evaluate", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)

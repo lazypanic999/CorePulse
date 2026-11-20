@@ -3,17 +3,19 @@ package dashboard
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"io/fs"
+	"mime"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/lazypanic999/CorePulse/internal/collection"
 	"github.com/lazypanic999/CorePulse/internal/corepulse"
+	"github.com/lazypanic999/CorePulse/internal/neural"
 	"github.com/lazypanic999/CorePulse/internal/runrecord"
 	"github.com/lazypanic999/CorePulse/internal/telemetry"
 )
@@ -27,6 +29,7 @@ type Server struct {
 	RunsDir        string
 	Telemetry      *telemetry.Store
 	EvaluationPath string
+	Neural         *neural.Manager
 
 	// The protocol view reads four pod logs; several tabs polling every
 	// 30 s share one read per protocolCacheTTL.
@@ -50,7 +53,11 @@ func NewWithEvaluation(client corepulse.Client, runsDir string, store *telemetry
 }
 
 func NewWithSession(client corepulse.Client, runsDir string, store *telemetry.Store, evaluationPath, sessionID string) http.Handler {
-	s := &Server{Client: client, RunsDir: runsDir, Telemetry: store, EvaluationPath: evaluationPath, SessionID: sessionID}
+	return NewWithNeural(client, runsDir, store, evaluationPath, sessionID, nil)
+}
+
+func NewWithNeural(client corepulse.Client, runsDir string, store *telemetry.Store, evaluationPath, sessionID string, manager *neural.Manager) http.Handler {
+	s := &Server{Client: client, RunsDir: runsDir, Telemetry: store, EvaluationPath: evaluationPath, SessionID: sessionID, Neural: manager}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/overview", s.overview)
 	mux.HandleFunc("GET /api/plan", s.plan)
@@ -59,6 +66,9 @@ func NewWithSession(client corepulse.Client, runsDir string, store *telemetry.St
 	mux.HandleFunc("GET /api/service-check", s.serviceCheck)
 	mux.HandleFunc("GET /api/protocol", s.protocol)
 	mux.HandleFunc("GET /api/evaluation", s.evaluation)
+	mux.HandleFunc("GET /api/neural", s.neuralStatus)
+	mux.HandleFunc("POST /api/neural/start", s.neuralStart)
+	mux.HandleFunc("POST /api/neural/predict", s.neuralPredict)
 	mux.HandleFunc("GET /api/collection", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, struct {
 			collection.OwnershipState
@@ -224,13 +234,22 @@ func (s *Server) runs(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"runs": result})
 }
 
-func (s *Server) runPodCrash(w http.ResponseWriter, r *http.Request) {
-	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-		writeJSON(w, http.StatusUnsupportedMediaType, map[string]string{"error": "JSON request required"})
-		return
+// localJSONRequest is the shared guard for state-changing endpoints: a JSON
+// body (parameters such as charset allowed) and no cross-origin browser caller.
+func localJSONRequest(r *http.Request) (int, error) {
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/json" {
+		return http.StatusUnsupportedMediaType, errors.New("JSON request required")
 	}
 	if origin := r.Header.Get("Origin"); origin != "" && origin != "http://"+r.Host {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "Cross-origin request denied"})
+		return http.StatusForbidden, errors.New("Cross-origin request denied")
+	}
+	return 0, nil
+}
+
+func (s *Server) runPodCrash(w http.ResponseWriter, r *http.Request) {
+	if status, err := localJSONRequest(r); err != nil {
+		writeJSON(w, status, map[string]string{"error": err.Error()})
 		return
 	}
 	var request struct {

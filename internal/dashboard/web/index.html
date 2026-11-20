@@ -9,6 +9,7 @@
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
   <script src="/app.js" defer></script>
+  <script src="/neural.js" defer></script>
 </head>
 <body>
   <header class="masthead">
@@ -137,6 +138,27 @@
       <div class="empty" id="runs-empty">
         <strong>No runs yet</strong>
         <p>Runs started here or with <code>corepulse pod-crash --apply</code> are listed from the local <code>runs/</code> folder.</p>
+      </div>
+    </section>
+    <section class="panel runs" id="neural" aria-labelledby="neural-heading">
+      <h2 id="neural-heading">Neural experiments</h2>
+      <p class="panel-lede">Train an MLP scenario classifier and a normal-only autoencoder, then run an exported model on held-out inputs.</p>
+      <p class="panel-lede"><strong>Synthetic training data only.</strong> This workspace uses the fixed invented tutorial cohort. Live lab observations and saved live run records remain separate.</p>
+      <label><input type="checkbox" id="neural-confirm"> Use the fixed synthetic dataset</label>
+      <div class="actions"><button class="button" id="neural-train" type="button" disabled>Train neural models</button></div>
+      <p class="chart-foot" id="neural-phase" aria-live="polite">Checking the neural worker.</p>
+      <progress id="neural-progress" aria-label="Neural training in progress" hidden></progress>
+      <div id="neural-results" hidden>
+        <p class="chart-foot">Every fixed seed is retained. Scenario classification and anomaly detection are different tasks; their F1 values are not one leaderboard.</p>
+        <div class="table-wrap"><table aria-label="Neural model results"><thead><tr><th>Model</th><th>Task</th><th>Held-out macro F1</th><th>Coverage</th></tr></thead><tbody id="neural-models"></tbody></table></div>
+        <h3>Try a held-out window</h3>
+        <div class="neural-inputs"><label>Model<select id="neural-model"></select></label><label>Held-out sample<select id="neural-sample"></select></label><button class="button" id="neural-predict" type="button">Predict with Go</button></div>
+        <p class="chart-foot">Only resource features enter the model. Known interval labels are used for comparison after prediction.</p>
+        <div id="neural-prediction" class="neural-prediction" role="status" hidden></div>
+        <details class="raw"><summary>All reference methods and held-out predictions</summary>
+          <div class="table-wrap"><table><thead><tr><th>Method</th><th>Task</th><th>Macro F1</th><th>Coverage</th></tr></thead><tbody id="neural-references"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>Method</th><th>Run</th><th>Known interval</th><th>Prediction</th></tr></thead><tbody id="neural-predictions"></tbody></table></div>
+        </details>
       </div>
     </section>
     <section class="panel runs" id="evaluation" aria-labelledby="evaluation-heading">

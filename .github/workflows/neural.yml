@@ -45,5 +45,9 @@ jobs:
         run: uv run --project ml --locked python -m corepulse_ml.experiment ml/experiments/synthetic-smoke.yaml --export-dir reports/neural-synthetic/models
       - name: Validate Python report with the Go snapshot reader
         run: COREPULSE_SYNTHETIC_REPORT="$PWD/reports/neural-synthetic/evaluation.json" go test ./internal/evaluation -run '^TestPythonSyntheticSnapshot$' -count=1
+      - name: Validate dashboard neural artifacts and Go predictions
+        run: |
+          uv run --project ml --locked python -m corepulse_ml.ui_parity reports/neural-synthetic
+          COREPULSE_NEURAL_JOB_FIXTURE="$PWD/reports/neural-synthetic" go test ./internal/neural -run '^TestPythonExportIntegrity$' -count=1
       - name: Render only the invented report with dashboard DOM fixtures
         run: node --test scripts/tests/dashboard-evaluation.test.cjs

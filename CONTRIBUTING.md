@@ -68,6 +68,7 @@ Open `http://127.0.0.1:8787`. The server only binds to loopback addresses and re
 | `internal/dataset` | Curated CSV built only from verified run intervals |
 | `internal/evaluation` | Offline baselines, training-only preprocessing, and held-out metrics |
 | `internal/inference` | Standard-library-only evaluation of versioned dense/ReLU JSON artifacts |
+| `internal/neural` | Optional fixed-cohort training jobs, artifact verification and held-out Go predictions |
 | `ml/` | Offline CPU neural experiments, grouped validation, calibration and coefficient export |
 | `internal/runrecord` | Atomic run record writes |
 | `internal/dashboard` | Loopback HTTP API and the embedded web UI in `web/` |
