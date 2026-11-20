@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"regexp"
 	"slices"
 	"sort"
 	"time"
@@ -16,7 +17,8 @@ import (
 // fitted parameters, labels, split independence or source CSV hash.
 func ValidateSnapshot(r Report) error {
 	hash, err := hex.DecodeString(r.WindowsSHA256)
-	if err != nil || len(hash) != 32 || (r.SchemaVersion != 1 && r.SchemaVersion != 2) || r.SchemaVersion != r.Split.SchemaVersion || r.Split.WindowsSHA256 != r.WindowsSHA256 {
+	legacy := r.SchemaVersion == 1 || r.SchemaVersion == 2
+	if err != nil || len(hash) != 32 || (!legacy && r.SchemaVersion != 3) || legacy && r.SchemaVersion != r.Split.SchemaVersion || r.Split.WindowsSHA256 != r.WindowsSHA256 {
 		return fmt.Errorf("unsupported report schema or inconsistent source hash")
 	}
 	if err := dataset.ValidateGrouping(r.Split); err != nil {
@@ -44,8 +46,22 @@ func ValidateSnapshot(r Report) error {
 		return fmt.Errorf("inconsistent split support")
 	}
 	tasks := map[string]string{"nearest_centroid": "scenario_classification", "majority_scenario": "scenario_classification", "normal_zscore": "normal_vs_fault_interval", "probe_rule": "normal_vs_fault_interval"}
-	if len(r.Models) != len(tasks) {
+	if legacy && len(r.Models) != len(tasks) {
 		return fmt.Errorf("report must retain all four reference methods")
+	}
+	for name, task := range tasks {
+		model, ok := r.Models[name]
+		if !ok || model.Task != task {
+			return fmt.Errorf("missing or inconsistent reference method %s", name)
+		}
+	}
+	if !legacy {
+		for name, model := range r.Models {
+			if !methodName.MatchString(name) || model.Task != "scenario_classification" && model.Task != "normal_vs_fault_interval" {
+				return fmt.Errorf("invalid extra method name or task")
+			}
+			tasks[name] = model.Task
+		}
 	}
 	// Establish a common scenario identity for every held-out window. Other
 	// methods must retain exactly these windows, with compatible binary truth.
@@ -109,8 +125,13 @@ func ValidateSnapshot(r Report) error {
 			return fmt.Errorf("stored scores or support disagree with predictions in %s", name)
 		}
 	}
+	if !legacy {
+		return validateSeedSpread(r)
+	}
 	return nil
 }
+
+var methodName = regexp.MustCompile(`^[a-z][a-z0-9_]{0,95}$`)
 
 func predictionKey(p Prediction) string {
 	return p.RunID + "/" + p.WindowStart.UTC().Format(time.RFC3339Nano)

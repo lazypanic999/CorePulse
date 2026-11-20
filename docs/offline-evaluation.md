@@ -1,5 +1,18 @@
 # Offline detection and classification baselines
 
+Saved report schemas 1 and 2 keep their original four-method contract. Schema 3
+retains those four references and permits additional named scenario/binary
+methods; its embedded split still uses schema 1 (runs) or 2 (sessions). Every
+method must retain exactly the same held-out identities and compatible truths.
+The snapshot reader recomputes confusion matrices, per-class scores, coverage
+and run votes from all predictions, including abstentions. Declared seed-family
+summaries must match every family member and use population standard deviation.
+They are descriptive variation, not confidence intervals. The dashboard displays
+extra methods and seed summaries and preserves the prominent synthetic warning.
+Snapshot validation cannot authenticate source data, fitted parameters or
+measurement independence. See [the offline neural workspace](../ml/README.md)
+for the explicitly synthetic development runner; no neural model is deployed.
+
 The `evaluate` command fits deliberately simple resource baselines on training runs and reports predictions on held-out runs. It also compares two trivial rules. It does not deploy a model or add live dashboard predictions.
 
 ```bash

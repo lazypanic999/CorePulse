@@ -253,7 +253,16 @@ async function refreshEvaluation() {
     const predictions = $('#evaluation-predictions');
     body.replaceChildren(); predictions.replaceChildren();
     const methods = { nearest_centroid: 'Nearest centroid', majority_scenario: 'Majority scenario', normal_zscore: 'Normal-only deviation', probe_rule: 'Packet rule' };
-    for (const [name, model] of Object.entries(report.models)) {
+    const methodOrder = [...Object.keys(methods), ...Object.keys(report.models).filter(name => !Object.hasOwn(methods, name)).sort()];
+    const seedList = $('#evaluation-seeds'); seedList.replaceChildren();
+    for (const [family, summary] of Object.entries(report.seed_spread || {}).sort(([a], [b]) => a.localeCompare(b))) {
+      const li = document.createElement('li');
+      const spread = summary.window_macro_f1;
+      li.textContent = `${family}: all ${summary.seeds.length} seeds (${summary.seeds.join(', ')}). Window macro F1 mean ${spread.mean.toFixed(3)}, population standard deviation ${spread.stddev.toFixed(3)}, range ${spread.min.toFixed(3)}–${spread.max.toFixed(3)}. This is descriptive variation, not a confidence interval.`;
+      seedList.append(li);
+    }
+    for (const name of methodOrder) {
+      const model = report.models[name];
       const row = document.createElement('tr');
       const wrong = model.predictions.filter(p => p.predicted && p.predicted !== p.truth).length;
       cell(row, methods[name] || name);
