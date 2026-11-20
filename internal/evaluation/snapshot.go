@@ -27,7 +27,7 @@ func ValidateSnapshot(r Report) error {
 	if r.TrainWindows < 1 || r.TestWindows < 1 || r.NormalTrainingWindows < 2 || r.NormalTrainingWindows > r.TrainWindows || r.PurgedWindows < 0 || !finite(r.ZScoreThreshold) || r.ZScoreThreshold <= 0 {
 		return fmt.Errorf("invalid report support or threshold")
 	}
-	if !slices.Equal(r.Split.FeatureNames, dataset.WindowFeatureNames()) || !finite(r.Split.TestFraction) || r.Split.TestFraction <= 0 || r.Split.TestFraction >= 1 || !finite(r.Split.EmbargoSeconds) || r.Split.EmbargoSeconds < 0 || r.Split.EmbargoSeconds > 86400 {
+	if r.Split.InputKind != "" || !slices.Equal(r.Split.FeatureNames, dataset.WindowFeatureNames()) || !finite(r.Split.TestFraction) || r.Split.TestFraction <= 0 || r.Split.TestFraction >= 1 || !finite(r.Split.EmbargoSeconds) || r.Split.EmbargoSeconds < 0 || r.Split.EmbargoSeconds > 86400 {
 		return fmt.Errorf("unsupported split features or policy")
 	}
 	roles := map[string]string{}

@@ -1,5 +1,9 @@
 # Windowed features and whole-run splits
 
+For run-aligned 5-second grids with explicit per-signal observation masks and
+retained empty steps, see [masked offline sequences](sequences.md). That separate
+CSV contract uses the same split machinery; it is not accepted by window models.
+
 `windows` and `split` work offline on existing telemetry and run records. They prepare a reproducible experiment benchmark; they do not train a model or turn experiment labels into proof of service degradation.
 
 ```bash

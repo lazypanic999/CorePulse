@@ -211,7 +211,7 @@ func validateSplit(data dataset.WindowData, m dataset.SplitManifest, allowLegacy
 	if m.TestFraction <= 0 || m.TestFraction >= 1 {
 		return nil, nil, nil, fmt.Errorf("invalid test fraction in split manifest")
 	}
-	if m.WindowsSHA256 != data.SHA256 || !slices.Equal(m.FeatureNames, dataset.WindowFeatureNames()) {
+	if m.InputKind != "" || m.WindowsSHA256 != data.SHA256 || !slices.Equal(m.FeatureNames, dataset.WindowFeatureNames()) {
 		return nil, nil, nil, fmt.Errorf("split schema, feature allowlist or CSV hash mismatch; rebuild the split manifest")
 	}
 	if err := dataset.VerifySessionAssignments(data, m); err != nil {

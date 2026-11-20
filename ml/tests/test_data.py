@@ -24,6 +24,15 @@ def test_legacy_and_session_membership_is_exact_and_immutable(tmp_path, schema):
         data.rows[0].run_id = "changed"
 
 
+def test_window_loader_rejects_a_sequence_manifest(tmp_path):
+    windows, split = invented_windows(tmp_path)
+    manifest = json.loads(split.read_text())
+    manifest["input_kind"] = "sequences_v1"
+    split.write_text(json.dumps(manifest))
+    with pytest.raises(ValueError, match="sequence"):
+        load_windows(windows, split)
+
+
 def test_hash_mismatch_refuses_before_processing(tmp_path):
     windows, split = invented_windows(tmp_path)
     windows.write_bytes(windows.read_bytes() + b"\n")

@@ -236,6 +236,8 @@ def near(a: tuple[int, int], b: tuple[int, int], embargo_ns: int) -> bool:
 
 
 def _grouping(manifest: dict, rows: tuple[WindowRow, ...], roles: dict[str, str]) -> None:
+    if manifest.get("input_kind", "") != "":
+        raise ValueError("window loader cannot consume a sequence split")
     schema = manifest.get("schema_version")
     if type(schema) is not int or schema not in (1, 2):
         raise ValueError("unsupported split schema")

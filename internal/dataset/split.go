@@ -28,8 +28,10 @@ type WindowRow struct {
 }
 
 type WindowData struct {
-	SHA256 string
-	Rows   []WindowRow
+	InputKind    string
+	FeatureNames []string
+	SHA256       string
+	Rows         []WindowRow
 }
 
 func WindowFeatureNames() []string { return append([]string(nil), windowHeader()[11:]...) }
@@ -149,6 +151,7 @@ type ClassSplit struct {
 	TestRuns  int `json:"test_runs"`
 }
 type SplitManifest struct {
+	InputKind          string                `json:"input_kind,omitempty"`
 	Grouping           string                `json:"grouping,omitempty"`
 	SessionAssignments map[string]string     `json:"session_assignments,omitempty"`
 	TrainSessions      []string              `json:"train_sessions,omitempty"`
@@ -185,9 +188,12 @@ func Split(inputPath, outputPath string, options SplitOptions) (SplitManifest, e
 	}
 	m.EmbargoSeconds = options.Embargo.Seconds()
 	m.PurgedRuns = []string{}
-	data, err := ReadWindows(inputPath)
+	data, err := ReadSplitInput(inputPath)
 	if err != nil {
 		return m, err
+	}
+	if data.InputKind != "" {
+		m.InputKind, m.FeatureNames = data.InputKind, append([]string(nil), data.FeatureNames...)
 	}
 	m.WindowsSHA256 = data.SHA256
 	if options.GroupBy == "session" {
