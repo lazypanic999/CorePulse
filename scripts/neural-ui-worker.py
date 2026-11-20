@@ -9,6 +9,8 @@ from pathlib import Path
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+SMOKE_OUTPUT = 'reports/neural-synthetic/'
+SMOKE_PATHS = 4
 
 
 def progress(directory, phase):
@@ -25,7 +27,12 @@ def configuration(directory):
         raise ValueError('Neural jobs must use a dedicated ignored job directory')
     relative = directory.relative_to(ROOT).as_posix()
     source = (ROOT / 'ml/experiments/synthetic-smoke.yaml').read_text(encoding='utf-8')
-    return source.replace('reports/neural-synthetic/', relative + '/')
+    # windows, split, references and output must all move into the job
+    # directory; a renamed template path would otherwise write to the shared one.
+    if source.count(SMOKE_OUTPUT) != SMOKE_PATHS:
+        raise ValueError(f'synthetic-smoke.yaml must declare exactly {SMOKE_PATHS} '
+                         f'paths under {SMOKE_OUTPUT}')
+    return source.replace(SMOKE_OUTPUT, relative + '/')
 
 
 def main():

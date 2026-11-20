@@ -65,3 +65,28 @@ func TestNeuralDisabledAndRequestGuardsNeverContactLab(t *testing.T) {
 		t.Fatal("neural requests contacted the lab")
 	}
 }
+
+func TestLocalJSONRequestSharedGuard(t *testing.T) {
+	tests := []struct {
+		contentType, origin string
+		code                int
+	}{
+		{"application/json", "", 0},
+		{"application/json; charset=utf-8", "", 0},
+		{"application/json", "http://127.0.0.1:8787", 0},
+		{"text/plain", "", http.StatusUnsupportedMediaType},
+		{"application/jsonp", "", http.StatusUnsupportedMediaType},
+		{"", "", http.StatusUnsupportedMediaType},
+		{"application/json", "http://example.com", http.StatusForbidden},
+	}
+	for _, tc := range tests {
+		r := httptest.NewRequest("POST", "http://127.0.0.1:8787/api/neural/start", nil)
+		r.Header.Set("Content-Type", tc.contentType)
+		if tc.origin != "" {
+			r.Header.Set("Origin", tc.origin)
+		}
+		if code, _ := localJSONRequest(r); code != tc.code {
+			t.Errorf("%q origin %q: status %d, want %d", tc.contentType, tc.origin, code, tc.code)
+		}
+	}
+}

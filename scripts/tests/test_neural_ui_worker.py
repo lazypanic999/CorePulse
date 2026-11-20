@@ -2,6 +2,7 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
+import unittest.mock
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('ui_worker', ROOT / 'scripts/neural-ui-worker.py')
@@ -22,6 +23,14 @@ class NeuralUIWorkerTests(unittest.TestCase):
         self.assertIn('reports/neural-ui/job-fixture/windows.csv', text)
         self.assertIn('kind: mlp', text)
         self.assertIn('kind: autoencoder', text)
+        self.assertNotIn(worker.SMOKE_OUTPUT, text)
+
+    def test_template_without_expected_output_paths_is_rejected(self):
+        original = Path.read_text
+        renamed = lambda path, *a, **k: original(path, *a, **k).replace(
+            worker.SMOKE_OUTPUT, 'reports/elsewhere/')
+        with unittest.mock.patch.object(Path, 'read_text', renamed), self.assertRaises(ValueError):
+            worker.configuration(ROOT / 'reports/neural-ui/job-fixture')
 
     def test_progress_file_replaced_with_complete_json(self):
         import json

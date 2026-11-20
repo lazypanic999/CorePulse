@@ -3,12 +3,13 @@ package dashboard
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"io/fs"
+	"mime"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -233,13 +234,22 @@ func (s *Server) runs(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"runs": result})
 }
 
-func (s *Server) runPodCrash(w http.ResponseWriter, r *http.Request) {
-	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-		writeJSON(w, http.StatusUnsupportedMediaType, map[string]string{"error": "JSON request required"})
-		return
+// localJSONRequest is the shared guard for state-changing endpoints: a JSON
+// body (parameters such as charset allowed) and no cross-origin browser caller.
+func localJSONRequest(r *http.Request) (int, error) {
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/json" {
+		return http.StatusUnsupportedMediaType, errors.New("JSON request required")
 	}
 	if origin := r.Header.Get("Origin"); origin != "" && origin != "http://"+r.Host {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "Cross-origin request denied"})
+		return http.StatusForbidden, errors.New("Cross-origin request denied")
+	}
+	return 0, nil
+}
+
+func (s *Server) runPodCrash(w http.ResponseWriter, r *http.Request) {
+	if status, err := localJSONRequest(r); err != nil {
+		writeJSON(w, status, map[string]string{"error": err.Error()})
 		return
 	}
 	var request struct {

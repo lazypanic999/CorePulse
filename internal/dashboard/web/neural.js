@@ -43,6 +43,15 @@
       if (current.state === 'complete' && current.id !== rendered) { results(); rendered = current.id; }
       gates();
     } catch (error) { current = null; el('neural-phase').textContent = error.message; el('neural-results').hidden = true; el('neural-progress').hidden = true; gates(); }
+    schedule();
+  }
+  // Poll fast only while training runs. A disabled worker stays disabled until
+  // the dashboard restarts with --ml-python, so polling stops.
+  let timer = null;
+  function schedule() {
+    clearTimeout(timer);
+    if (current?.available === false) return;
+    timer = setTimeout(refresh, current?.state === 'running' ? 1500 : 5000);
   }
   el('neural-confirm').addEventListener('change', gates);
   el('neural-model').addEventListener('change', samples);
@@ -71,5 +80,5 @@
     } catch (error) { el('neural-prediction').textContent = error.message; el('neural-prediction').hidden = false; }
     finally { button.disabled = false; }
   });
-  refresh(); setInterval(refresh, 1500);
+  refresh();
 })();

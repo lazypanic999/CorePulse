@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/lazypanic999/CorePulse/internal/collection"
 	"github.com/lazypanic999/CorePulse/internal/dataset"
 	"github.com/lazypanic999/CorePulse/internal/evaluation"
 )
@@ -41,6 +43,70 @@ func TestManagerRefusesConcurrentTrainingAndNeverPublishesFailedScores(t *testin
 		t.Fatal("failed job served inference")
 	}
 }
+func waitFinished(t *testing.T, m *Manager) Job {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for m.Snapshot().State == "running" && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	return m.Snapshot()
+}
+
+func TestOwnershipTakenBeforeTrainingIsReportedAsNothingRan(t *testing.T) {
+	t.Setenv("COREPULSE_LOCK_DIR", filepath.Join(t.TempDir(), "ownership"))
+	owner, err := collection.AcquireOwnership("pod-crash:upf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer owner.Release()
+	ran := false
+	m := &Manager{root: t.TempDir(), job: Job{State: "idle", Available: true}, run: func(context.Context, string) error { ran = true; return nil }}
+	if _, err := m.Start(); err != nil {
+		t.Fatal(err)
+	}
+	got := waitFinished(t, m)
+	if ran || got.State != "failed" || !strings.Contains(got.Phase, "ownership") || !strings.Contains(got.Error, "Nothing ran") {
+		t.Fatalf("contention misreported: ran=%v %+v", ran, got)
+	}
+}
+
+func TestStartKeepsOnlyRecentJobDirectories(t *testing.T) {
+	t.Setenv("COREPULSE_LOCK_DIR", filepath.Join(t.TempDir(), "ownership"))
+	root := t.TempDir()
+	parent := filepath.Join(root, "reports", "neural-ui")
+	unrelated := filepath.Join(parent, "notes")
+	if err := os.MkdirAll(unrelated, 0755); err != nil {
+		t.Fatal(err)
+	}
+	base := time.Now().Add(-time.Hour)
+	for i := range 5 {
+		dir := filepath.Join(parent, fmt.Sprintf("job-old%d", i))
+		if err := os.Mkdir(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		stamp := base.Add(time.Duration(i) * time.Minute)
+		if err := os.Chtimes(dir, stamp, stamp); err != nil {
+			t.Fatal(err)
+		}
+	}
+	m := &Manager{root: root, job: Job{State: "idle", Available: true}, run: func(context.Context, string) error { return fmt.Errorf("fixture") }}
+	job, err := m.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitFinished(t, m)
+	entries, _ := os.ReadDir(parent)
+	names := []string{}
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	want := []string{"job-old3", "job-old4", job.ID, "notes"}
+	slices.Sort(want)
+	if !slices.Equal(names, want) {
+		t.Fatalf("kept %v, want %v", names, want)
+	}
+}
+
 func TestManagerRequiresExplicitExecutableConfiguration(t *testing.T) {
 	if _, err := New(t.TempDir(), "python", "corepulse"); err == nil {
 		t.Fatal("relative executable paths accepted")

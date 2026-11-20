@@ -17,11 +17,8 @@ func (s *Server) neuralStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.Neural.Snapshot())
 }
 func neuralRequest(w http.ResponseWriter, r *http.Request, value any) error {
-	if r.Header.Get("Content-Type") != "application/json" {
-		return fmt.Errorf("JSON request required")
-	}
-	if origin := r.Header.Get("Origin"); origin != "" && origin != "http://"+r.Host {
-		return fmt.Errorf("cross-origin request denied")
+	if _, err := localJSONRequest(r); err != nil {
+		return err
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 512)
 	decoder := json.NewDecoder(r.Body)

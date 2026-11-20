@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -86,7 +87,7 @@ func (m *Manager) Snapshot() Job {
 		var p struct {
 			Phase string `json:"phase"`
 		}
-		if b, e := os.ReadFile(filepath.Join(m.dir, "progress.json")); e == nil && len(b) < 4096 && json.Unmarshal(b, &p) == nil {
+		if b, e := readBounded(filepath.Join(m.dir, "progress.json"), 4096); e == nil && json.Unmarshal(b, &p) == nil {
 			j.Phase = p.Phase
 		}
 	}
@@ -105,6 +106,9 @@ func (m *Manager) Start() (Job, error) {
 	}
 	parent := filepath.Join(m.root, "reports", "neural-ui")
 	if err := os.MkdirAll(parent, 0755); err != nil {
+		return Job{}, err
+	}
+	if err := pruneJobs(parent, keptJobs-1); err != nil {
 		return Job{}, err
 	}
 	dir, err := os.MkdirTemp(parent, "job-")
@@ -128,7 +132,47 @@ func (m *Manager) execute(ctx context.Context, dir string) error {
 	cmd.Env = append(os.Environ(), "CUDA_VISIBLE_DEVICES=", "OMP_NUM_THREADS=1", "MKL_NUM_THREADS=1", "KUBECONFIG="+os.DevNull, "PYTHONPATH="+filepath.Join(m.root, "ml", "src"))
 	cmd.Stdout = log
 	cmd.Stderr = log
+	// The worker starts CLI children; a timeout must stop them too.
+	killProcessGroupOnCancel(cmd)
 	return cmd.Run()
+}
+
+// keptJobs bounds reports/neural-ui: each job holds windows, a split, a report
+// and four model files, and only the current job is served after a restart.
+const keptJobs = 3
+
+// pruneJobs removes all but the newest keep job-* directories under parent.
+// Only directories created by Start (job- prefix) are ever touched.
+func pruneJobs(parent string, keep int) error {
+	entries, err := os.ReadDir(parent)
+	if err != nil {
+		return err
+	}
+	type job struct {
+		path string
+		mod  time.Time
+	}
+	jobs := []job{}
+	for _, entry := range entries {
+		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "job-") {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		jobs = append(jobs, job{filepath.Join(parent, entry.Name()), info.ModTime()})
+	}
+	if len(jobs) <= keep {
+		return nil
+	}
+	slices.SortFunc(jobs, func(a, b job) int { return a.mod.Compare(b.mod) })
+	for _, old := range jobs[:len(jobs)-keep] {
+		if err := os.RemoveAll(old.path); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 func (m *Manager) work(dir string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
@@ -136,7 +180,9 @@ func (m *Manager) work(dir string) {
 	var report json.RawMessage
 	var models map[string]loaded
 	var summaries []Model
+	started := false
 	_, err := collection.WithOwnership("offline-neural-training", func() (int, error) {
+		started = true
 		if err := m.run(ctx, dir); err != nil {
 			return 1, err
 		}
@@ -155,6 +201,11 @@ func (m *Manager) work(dir string) {
 		m.job.State = "failed"
 		m.job.Phase = "Training or artifact validation failed"
 		m.job.Error = "The job was not published. Inspect its local training.log."
+		if !started {
+			// WithOwnership never calls back on contention: nothing was trained.
+			m.job.Phase = "Collection ownership was taken before training started"
+			m.job.Error = "Nothing ran. Wait until collection ownership is free, then train again."
+		}
 		return
 	}
 	m.models = models
