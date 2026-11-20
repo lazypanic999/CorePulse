@@ -103,8 +103,15 @@ def strict_json(raw: bytes | str) -> dict:
 
 
 def validate_features(features: Iterable[str]) -> tuple[str, ...]:
-    result = tuple(features)
-    if not result or len(set(result)) != len(result):
+    try:
+        result = tuple(features)
+    except TypeError as exc:
+        raise ValueError("features must be an iterable of names") from exc
+    if (
+        not result
+        or any(not isinstance(name, str) for name in result)
+        or len(set(result)) != len(result)
+    ):
         raise ValueError("feature selection must be nonempty and unique")
     if any(name not in RESOURCE_FEATURES for name in result):
         raise ValueError("metadata or unsupported feature requested; use resource allowlist only")

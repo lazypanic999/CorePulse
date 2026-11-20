@@ -54,3 +54,30 @@ It retains its source-measurement limitations and does not certify independence.
 Use `fit_inner_preprocessor(dataset, fold)` to fit medians/scales only on the inner
 fit rows. Validation and outer test/purged rows never enter that fit. Fold hashes,
 complete group membership and class support are revalidated before preprocessing.
+
+## Reproduce the synthetic experiment
+
+From the repository root in Linux, with Go and the locked workspace installed:
+
+```bash
+mkdir -p reports/neural-synthetic
+go build -o reports/neural-synthetic/corepulse ./cmd/corepulse
+python3 scripts/prepare-neural-synthetic.py --binary reports/neural-synthetic/corepulse
+uv run --project ml --locked python -m corepulse_ml.experiment ml/experiments/synthetic-smoke.yaml
+```
+
+Preparation accepts only marked invented examples and runs `windows`, a session
+`split`, and `evaluate --synthetic`, with an empty executable search path in the
+offline child processes. No cluster CLI, server or live input is used. Generated
+reports stay under ignored `reports/neural-synthetic/`; source inputs are preserved.
+
+Experiment YAML has strict keys, unique fixed model seeds and a separate inner
+validation seed. The report is schema 3 with an unchanged schema-1/2 outer split.
+All four Go reference methods remain required. Extra named methods retain every
+held-out prediction and recomputed window/run confusion, per-class F1, macro F1,
+coverage and abstentions. Seed-family summaries contain mean, population standard
+deviation, minimum and maximum; different prediction tasks are never pooled.
+Bad input/metrics refuse before replacing a previous report. Until the subsequent
+model branches register training methods, the smoke configuration evaluates only
+the required references. These scores are invented development results, not lab
+performance or evidence of independence.
