@@ -11,4 +11,9 @@ inner_validation:
   folds: 2
   seed: 17
 # Training methods are added by the subsequent MLP/autoencoder task branches.
-methods: []
+methods:
+  - kind: mlp
+    hidden: [8]
+    epochs: [10, 25]
+    learning_rate: 0.01
+    weight_decay: 0.0

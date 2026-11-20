@@ -11,6 +11,8 @@ from pathlib import Path
 import yaml
 
 from corepulse_ml.data import RESOURCE_FEATURES, load_windows, strict_json, validate_features
+from corepulse_ml.mlp import read_options as read_mlp_options
+from corepulse_ml.mlp import train_mlp
 from corepulse_ml.reporting import compose_report, write_report
 from corepulse_ml.validation import grouped_folds
 
@@ -95,6 +97,13 @@ def read_experiment(path: str | Path) -> Experiment:
     methods = config["methods"]
     if not isinstance(methods, list) or any(not isinstance(method, dict) for method in methods):
         raise ValueError("methods must be a list of configurations")
+    kinds = set()
+    for method in methods:
+        kind = method.get("kind")
+        if kind != "mlp" or kind in kinds:
+            raise ValueError("unsupported or duplicate experiment method kind")
+        read_mlp_options(method)
+        kinds.add(kind)
     paths = [dataset["windows"], dataset["split"], config["references"], config["output"]]
     if any(not isinstance(value, str) or not value.strip() for value in paths):
         raise ValueError(
@@ -117,8 +126,6 @@ def run_experiment(path: str | Path) -> dict:
     dataset = load_windows(config.windows, config.split, config.features)
     folds = grouped_folds(dataset, config.inner_folds, config.inner_seed)
     reference = strict_json(config.references.read_bytes())
-    if config.methods:
-        raise ValueError("neural training methods are not registered in this implementation stage")
     metadata = {
         "name": config.name,
         "synthetic": True,
@@ -126,8 +133,17 @@ def run_experiment(path: str | Path) -> dict:
         "split_sha256": dataset.split_sha256,
         "seeds": list(config.seeds),
         "inner_validation": [asdict(fold) for fold in folds],
+        "method_configurations": list(config.methods),
     }
-    report = compose_report(dataset, reference, {}, metadata)
+    # Verify reference identities/metrics against these exact input files
+    # before doing any training. This checks consistency, not origin/authenticity.
+    compose_report(dataset, reference, {}, metadata)
+    methods = {}
+    for method in config.methods:
+        for seed in config.seeds:
+            trained = train_mlp(dataset, folds, method, seed)
+            methods[f"mlp_seed_{seed}"] = trained.report
+    report = compose_report(dataset, reference, methods, metadata)
     write_report(config.output, report, [path, config.windows, config.split, config.references])
     return report
 
