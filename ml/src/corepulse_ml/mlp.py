@@ -178,4 +178,12 @@ def train_mlp(
         seed=seed,
         training=training,
     )
-    return TrainedMethod("mlp", model, preprocessor, tuple(labels), report, training)
+    return TrainedMethod(
+        "mlp",
+        model,
+        preprocessor,
+        tuple(labels),
+        report,
+        training,
+        split_sha256=dataset.split_sha256,
+    )

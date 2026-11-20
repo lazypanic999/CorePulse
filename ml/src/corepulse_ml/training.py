@@ -22,6 +22,7 @@ class TrainedMethod:
     report: dict
     training: dict
     threshold: float | None = None
+    split_sha256: str = ""
 
 
 @contextmanager

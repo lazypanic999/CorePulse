@@ -39,6 +39,6 @@ jobs:
           go build -o reports/neural-synthetic/corepulse ./cmd/corepulse
           python scripts/prepare-neural-synthetic.py --binary reports/neural-synthetic/corepulse
       - name: Synthetic experiment report
-        run: uv run --project ml --locked python -m corepulse_ml.experiment ml/experiments/synthetic-smoke.yaml
+        run: uv run --project ml --locked python -m corepulse_ml.experiment ml/experiments/synthetic-smoke.yaml --export-dir reports/neural-synthetic/models
       - name: Validate Python report with the Go snapshot reader
         run: COREPULSE_SYNTHETIC_REPORT="$PWD/reports/neural-synthetic/evaluation.json" go test ./internal/evaluation -run '^TestPythonSyntheticSnapshot$' -count=1
