@@ -13,7 +13,7 @@ CorePulse breaks a small 5G core on purpose and records what happens. It runs ag
 
 ![CorePulse service path view: AMF, SMF, UE, gNB and UPF all ready, and 2 of 2 pings reaching the UPF](assets/dashboard-verified-lab.jpg)
 
-> **Status:** early development. The CLI and dashboard work against the live lab: guarded pod-crash experiments, packet checks, resource metrics, timestamped protocol-log observations, and a curated dataset. The CLI also prepares whole-run splits and evaluates simple offline baselines. Continuous protocol KPIs and live model predictions remain future work.
+> **Status:** early development. The CLI and dashboard work against the live lab: guarded pod-crash experiments, packet checks, resource metrics, timestamped protocol-log observations, and a curated dataset. Offline CPU MLP/autoencoder experiments, grouped validation and pure-Go neural inference now have synthetic fixture coverage. Real-network neural performance, continuous protocol KPIs and live model predictions remain unvalidated or future work.
 
 ## Why this exists
 
@@ -109,6 +109,31 @@ The saved report is separate from live health. Open its prediction table to see 
 ## Try the offline pipeline without a cluster
 
 The [synthetic walkthrough](examples/offline/README.md) includes nine invented run records and raw captures. Build windows, create a disjoint split, and evaluate with `--synthetic`; missing values, mistakes and abstentions remain visible. These tutorial scores are not measured lab performance.
+
+## Offline neural experiments
+
+![CorePulse workflow: hash-bound windows, grouped validation, CPU neural training and versioned JSON for pure-Go inference](assets/neural-workflow.svg)
+
+The experimental [offline neural workspace](ml/README.md) adds CPU MLP and
+normal-only autoencoder development, grouped inner validation, all-seed reports
+and [versioned JSON with pure-Go inference](docs/neural-artifacts.md). Its smoke
+workflow uses invented data only; real-network neural performance and live model
+integration remain unvalidated. [Masked capture-time sequences](docs/sequences.md)
+also retain empty 5-second steps without inventing measurements.
+
+![Actual offline evaluation UI with all four references, two MLP seeds, two autoencoder seeds, mistakes and the synthetic-data warning](assets/dashboard-neural-synthetic.png)
+
+This capture uses **invented data only**. The MLP predicts the declared scenario;
+the normal-only autoencoder detects unusual reconstruction error. Their tasks
+are different, so their F1 values are not one leaderboard. All fixed seeds and
+held-out predictions remain visible, including mistakes and abstentions.
+These toy scores do not measure real-network detection quality.
+
+The Go/PyTorch fixture comparisons use an absolute tolerance of `1e-5`. Go
+inference needs neither Python nor cgo; models are not connected to the live
+controller. Follow the [synthetic smoke commands](ml/README.md#reproduce-the-synthetic-experiment)
+or read the [session report](docs/progress/2026-11-11-neural-session.md) for
+validation evidence and remaining checks.
 
 ## Downloads
 

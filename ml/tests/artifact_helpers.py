@@ -9,10 +9,8 @@ from corepulse_ml.validation import grouped_folds
 from .helpers import invented_windows
 
 
-def hand_method(directory, kind="mlp"):
-    dataset = load_windows(
-        *invented_windows(directory), features=("cpu_millicores_mean", "cpu_millicores_delta")
-    )
+def hand_method(directory, kind="mlp", features=("cpu_millicores_mean", "cpu_millicores_delta")):
+    dataset = load_windows(*invented_windows(directory), features=features)
     labels = ("normal", "pod_crash:amf", "pod_crash:upf")
     task, training, threshold = "scenario_classification", {}, None
     fit_indices = dataset.train_indices
@@ -30,11 +28,18 @@ def hand_method(directory, kind="mlp"):
             )
         }
     preprocessor = fit_preprocessor(dataset, fit_indices)
-    model = dense_network((2, 2, 3) if kind == "mlp" else (2, 1, 2))
+    dimension = len(preprocessor.feature_names)
+    widths = (
+        (dimension, min(4, dimension), 3)
+        if kind == "mlp"
+        else (dimension, min(2, dimension - 1), dimension)
+    )
+    model = dense_network(widths)
     with torch.no_grad():
         for index, parameter in enumerate(model.parameters()):
             parameter.copy_(
-                torch.arange(parameter.numel(), dtype=torch.float32).reshape(parameter.shape) / 16
+                torch.arange(parameter.numel(), dtype=torch.float32).reshape(parameter.shape)
+                / max(16, 8 * dimension)
                 - (index + 1) / 8
             )
     model.eval()

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title description">
+  <title id="title">CorePulse offline neural workflow</title>
+  <desc id="description">Hash-verified windows and whole-group splits feed training-only preprocessing, CPU MLP and normal-only autoencoder training, then versioned JSON and pure-Go inference. Development uses invented data; real-network neural performance remains unmeasured.</desc>
+  <defs>
+    <linearGradient id="background" x2="1" y2="1"><stop stop-color="#101b31"/><stop offset="1" stop-color="#142f45"/></linearGradient>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 8 4 0 8" fill="none" stroke="#62d8d2" stroke-width="1.4"/></marker>
+  </defs>
+  <rect width="1200" height="620" rx="26" fill="url(#background)"/>
+  <g font-family="Segoe UI,Arial,sans-serif">
+    <path d="M46 64h16l8-17 13 36 12-29 8 10h22" fill="none" stroke="#62d8d2" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="143" y="75" font-size="30" font-weight="700" fill="#fff">CorePulse</text>
+    <rect x="907" y="43" width="245" height="38" rx="19" fill="#203b4c" stroke="#62d8d2" stroke-opacity=".45"/>
+    <text x="1029" y="68" text-anchor="middle" font-size="14" letter-spacing="1" fill="#8aeee4">OFFLINE · SYNTHETIC</text>
+    <text x="48" y="154" font-size="42" font-weight="700" fill="#fff">Train offline. Run in Go.</text>
+    <text x="48" y="190" font-size="20" fill="#b6c8dc">A reproducible path from verified inputs to portable neural inference.</text>
+    <g fill="#192e45" stroke="#36516b"><rect x="48" y="238" width="246" height="208" rx="15"/><rect x="334" y="238" width="246" height="208" rx="15"/><rect x="620" y="238" width="246" height="208" rx="15"/><rect x="906" y="238" width="246" height="208" rx="15"/></g>
+    <g stroke="#62d8d2" stroke-width="2" marker-end="url(#arrow)"><path d="M303 342h20"/><path d="M589 342h20"/><path d="M875 342h20"/></g>
+    <g fill="#62d8d2" font-size="14" font-weight="700" letter-spacing="1.5"><text x="70" y="274">01 / VERIFY</text><text x="356" y="274">02 / SEPARATE</text><text x="642" y="274">03 / TRAIN</text><text x="928" y="274">04 / EXPORT</text></g>
+    <g fill="#fff" font-size="23" font-weight="600"><text x="70" y="316">Window dataset</text><text x="356" y="316">Grouped validation</text><text x="642" y="316">CPU neural models</text><text x="928" y="316">JSON → pure Go</text></g>
+    <g fill="#b6c8dc" font-size="18">
+      <text x="70" y="354">CSV hash + membership</text><text x="70" y="384">Missing stays distinct</text><text x="70" y="414">from observed zero</text>
+      <text x="356" y="354">Whole runs or sessions</text><text x="356" y="384">Fit preprocessing only</text><text x="356" y="414">on training partitions</text>
+      <text x="642" y="354">MLP: scenario classes</text><text x="642" y="384">AE: normal-only fit</text><text x="642" y="414">Report every fixed seed</text>
+      <text x="928" y="354">Versioned coefficients</text><text x="928" y="384">No Python runtime / cgo</text><text x="928" y="414">Fixture parity: 1e−5</text>
+    </g>
+    <path d="M48 488h1104" stroke="#36516b"/>
+    <text x="48" y="530" font-size="19" font-weight="600" fill="#fff">Four references + both neural seeds + every held-out prediction.</text>
+    <text x="48" y="568" font-size="17" fill="#b6c8dc">Invented development inputs only. Real-network neural performance and live integration remain unvalidated.</text>
+  </g>
+</svg>

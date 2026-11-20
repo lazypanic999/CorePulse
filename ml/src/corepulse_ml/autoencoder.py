@@ -11,6 +11,7 @@ from torch import nn
 
 from corepulse_ml.data import WindowDataset, fit_preprocessor
 from corepulse_ml.metrics import model_report
+from corepulse_ml.numeric import is_finite_number
 from corepulse_ml.training import (
     TrainedMethod,
     dense_network,
@@ -84,7 +85,7 @@ def reconstruction_errors(model: nn.Module, matrix: torch.Tensor) -> torch.Tenso
 
 
 def classify_error(error: float, threshold: float) -> str:
-    if not all(math.isfinite(x) and x >= 0 for x in (error, threshold)):
+    if not all(is_finite_number(x) and x >= 0 for x in (error, threshold)):
         raise ValueError("invalid reconstruction error or threshold")
     return "fault" if error > threshold else "normal"
 

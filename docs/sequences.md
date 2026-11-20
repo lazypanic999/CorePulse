@@ -37,6 +37,9 @@ from zero. Captures at a boundary enter the following step/run. Captures at the
 final run end are excluded. Empty steps, including completely unobserved runs,
 remain with sample count zero and every mask zero. The final short step is marked
 partial. This deliberately differs from `windows`, which omits empty windows.
+Fractional step durations round-trip at whole-nanosecond precision; a decimal
+conversion must not silently shorten a step or an embargo by one nanosecond.
+Sub-nanosecond manifest margins refuse instead of silently becoming zero.
 The step must be between 1 second and 1 hour; an export is capped at 100,000 steps
 to bound in-memory CSV construction. Invalid input preserves previous output.
 

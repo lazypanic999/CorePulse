@@ -16,6 +16,10 @@ func ValidateSequenceSplit(data WindowData, m SplitManifest, allowLegacy bool) e
 	if math.IsNaN(m.TestFraction) || math.IsInf(m.TestFraction, 0) || m.TestFraction <= 0 || m.TestFraction >= 1 || math.IsNaN(m.EmbargoSeconds) || math.IsInf(m.EmbargoSeconds, 0) || m.EmbargoSeconds < 0 || m.EmbargoSeconds > 86400 {
 		return fmt.Errorf("invalid sequence split policy")
 	}
+	embargo := time.Duration(math.Round(m.EmbargoSeconds * float64(time.Second)))
+	if embargo.Seconds() != m.EmbargoSeconds {
+		return fmt.Errorf("sequence embargo must resolve to whole nanoseconds")
+	}
 	if err := VerifySessionAssignments(data, m); err != nil {
 		return err
 	}
@@ -67,5 +71,5 @@ func ValidateSequenceSplit(data WindowData, m SplitManifest, allowLegacy bool) e
 			return fmt.Errorf("sequence class split support mismatch")
 		}
 	}
-	return VerifyTemporalSeparation(data, m.TrainRuns, m.TestRuns, time.Duration(m.EmbargoSeconds*float64(time.Second)))
+	return VerifyTemporalSeparation(data, m.TrainRuns, m.TestRuns, embargo)
 }

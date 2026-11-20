@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 import re
 from pathlib import Path
 
 import torch
 from torch import nn
 
-from corepulse_ml.data import WindowDataset, validate_features
-from corepulse_ml.reporting import write_report
+from corepulse_ml.data import WindowDataset, near, run_ranges, validate_features
+from corepulse_ml.numeric import duration_ns, is_finite_number
+from corepulse_ml.reporting import labels_for, write_report
 from corepulse_ml.training import TrainedMethod
 
 MAX_ARTIFACT_BYTES = 16 * 1024 * 1024
@@ -30,12 +30,7 @@ def _numbers(values, length, label, *, positive=False, float32=False):
         not isinstance(values, list)
         or len(values) != length
         or any(
-            type(x) not in (int, float)
-            or not math.isfinite(x)
-            or positive
-            and x <= 0
-            or float32
-            and abs(x) > _FLOAT32_MAX
+            not is_finite_number(x) or positive and x <= 0 or float32 and abs(x) > _FLOAT32_MAX
             for x in values
         )
     ):
@@ -117,7 +112,7 @@ def validate_artifact(artifact: dict) -> None:
         if artifact["task"] != "normal_vs_fault_interval" or labels != ["normal", "fault"]:
             raise ValueError("invalid autoencoder labels/task")
         threshold = artifact["threshold"]
-        if type(threshold) not in (int, float) or not math.isfinite(threshold) or threshold < 0:
+        if not is_finite_number(threshold) or threshold < 0:
             raise ValueError("invalid autoencoder threshold")
         _ids(artifact["calibration_run_ids"], "normal calibration identities")
         if set(artifact["calibration_run_ids"]) & set(pre["fit_run_ids"]):
@@ -159,6 +154,10 @@ def artifact_for(method: TrainedMethod, dataset: WindowDataset, *, synthetic: bo
         raise ValueError("trained method source/split differs from verified dataset")
     if not set(pre.fit_run_ids) <= set(dataset.manifest["train_runs"]):
         raise ValueError("preprocessing fit identities escape outer training")
+    if tuple(method.labels) != tuple(labels_for(dataset, method.report.get("task"))):
+        raise ValueError("model labels differ from the verified dataset task")
+    if method.kind == "mlp" and set(pre.fit_run_ids) != set(dataset.manifest["train_runs"]):
+        raise ValueError("final MLP preprocessing must cover all outer training runs")
     if set(pre.feature_names) | set(pre.dropped_features) != set(dataset.features):
         raise ValueError("trained feature selection differs from dataset")
     if method.report.get("family") != method.kind:
@@ -204,8 +203,25 @@ def artifact_for(method: TrainedMethod, dataset: WindowDataset, *, synthetic: bo
     }
     if method.kind == "autoencoder":
         calibration = method.training["normal_validation_run_ids"]
-        if not set(calibration) <= set(dataset.manifest["train_runs"]):
-            raise ValueError("normal calibration identities escape outer training")
+        _ids(calibration, "normal calibration identities")
+        normal_runs = {row.run_id for row in dataset.partition("train") if row.scenario == "normal"}
+        if not set(pre.fit_run_ids) <= normal_runs or not set(calibration) <= normal_runs:
+            raise ValueError(
+                "autoencoder fit/calibration identities must be normal outer training runs"
+            )
+        if dataset.schema_version == 2:
+            sessions = dataset.manifest["session_assignments"]
+            if {sessions[run] for run in pre.fit_run_ids} & {sessions[run] for run in calibration}:
+                raise ValueError("autoencoder calibration crosses a whole-session fit boundary")
+        margin = duration_ns(dataset.manifest.get("embargo_seconds", 0))
+        if margin:
+            ranges = run_ranges(dataset.partition("train"))
+            if any(
+                near(ranges[fit], ranges[val], margin)
+                for fit in pre.fit_run_ids
+                for val in calibration
+            ):
+                raise ValueError("autoencoder calibration violates the inner capture-time embargo")
         artifact.update(threshold=method.threshold, calibration_run_ids=list(calibration))
     validate_artifact(artifact)
     return artifact
@@ -213,12 +229,26 @@ def artifact_for(method: TrainedMethod, dataset: WindowDataset, *, synthetic: bo
 
 def ensure_artifact_destination(path: str | Path) -> Path:
     path = Path(path).resolve()
-    root = Path(__file__).resolve().parents[3]
-    allowed = [root / name for name in ("reports", "artifacts", "models", "ml/outputs")]
-    if path.is_relative_to(root) and not any(path.is_relative_to(p) for p in allowed):
-        raise ValueError(
-            "trained coefficients must stay in ignored output directories or outside the repository"
-        )
+    roots = set()
+    module = Path(__file__)
+    # Preserve source-tree protection even when project markers are temporarily
+    # absent. An installed wheel has a different layout and must not invent a
+    # repository root inside site-packages (or the wheel's own path).
+    if (
+        module.parent.parent.name.casefold() == "src"
+        and module.parent.parent.parent.name.casefold() == "ml"
+    ):
+        roots.add(module.parents[3].resolve())
+    for candidate in (path, *path.parents):
+        if (candidate / "go.mod").is_file() and (candidate / "ml/pyproject.toml").is_file():
+            roots.add(candidate)
+    for root in roots:
+        allowed = [root / name for name in ("reports", "artifacts", "models", "ml/outputs")]
+        if path.is_relative_to(root) and not any(path.is_relative_to(p) for p in allowed):
+            raise ValueError(
+                "trained coefficients must stay in ignored output directories "
+                "or outside the repository"
+            )
     return path
 
 

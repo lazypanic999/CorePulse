@@ -11,6 +11,7 @@ import torch
 from torch import nn
 
 from corepulse_ml.data import Preprocessor
+from corepulse_ml.numeric import is_finite_number
 
 
 @dataclass(frozen=True)
@@ -73,12 +74,6 @@ def optimize_step(model: nn.Module, optimizer, loss: torch.Tensor) -> float:
 
 
 def positive_number(value, label: str, *, zero: bool = False) -> float:
-    if (
-        type(value) not in (int, float)
-        or not math.isfinite(value)
-        or value < 0
-        or not zero
-        and value == 0
-    ):
+    if not is_finite_number(value) or value < 0 or not zero and value == 0:
         raise ValueError(f"invalid {label}")
     return float(value)

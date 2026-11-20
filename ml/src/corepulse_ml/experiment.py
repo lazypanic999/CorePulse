@@ -16,7 +16,7 @@ from corepulse_ml.data import RESOURCE_FEATURES, load_windows, strict_json, vali
 from corepulse_ml.export import artifact_for, ensure_artifact_destination, write_artifact
 from corepulse_ml.mlp import read_options as read_mlp_options
 from corepulse_ml.mlp import train_mlp
-from corepulse_ml.reporting import compose_report, write_report
+from corepulse_ml.reporting import compose_report, validate_output_path, write_report
 from corepulse_ml.validation import grouped_folds
 
 
@@ -84,8 +84,8 @@ def read_experiment(path: str | Path) -> Experiment:
         raise ValueError("dataset requires exact windows/split paths")
     if not isinstance(inner, dict) or inner.keys() != {"folds", "seed"}:
         raise ValueError("inner validation requires exact folds/seed")
-    if type(inner["folds"]) is not int or inner["folds"] < 2:
-        raise ValueError("inner folds must be at least two")
+    if type(inner["folds"]) is not int or not 2 <= inner["folds"] <= 32:
+        raise ValueError("inner folds must be between 2 and 32")
     if type(inner["seed"]) is not int or not -(2**63) <= inner["seed"] < 2**63:
         raise ValueError("invalid inner seed")
     seeds = config["seeds"]
@@ -126,8 +126,19 @@ def read_experiment(path: str | Path) -> Experiment:
 
 def run_experiment(path: str | Path, *, export_dir: str | Path | None = None) -> dict:
     config = read_experiment(path)
+    sources = [path, config.windows, config.split, config.references]
+    outputs = [config.output]
     if export_dir is not None:
         export_dir = ensure_artifact_destination(export_dir)
+        if export_dir.exists() and not export_dir.is_dir():
+            raise ValueError("export directory is an existing file")
+        outputs.extend(
+            ensure_artifact_destination(export_dir / f"{method['kind']}_seed_{seed}.json")
+            for method in config.methods
+            for seed in config.seeds
+        )
+    for index, output in enumerate(outputs):
+        validate_output_path(output, [*sources, *outputs[:index], *outputs[index + 1 :]])
     dataset = load_windows(config.windows, config.split, config.features)
     folds = grouped_folds(dataset, config.inner_folds, config.inner_seed)
     reference = strict_json(config.references.read_bytes())

@@ -7,6 +7,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from corepulse_ml.data import Preprocessor, WindowDataset, fit_preprocessor, near, run_ranges
+from corepulse_ml.numeric import duration_ns
 
 
 @dataclass(frozen=True)
@@ -68,7 +69,7 @@ def validate_fold(dataset: WindowDataset, fold: GroupFold) -> None:
     for indices in (fold.fit_indices, fold.validation_indices):
         if {dataset.rows[i].scenario for i in indices} != labels:
             raise ValueError("inner holdout/embargo loses class support; collect broader groups")
-    margin = int(dataset.manifest.get("embargo_seconds", 0) * 1_000_000_000)
+    margin = duration_ns(dataset.manifest.get("embargo_seconds", 0))
     if margin:
         ranges = run_ranges(dataset.rows[i] for i in dataset.train_indices)
         fit_runs = {dataset.rows[i].run_id for i in fold.fit_indices}
@@ -92,6 +93,9 @@ def grouped_folds(
         if not group:
             raise ValueError("unknown inner group provenance")
         members[group].append(index)
+    # Reject impossible requests before constructing a potentially enormous list.
+    if len(members) < n_splits:
+        raise ValueError("insufficient training groups for requested inner folds")
     buckets = [set() for _ in range(n_splits)]
     if grouping == "session":
         if len(members) < n_splits:
@@ -110,7 +114,7 @@ def grouped_folds(
             for index, group in enumerate(ordered):
                 buckets[index % n_splits].add(group)
     ranges = run_ranges(dataset.rows[i] for i in dataset.train_indices)
-    margin = int(manifest.get("embargo_seconds", 0) * 1_000_000_000)
+    margin = duration_ns(manifest.get("embargo_seconds", 0))
     result = []
     for number, validation in enumerate(buckets):
         fit = set(members) - validation
