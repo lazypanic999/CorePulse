@@ -1,0 +1,41 @@
+[project]
+name = "corepulse-ml"
+version = "0.1.0"
+description = "Offline-only CorePulse neural experiments; synthetic development fixtures"
+requires-python = "==3.12.*"
+dependencies = [
+  "numpy==2.5.4",
+  "PyYAML==6.0.3",
+  "torch==2.15.0+cpu",
+]
+
+[dependency-groups]
+dev = ["pytest==9.2.0", "ruff==0.17.4"]
+
+[build-system]
+requires = ["uv_build==0.13.7"]
+build-backend = "uv_build"
+
+[tool.uv]
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra --strict-markers"
+
