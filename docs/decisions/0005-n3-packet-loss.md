@@ -108,6 +108,22 @@ These reuse the existing pod-crash gates and add network-specific ones.
 2. **Isolated-lab read-only run of the chosen mechanism.** Show that the capability and tools are available and that the planned filter matches only GTP-U, using counters with a 0 % loss netem, before any loss is applied.
 3. **Isolated-lab loss runs.** Low rates first. Measure downlink loss with probe counters and `tc -s` drop counts, confirm N2 and N4 stay up, and require consecutive healthy probes after rollback.
 
+## The same question for the rest of the catalog
+
+The roadmap's other two network faults hit the same obstacle, so one answer to the mechanism question should cover all three.
+
+- **`high_latency`** would reuse this design unchanged: the same CorePulse-owned root, the same GTP-U downlink filter, and `netem delay <d> [<jitter>]` in place of `loss`.
+- **`sctp_drop` (N2)** would need a filter on the other side of the N2 link.
+
+Read-only facts for N2 (24 November 2026):
+
+- The AMF pod sets `runAsNonRoot: true` and `runAsUser: 999` without the `privileged` flag or any added capability. `open5gs-amfd` and exec'd processes have `CapEff` 0. The image does include `ip`, `tc`, `ss`, `iptables` and `nft`.
+- NGAP listens with SCTP on `10.244.1.126:38412` on `eth0`. The single association is with the gNB pod `10.244.1.133`.
+- The AMF's `eth0` has `noqueue` and no filters.
+- The gNB side has `CAP_NET_ADMIN` but no tools, as recorded above.
+
+A scoped N2 fault would therefore match `ip protocol sctp` with port 38412 between those two addresses. It faces the same choice between a lasting ephemeral container and node-level `nsenter`. It has one extra risk: a lost N2 association does not come back by itself in this lab (see `docs/lab-integration.md`), so rollback must be followed by the documented reset and an N2 check.
+
 ## Questions for the maintainer
 
 1. Is a lasting ephemeral container on the UPF pod (option A) acceptable for a lab experiment, or should the first version use node-level `nsenter` (option B)?
