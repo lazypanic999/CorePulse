@@ -36,7 +36,7 @@ Goal: collect control-plane and user-plane health alongside resource metrics, so
 
 Goal: move from one fault type to the four planned in the initial scope, each reversible and labeled.
 
-- [ ] `packet_loss` on the N3/user-plane path (e.g. `tc netem` in the UPF or gNB pod network namespace) with configurable percentage.
+- [ ] `packet_loss` on the N3/user-plane path (e.g. `tc netem` in the UPF or gNB pod network namespace) with configurable percentage. First scope and open questions: [decision 0005](decisions/0005-n3-packet-loss.md) (proposed, downlink GTP-U only).
 - [ ] `high_latency` with configurable delay and jitter.
 - [ ] `sctp_drop` on the N2 path between gNB and AMF.
 - [ ] Each fault records parameters, start/end time, rollback command, and rollback verification in the [run record](run-record.md); a schema version field covers the change.
