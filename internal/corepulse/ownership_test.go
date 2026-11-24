@@ -151,9 +151,13 @@ func TestDeleteCarriesTheSelectedPodUIDPrecondition(t *testing.T) {
 func TestRejectedPreconditionLeavesRecoveryUnverified(t *testing.T) {
 	f := newFake()
 	f.failedAction = "delete"
+	f.failure = "Operation cannot be fulfilled on Pod: the UID in the precondition does not match the UID in record"
 	result, err := RunPodCrash(f, "amf")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !strings.Contains(stringValue(result["error"]), "nothing was deleted") {
+		t.Fatalf("refused precondition not explained: %v", result["error"])
 	}
 	if result["status"] != "recovery_unverified" || result["phase"] != "delete_attempted" || containsAction(f.commands, "wait") {
 		t.Fatalf("result=%v commands=%v", result, f.commands)

@@ -222,6 +222,9 @@ func RunPodCrashWithCheckpoint(client Client, target string, observe func(), che
 		if step.phase == "delete_requested" {
 			// The UID precondition refuses a replacement that took the name.
 			err = deletePodWithUID(client, step.timeout, chain)
+			if err != nil && strings.Contains(err.Error(), "precondition") {
+				err = fmt.Errorf("pod %s UID changed before deletion; nothing was deleted: %w", pod, err)
+			}
 		} else {
 			_, err = client.Run(step.timeout, step.args...)
 		}

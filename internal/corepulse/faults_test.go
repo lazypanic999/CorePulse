@@ -70,6 +70,7 @@ type fakeKubectl struct {
 	commands     [][]string
 	podReads     int
 	failedAction string
+	failure      string
 	// tweak edits each returned object ("deployment", "pod" or "replicaset")
 	// after the podReads-th pod read, so tests can break one chain link.
 	tweak        func(kind string, metadata map[string]any, podReads int)
@@ -90,6 +91,9 @@ func (f *fakeKubectl) Run(_ time.Duration, args ...string) (string, error) {
 		}
 	}
 	if args[0] == f.failedAction {
+		if f.failure != "" {
+			return "", errors.New(f.failure)
+		}
 		return "", fmt.Errorf("simulated failure")
 	}
 	if len(args) == 2 && args[0] == "config" {
