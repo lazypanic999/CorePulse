@@ -40,7 +40,12 @@ func (f labClient) Run(_ time.Duration, args ...string) (string, error) {
 func (f labClient) GetJSON(args ...string) (map[string]any, error) {
 	if strings.HasPrefix(args[1], "deployment/") {
 		name := strings.TrimPrefix(args[1], "deployment/")
-		return map[string]any{"spec": map[string]any{"replicas": float64(1), "selector": map[string]any{"matchLabels": map[string]any{"app": name}}}, "status": map[string]any{"readyReplicas": float64(1)}}, nil
+		return map[string]any{"metadata": map[string]any{"name": name, "namespace": "open5gs", "uid": name + "-uid"}, "spec": map[string]any{"replicas": float64(1), "selector": map[string]any{"matchLabels": map[string]any{"app": name}}}, "status": map[string]any{"readyReplicas": float64(1)}}, nil
+	}
+	if strings.HasPrefix(args[1], "replicaset/") {
+		name := strings.TrimPrefix(args[1], "replicaset/")
+		deployment := strings.TrimSuffix(name, "-abc")
+		return map[string]any{"metadata": map[string]any{"name": name, "namespace": "open5gs", "uid": name + "-uid", "ownerReferences": []any{map[string]any{"apiVersion": "apps/v1", "kind": "Deployment", "name": deployment, "uid": deployment + "-uid", "controller": true}}}}, nil
 	}
 	selector := args[len(args)-1]
 	component := strings.TrimPrefix(selector, "app=")
@@ -48,7 +53,7 @@ func (f labClient) GetJSON(args ...string) (map[string]any, error) {
 		component = "ueransim-ue"
 	}
 	name, owner := component+"-abc-pod", component+"-abc"
-	pod := map[string]any{"metadata": map[string]any{"name": name, "ownerReferences": []any{map[string]any{"kind": "ReplicaSet", "name": owner}}}, "status": map[string]any{"phase": "Running", "conditions": []any{map[string]any{"type": "Ready", "status": "True"}}}}
+	pod := map[string]any{"metadata": map[string]any{"name": name, "namespace": "open5gs", "uid": name + "-uid", "ownerReferences": []any{map[string]any{"apiVersion": "apps/v1", "kind": "ReplicaSet", "name": owner, "uid": owner + "-uid", "controller": true}}}, "status": map[string]any{"phase": "Running", "conditions": []any{map[string]any{"type": "Ready", "status": "True"}}}}
 	return map[string]any{"items": []any{pod}}, nil
 }
 

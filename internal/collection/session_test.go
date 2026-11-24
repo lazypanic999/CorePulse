@@ -114,6 +114,7 @@ func (c *sessionReplacementClient) GetJSON(args ...string) (map[string]any, erro
 		items := value["items"].([]any)
 		metadata := items[0].(map[string]any)["metadata"].(map[string]any)
 		metadata["name"] = metadata["name"].(string) + "-replacement"
+		metadata["uid"] = metadata["uid"].(string) + "-replacement"
 	}
 	return value, err
 }
