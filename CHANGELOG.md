@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add a read-only `source-frames` CLI diagnostic for Metrics API source metadata in raw telemetry. Per pod name it reports known and unknown captures, unique versus repeated source frames, equal-value and conflicting frames, capture-to-source age, future and regressing source timestamps, windows and name reappearances. Legacy rows stay unknown, malformed input is rejected whole, and an earlier report survives a failed run. Labels, CSVs and splits are unchanged.
+
 ## v0.2.4 — 2026-11-09 (preview)
 
 - Generate an SBOM attestation with the published container and exclude local Claude workspace metadata from Docker build contexts.
