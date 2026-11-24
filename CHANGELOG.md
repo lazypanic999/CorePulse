@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Resolve the exact Pod -> ReplicaSet -> Deployment controller chain by UID before a pod-crash deletion. A shared name prefix, matching labels, a missing or duplicated controller flag, a stale owner UID, or a ReplicaSet in another namespace refuses before any delete. The delete is sent as `kubectl delete --raw` with a DeleteOptions UID precondition, and recovery requires a replacement with a new UID under the same Deployment UID. Run records add `pod_deleted_uid`, `replica_set`, `replica_set_uid`, `deployment_uid` and `replacement_pod_uid`. Read-only checks keep their existing selection.
+
 ## v0.2.4 — 2026-11-09 (preview)
 
 - Generate an SBOM attestation with the published container and exclude local Claude workspace metadata from Docker build contexts.

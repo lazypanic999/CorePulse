@@ -19,7 +19,11 @@ Each applied `pod-crash` experiment writes one UTF-8 JSON file under `runs/`, na
 | `context` | Kubernetes context observed before the change |
 | `namespace` | Fixed lab namespace, `open5gs` |
 | `pod_deleted` | Exact pod selected from the deployment; selection alone does not prove deletion succeeded |
+| `pod_deleted_uid` | UID of that pod; the delete request carries it as a DeleteOptions precondition, so a different object holding the name is refused |
+| `replica_set`, `replica_set_uid` | The pod's single controller ReplicaSet, resolved by name and matched by UID |
+| `deployment_uid` | UID of the allowlisted Deployment that controls that ReplicaSet |
 | `replacement_pod` | New ready pod, present only after verified recovery |
+| `replacement_pod_uid` | UID of the replacement; it must differ from `pod_deleted_uid` and chain back to the same `deployment_uid` |
 | `started_at`, `ended_at` | Experiment bounds |
 | `status` | `recovery_pending`, `recovered` or `recovery_unverified`; deployment state only |
 | `phase` | Last checkpoint: `prepared`, `delete_attempted`, `delete_requested`, `delete_observed`, `deployment_available`, `deployment_recovered`, `service_observation` or `completed` |
