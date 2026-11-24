@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+# Take shared collection ownership before any cluster access or mutation.
+source "$(dirname -- "${BASH_SOURCE[0]}")/ownership.sh"
+corepulse_hold recover-service "${BASH_SOURCE[0]}" "$@"
 [[ "$(kubectl config current-context)" == open5gs-lab ]] || { echo 'Requires open5gs-lab context' >&2; exit 1; }
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 names=(ueransim-ue ueransim-gnb open5gs-smf open5gs-upf)

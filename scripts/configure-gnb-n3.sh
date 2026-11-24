@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+# Take shared collection ownership before any cluster access or mutation.
+source "$(dirname -- "${BASH_SOURCE[0]}")/ownership.sh"
+corepulse_hold configure-gnb-n3 "${BASH_SOURCE[0]}" "$@"
 
 context="$(kubectl config current-context)"
 if [[ "${context}" != 'open5gs-lab' ]]; then

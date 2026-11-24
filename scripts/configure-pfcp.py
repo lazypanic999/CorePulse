@@ -2,6 +2,13 @@
 import json
 import pathlib
 import subprocess
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from corepulse_ownership import hold
+
+# Take shared collection ownership before any cluster access or mutation.
+hold("configure-pfcp")
 
 def get(*args):
     return json.loads(subprocess.check_output(["kubectl", "--context", "open5gs-lab", *args, "-o", "json"]))
