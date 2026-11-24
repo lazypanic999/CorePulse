@@ -18,6 +18,10 @@ The helpers find CorePulse through `COREPULSE_BIN`, then `corepulse` on `PATH`, 
 
 `hold` releases only after the helper process has exited. Interrupt, terminate and hangup signals are forwarded once to the helper's process group, so `recover-service.sh` still runs its replica-restoring trap while ownership is held; its exit code, including 130 after an interrupt and 2 for unverified service, is passed through. If `hold` itself is killed, it cannot release: the marker and `owner.json` (operation, host, PID of the `hold` process, start time) remain and the conservative procedure below applies. An orphaned helper may still be running at that point, so confirm it has stopped before archiving the marker. The release token is passed to the helper in `COREPULSE_OWNERSHIP_TOKEN`; it is never shown by the dashboard or the ownership endpoint.
 
+A CorePulse process that already holds ownership and wants to run a helper must pass its own token to the helper as `COREPULSE_OWNERSHIP_TOKEN`; the helper then confirms it with `ownership-check` instead of trying to acquire again. Without it the helper refuses against its caller's marker.
+
+The helper runs in its own process group, which is not the terminal's foreground group. It must not read from or reconfigure the terminal; with `stty tostop` set, terminal output from the helper would stop it.
+
 Each helper still checks the exact context, namespace and workloads for every mutation, including error restoration, and `recover-service.sh` still requires two consecutive packet checks and exits nonzero otherwise.
 
 ## Forced termination and conservative recovery

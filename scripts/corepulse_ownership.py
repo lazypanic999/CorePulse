@@ -31,6 +31,9 @@ def hold(operation):
             "This helper needs a CorePulse binary to take shared collection ownership. "
             "Build one with `go build -o corepulse ./cmd/corepulse`, or set COREPULSE_BIN."
         )
+    probe = subprocess.run([path, "hold"], check=False, capture_output=True, text=True)
+    if "unknown command" in probe.stderr:
+        raise SystemExit(f"{path} has no hold command; rebuild with `go build -o corepulse ./cmd/corepulse` or set COREPULSE_BIN.")
     if not os.environ.get("COREPULSE_OWNERSHIP_TOKEN"):
         script = os.path.abspath(sys.argv[0])
         os.execv(path, [path, "hold", "--operation", operation, "--", sys.executable, script, *sys.argv[1:]])

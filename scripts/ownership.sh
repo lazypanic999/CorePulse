@@ -29,6 +29,12 @@ corepulse_hold() {
     echo 'Build one with `go build -o corepulse ./cmd/corepulse`, or set COREPULSE_BIN.' >&2
     exit 1
   fi
+  local probe
+  probe="$("$bin" hold 2>&1 || true)"
+  if [[ "$probe" == *'unknown command'* ]]; then
+    echo "$bin has no hold command; rebuild with \`go build -o corepulse ./cmd/corepulse\` or set COREPULSE_BIN." >&2
+    exit 1
+  fi
   if [[ -z "${COREPULSE_OWNERSHIP_TOKEN:-}" ]]; then
     exec "$bin" hold --operation "$operation" -- bash "$script" "$@"
   fi

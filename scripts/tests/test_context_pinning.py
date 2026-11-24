@@ -218,6 +218,20 @@ class ContextPinning(unittest.TestCase):
         self.assertFalse(state['unsafe'])
         self.assertFalse(self.lock.exists())
 
+    def test_binary_without_hold_refuses_with_rebuild_hint(self):
+        self.state.write_text(json.dumps({'context': 'open5gs-lab', 'operations': [], 'unsafe': False}))
+        old = self.root / 'old-corepulse'
+        old.write_text('#!/bin/sh\necho "corepulse: unknown command \\"$1\\"" >&2\nexit 1\n')
+        old.chmod(0o755)
+        env = dict(self.env, COREPULSE_BIN=str(old))
+        for name in ['configure-pfcp.py', 'recover-service.sh']:
+            with self.subTest(script=name):
+                command = [sys.executable if name.endswith('.py') else 'bash', str(self.scripts / name)]
+                result = subprocess.run(command, check=False, cwd=self.root, env=env, capture_output=True, text=True, timeout=20)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('no hold command', result.stderr)
+                self.assertEqual(json.loads(self.state.read_text())['operations'], [])
+
     def test_missing_binary_refuses_without_operations(self):
         self.state.write_text(json.dumps({'context': 'open5gs-lab', 'operations': [], 'unsafe': False}))
         env = dict(self.env, COREPULSE_BIN=str(self.root / 'missing'))

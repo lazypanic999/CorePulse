@@ -102,11 +102,10 @@ func run(args []string) (int, error) {
 		if len(args) != 1 {
 			return 1, errors.New("ownership-check takes no arguments")
 		}
-		owner, err := collection.CheckHeld(os.Getenv(collection.HeldTokenEnv))
-		if err != nil {
+		// Silent on success: the exit code is the contract for helpers.
+		if _, err := collection.CheckHeld(os.Getenv(collection.HeldTokenEnv)); err != nil {
 			return 1, err
 		}
-		fmt.Fprintln(os.Stderr, "collection ownership held by", owner.Operation)
 		return 0, nil
 	case "version":
 		if len(args) != 1 {
