@@ -72,7 +72,7 @@ The [contributor quickstart](CONTRIBUTING.md#quickstart-without-a-kubernetes-lab
 
 Release builds use the maintained Go version in `.go-version`. Linux CI separately checks the Go 1.22 source minimum; on current macOS use Go 1.24 or newer (prefer the release toolchain), because older linkers omit the Mach-O UUID required by its loader. See the [Go linker notes](https://go.dev/doc/go1.24#linker). The Go 1.27 release archives require [macOS 13 Ventura or later](https://go.dev/doc/go1.27#darwin).
 
-To run against a real lab you need Go 1.22 or newer, `kubectl`, and the [Open5GS + UERANSIM lab](https://github.com/lazypanic999/open5gs-ueransim-kubernetes) with a Kubernetes context named `open5gs-lab`. CorePulse is a separate project and never changes that lab's deployment files. On this Windows machine the lab runs in Ubuntu WSL:
+To run against a real lab you need Go 1.22 or newer, `kubectl`, and the [Open5GS + UERANSIM lab](https://github.com/lazypanic999/open5gs-ueransim-kubernetes) with a Kubernetes context named `open5gs-lab`. CorePulse is a separate project and never changes that lab's deployment files. The lab helper scripts take [shared collection ownership](docs/collection-ownership.md#lab-helpers) through a CorePulse binary, so build one in the checkout from Ubuntu WSL first (`go build -o corepulse ./cmd/corepulse`) or set `COREPULSE_BIN`. On this Windows machine the lab runs in Ubuntu WSL:
 
 ```powershell
 .\scripts\start-lab.ps1
@@ -94,7 +94,7 @@ go run ./cmd/corepulse pod-crash --target upf --apply
 go run ./cmd/corepulse dataset --telemetry data/telemetry.jsonl --runs-dir runs --output data/dataset.csv
 ```
 
-After a UPF fault, `bash scripts/recover-service.sh` resets the UE, gNB, SMF, and UPF sessions and confirms the packet path again. The [lab operations guide](docs/lab-operations.md) explains it, along with subscriber setup and logs. Stop the lab with `.\scripts\stop-lab.ps1`.
+After a UPF fault, `bash scripts/recover-service.sh` resets the UE, gNB, SMF, and UPF sessions and confirms the packet path again. It refuses while a baseline, fault or dashboard run owns the lab. The [lab operations guide](docs/lab-operations.md) explains it, along with subscriber setup and logs. Stop the lab with `.\scripts\stop-lab.ps1`.
 
 Run records go to `runs/` and raw samples to `data/`. Both folders are ignored by Git. The ping check proves the UE reaches the UPF tunnel gateway. It does not prove Internet access.
 

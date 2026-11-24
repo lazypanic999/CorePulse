@@ -46,7 +46,7 @@ func saveJSON(path string, value any) error {
 
 func run(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("usage: corepulse <version|discover|doctor|signals|verify-service|pod-crash|baseline|dataset|windows|sequences|source-frames|split|evaluate|serve> [options]")
+		return 1, errors.New("usage: corepulse <version|discover|doctor|hold|signals|verify-service|pod-crash|baseline|dataset|windows|sequences|source-frames|split|evaluate|serve> [options]")
 	}
 	client := corepulse.Kubectl{}
 	switch args[0] {
@@ -88,6 +88,23 @@ func run(args []string) (int, error) {
 		}
 		if probe.Status != "healthy" {
 			return 2, nil
+		}
+		return 0, nil
+	case "hold":
+		flags := flag.NewFlagSet("hold", flag.ContinueOnError)
+		flags.SetOutput(os.Stderr)
+		operation := flags.String("operation", "", "name recorded in the ownership marker, e.g. recover-service")
+		if err := flags.Parse(args[1:]); err != nil {
+			return 1, err
+		}
+		return collection.Hold(*operation, flags.Args(), os.Stdout, os.Stderr)
+	case "ownership-check":
+		if len(args) != 1 {
+			return 1, errors.New("ownership-check takes no arguments")
+		}
+		// Silent on success: the exit code is the contract for helpers.
+		if _, err := collection.CheckHeld(os.Getenv(collection.HeldTokenEnv)); err != nil {
+			return 1, err
 		}
 		return 0, nil
 	case "version":
@@ -399,7 +416,7 @@ func run(args []string) (int, error) {
 			return 0, nil
 		})
 	default:
-		return 1, fmt.Errorf("unknown command %q; use version, discover, doctor, signals, verify-service, pod-crash, baseline, dataset, windows, sequences, source-frames, split, evaluate, or serve", args[0])
+		return 1, fmt.Errorf("unknown command %q; use version, discover, doctor, hold, signals, verify-service, pod-crash, baseline, dataset, windows, sequences, source-frames, split, evaluate, or serve", args[0])
 	}
 }
 

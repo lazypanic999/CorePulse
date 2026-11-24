@@ -6,6 +6,8 @@
 
 - Resolve the exact Pod -> ReplicaSet -> Deployment controller chain by UID before a pod-crash deletion. A shared name prefix, matching labels, a missing or duplicated controller flag, a stale owner UID, or a ReplicaSet in another namespace refuses before any delete. The delete is sent as `kubectl delete --raw` with a DeleteOptions UID precondition, and recovery requires a replacement with a new UID under the same Deployment UID. Run records add `pod_deleted_uid`, `replica_set`, `replica_set_uid`, `deployment_uid` and `replacement_pod_uid`. Read-only checks keep their existing selection.
 
+- Coordinate the mutating lab helpers with shared collection ownership. `recover-service.sh`, `repair-populate.sh`, `configure-gnb-n3.sh` and `configure-pfcp.py` re-execute under the new `corepulse hold`, which takes the same marker as CLI and dashboard collection, refuses on contention before any cluster call, forwards interrupts to the helper and releases only after it has exited. Helpers confirm their token with `corepulse ownership-check`. They now need a CorePulse binary and refuse without one; a killed `hold` leaves the marker for the existing conservative recovery.
+
 ## v0.2.4 — 2026-11-09 (preview)
 
 - Generate an SBOM attestation with the published container and exclude local Claude workspace metadata from Docker build contexts.

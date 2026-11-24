@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+# Take shared collection ownership before any cluster access or mutation.
+source "$(dirname -- "${BASH_SOURCE[0]}")/ownership.sh"
+corepulse_hold recover-service "${BASH_SOURCE[0]}" "$@"
 [[ "$(kubectl config current-context)" == open5gs-lab ]] || { echo 'Requires open5gs-lab context' >&2; exit 1; }
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 names=(ueransim-ue ueransim-gnb open5gs-smf open5gs-upf)
@@ -13,6 +16,7 @@ restore() { for name in "${names[@]}"; do kubectl --context open5gs-lab scale de
 trap restore ERR
 trap 'restore; exit 130' INT
 trap 'restore; exit 143' TERM
+trap 'restore; exit 129' HUP
 for name in "${names[@]}"; do
   selector="$(kubectl --context open5gs-lab get deployment/"$name" -n open5gs -o json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(",".join(k+"="+v for k,v in sorted(d["spec"]["selector"]["matchLabels"].items())))')"
   [[ -n "$selector" ]] || { restore; exit 1; }
@@ -23,7 +27,7 @@ for name in open5gs-upf open5gs-smf ueransim-gnb ueransim-ue; do
   kubectl --context open5gs-lab scale deployment/"$name" -n open5gs --replicas=1
   kubectl --context open5gs-lab rollout status deployment/"$name" -n open5gs --timeout=180s
 done
-trap - ERR INT TERM
+trap - ERR INT TERM HUP
 streak=0
 for attempt in {1..12}; do
   pod="$(kubectl --context open5gs-lab get pods -n open5gs -l app=ueransim,component=ue -o json | python3 -c 'import json,sys; p=[p for p in json.load(sys.stdin)["items"] if not p["metadata"].get("deletionTimestamp") and any(c["type"]=="Ready" and c["status"]=="True" for c in p["status"].get("conditions",[]))]; assert len(p)==1; print(p[0]["metadata"]["name"])')"
