@@ -122,7 +122,7 @@ Read-only facts for N2 (24 November 2026):
 - The AMF's `eth0` has `noqueue` and no filters.
 - The gNB side has `CAP_NET_ADMIN` but no tools, as recorded above.
 
-A scoped N2 fault would therefore match `ip protocol sctp` with port 38412 between those two addresses. It faces the same choice between a lasting ephemeral container and node-level `nsenter`. It has one extra risk: a lost N2 association does not come back by itself in this lab (see `docs/lab-integration.md`), so rollback must be followed by the documented reset and an N2 check.
+A scoped N2 fault would therefore match `ip protocol sctp` with port 38412 between those two addresses. It faces the same choice between a lasting ephemeral container and node-level `nsenter`. It has one extra risk. After an AMF replacement, the lost N2 association did not come back by itself in this lab (see `docs/lab-integration.md`), and a dropped association may behave the same way. Rollback must therefore be followed by an N2 check, and by the documented reset if N2 is still down.
 
 ## Questions for the maintainer
 
