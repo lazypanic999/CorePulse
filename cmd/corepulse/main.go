@@ -46,7 +46,7 @@ func saveJSON(path string, value any) error {
 
 func run(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("usage: corepulse <version|discover|doctor|signals|verify-service|pod-crash|baseline|dataset|windows|sequences|split|evaluate|serve> [options]")
+		return 1, errors.New("usage: corepulse <version|discover|doctor|signals|verify-service|pod-crash|baseline|dataset|windows|sequences|source-frames|split|evaluate|serve> [options]")
 	}
 	client := corepulse.Kubectl{}
 	switch args[0] {
@@ -207,6 +207,25 @@ func run(args []string) (int, error) {
 			return 1, err
 		}
 		return 0, printJSON(summary)
+	case "source-frames":
+		flags := flag.NewFlagSet("source-frames", flag.ContinueOnError)
+		flags.SetOutput(os.Stderr)
+		raw := flags.String("telemetry", filepath.Join("data", "telemetry.jsonl"), "raw telemetry JSONL")
+		output := flags.String("output", filepath.Join("reports", "source-frames.json"), "read-only source-frame diagnostic report")
+		if err := flags.Parse(args[1:]); err != nil {
+			return 1, err
+		}
+		if flags.NArg() != 0 {
+			return 1, errors.New("unexpected positional arguments")
+		}
+		report, err := telemetry.AnalyzeFrames(*raw)
+		if err != nil {
+			return 1, err
+		}
+		if err := telemetry.WriteFrameReport(*output, report); err != nil {
+			return 1, err
+		}
+		return 0, printJSON(report)
 	case "split":
 		flags := flag.NewFlagSet("split", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)
@@ -380,7 +399,7 @@ func run(args []string) (int, error) {
 			return 0, nil
 		})
 	default:
-		return 1, fmt.Errorf("unknown command %q; use version, discover, signals, verify-service, pod-crash, baseline, dataset, windows, split, evaluate, or serve", args[0])
+		return 1, fmt.Errorf("unknown command %q; use version, discover, doctor, signals, verify-service, pod-crash, baseline, dataset, windows, sequences, source-frames, split, evaluate, or serve", args[0])
 	}
 }
 

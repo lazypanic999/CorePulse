@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add a read-only `source-frames` CLI diagnostic for Metrics API source metadata in raw telemetry. Per pod name it reports known and unknown captures, unique versus repeated source frames, equal-value and conflicting frames, capture-to-source age, future and regressing source timestamps, windows and name reappearances. Legacy rows stay unknown, malformed input is rejected whole, and an earlier report survives a failed run. Labels, CSVs and splits are unchanged.
+
 - Resolve the exact Pod -> ReplicaSet -> Deployment controller chain by UID before a pod-crash deletion. A shared name prefix, matching labels, a missing or duplicated controller flag, a stale owner UID, or a ReplicaSet in another namespace refuses before any delete. The delete is sent as `kubectl delete --raw` with a DeleteOptions UID precondition, and recovery requires a replacement with a new UID under the same Deployment UID. Run records add `pod_deleted_uid`, `replica_set`, `replica_set_uid`, `deployment_uid` and `replacement_pod_uid`. Read-only checks keep their existing selection.
 
 ## v0.2.4 — 2026-11-09 (preview)
