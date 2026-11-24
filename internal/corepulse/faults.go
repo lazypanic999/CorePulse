@@ -44,63 +44,12 @@ func selectedPod(client Client, deployment string) (string, error) {
 	return name, err
 }
 
-// selectedPodInfo is selectedPod that also returns the pod IP it read.
+// selectedPodInfo is selectedPod that also returns the pod IP it read. It
+// serves read-only checks; mutation uses verifiedTargetPod instead.
 func selectedPodInfo(client Client, deployment string) (string, string, error) {
-	data, err := client.GetJSON("get", "deployment/"+deployment, "--namespace", LabNamespace)
+	_, pod, err := selectedPodObjects(client, deployment)
 	if err != nil {
 		return "", "", err
-	}
-	spec, status := object(data["spec"]), object(data["status"])
-	selector := object(spec["selector"])
-	labels := object(selector["matchLabels"])
-	if len(labels) == 0 || len(array(selector["matchExpressions"])) > 0 {
-		return "", "", fmt.Errorf("deployment selector is missing or has unsupported expressions")
-	}
-	replicas := spec["replicas"]
-	if replicas == nil {
-		replicas = float64(1)
-	}
-	if replicas != float64(1) && replicas != 1 {
-		return "", "", fmt.Errorf("target deployment must have exactly one ready replica")
-	}
-	if status["readyReplicas"] != float64(1) && status["readyReplicas"] != 1 {
-		return "", "", fmt.Errorf("target deployment must have exactly one ready replica")
-	}
-	keys := make([]string, 0, len(labels))
-	for key := range labels {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	parts := make([]string, 0, len(keys))
-	for _, key := range keys {
-		value, ok := labels[key].(string)
-		if !ok || key == "" || value == "" || strings.ContainsAny(key+value, ",= ") {
-			return "", "", fmt.Errorf("deployment selector has invalid labels")
-		}
-		parts = append(parts, key+"="+value)
-	}
-	pods, err := client.GetJSON("get", "pods", "--namespace", LabNamespace, "--selector", strings.Join(parts, ","))
-	if err != nil {
-		return "", "", err
-	}
-	items := array(pods["items"])
-	if len(items) != 1 {
-		return "", "", fmt.Errorf("expected exactly one matching pod")
-	}
-	pod := object(items[0])
-	podStatus := object(pod["status"])
-	if podStatus["phase"] != "Running" {
-		return "", "", fmt.Errorf("target pod is not running")
-	}
-	ready := false
-	for _, raw := range array(podStatus["conditions"]) {
-		c := object(raw)
-		if c["type"] == "Ready" && c["status"] == "True" {
-			ready = true
-		}
-	}
-	if !ready {
-		return "", "", fmt.Errorf("target pod is not ready")
 	}
 	metadata := object(pod["metadata"])
 	name := stringValue(metadata["name"])
@@ -117,7 +66,69 @@ func selectedPodInfo(client Client, deployment string) (string, string, error) {
 	if !owned {
 		return "", "", fmt.Errorf("matching pod is not owned by the expected deployment")
 	}
-	return name, stringValue(podStatus["podIP"]), nil
+	return name, stringValue(object(pod["status"])["podIP"]), nil
+}
+
+// selectedPodObjects reads the deployment and its single running, ready pod
+// selected by the deployment's matchLabels.
+func selectedPodObjects(client Client, deployment string) (map[string]any, map[string]any, error) {
+	data, err := client.GetJSON("get", "deployment/"+deployment, "--namespace", LabNamespace)
+	if err != nil {
+		return nil, nil, err
+	}
+	spec, status := object(data["spec"]), object(data["status"])
+	selector := object(spec["selector"])
+	labels := object(selector["matchLabels"])
+	if len(labels) == 0 || len(array(selector["matchExpressions"])) > 0 {
+		return nil, nil, fmt.Errorf("deployment selector is missing or has unsupported expressions")
+	}
+	replicas := spec["replicas"]
+	if replicas == nil {
+		replicas = float64(1)
+	}
+	if replicas != float64(1) && replicas != 1 {
+		return nil, nil, fmt.Errorf("target deployment must have exactly one ready replica")
+	}
+	if status["readyReplicas"] != float64(1) && status["readyReplicas"] != 1 {
+		return nil, nil, fmt.Errorf("target deployment must have exactly one ready replica")
+	}
+	keys := make([]string, 0, len(labels))
+	for key := range labels {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		value, ok := labels[key].(string)
+		if !ok || key == "" || value == "" || strings.ContainsAny(key+value, ",= ") {
+			return nil, nil, fmt.Errorf("deployment selector has invalid labels")
+		}
+		parts = append(parts, key+"="+value)
+	}
+	pods, err := client.GetJSON("get", "pods", "--namespace", LabNamespace, "--selector", strings.Join(parts, ","))
+	if err != nil {
+		return nil, nil, err
+	}
+	items := array(pods["items"])
+	if len(items) != 1 {
+		return nil, nil, fmt.Errorf("expected exactly one matching pod")
+	}
+	pod := object(items[0])
+	podStatus := object(pod["status"])
+	if podStatus["phase"] != "Running" {
+		return nil, nil, fmt.Errorf("target pod is not running")
+	}
+	ready := false
+	for _, raw := range array(podStatus["conditions"]) {
+		c := object(raw)
+		if c["type"] == "Ready" && c["status"] == "True" {
+			ready = true
+		}
+	}
+	if !ready {
+		return nil, nil, fmt.Errorf("target pod is not ready")
+	}
+	return data, pod, nil
 }
 
 func newRunID() (string, error) {
@@ -155,17 +166,19 @@ func RunPodCrashWithCheckpoint(client Client, target string, observe func(), che
 		return nil, fmt.Errorf("current context %q differs from lab context %q", context, LabContext)
 	}
 	deployment := stringValue(plan["deployment"])
-	pod, err := selectedPod(client, deployment)
+	chain, err := verifiedTargetPod(client, deployment)
 	if err != nil {
 		return nil, err
 	}
+	pod := chain.Name
 	id, err := newRunID()
 	if err != nil {
 		return nil, err
 	}
 	result = map[string]any{
 		"schema_version": 1, "run_id": id, "fault": "pod_crash", "target": target,
-		"context": context, "namespace": LabNamespace, "pod_deleted": pod,
+		"context": context, "namespace": LabNamespace, "pod_deleted": pod, "pod_deleted_uid": chain.UID,
+		"replica_set": chain.ReplicaSet, "replica_set_uid": chain.ReplicaSetUID, "deployment_uid": chain.DeploymentUID,
 		"started_at": time.Now().UTC().Format(time.RFC3339Nano), "ended_at": nil, "status": "recovery_pending",
 		"quality": "excluded", "phase": "prepared",
 	}
@@ -194,7 +207,7 @@ func RunPodCrashWithCheckpoint(client Client, target string, observe func(), che
 		timeout time.Duration
 		args    []string
 	}{
-		{"delete_requested", 30 * time.Second, []string{"delete", "pod/" + pod, "--namespace", LabNamespace, "--wait=false"}},
+		{"delete_requested", 30 * time.Second, nil},
 		{"delete_observed", 210 * time.Second, []string{"wait", "--for=delete", "pod/" + pod, "--namespace", LabNamespace, "--timeout=180s"}},
 		{"deployment_available", 210 * time.Second, []string{"rollout", "status", "deployment/" + deployment, "--namespace", LabNamespace, "--timeout=180s"}},
 	}
@@ -205,7 +218,17 @@ func RunPodCrashWithCheckpoint(client Client, target string, observe func(), che
 				return result, err
 			}
 		}
-		if _, err := client.Run(step.timeout, step.args...); err != nil {
+		var err error
+		if step.phase == "delete_requested" {
+			// The UID precondition refuses a replacement that took the name.
+			err = deletePodWithUID(client, step.timeout, chain)
+			if err != nil && strings.Contains(err.Error(), "precondition") {
+				err = fmt.Errorf("pod %s UID changed before deletion; nothing was deleted: %w", pod, err)
+			}
+		} else {
+			_, err = client.Run(step.timeout, step.args...)
+		}
+		if err != nil {
 			result["status"], result["error"] = "recovery_unverified", err.Error()
 			return result, nil
 		}
@@ -220,15 +243,18 @@ func RunPodCrashWithCheckpoint(client Client, target string, observe func(), che
 			}
 		}
 	}
-	replacement, err := selectedPod(client, deployment)
-	if err == nil && replacement == pod {
+	replacement, err := verifiedTargetPod(client, deployment)
+	if err == nil && (replacement.UID == chain.UID || replacement.Name == pod) {
 		err = fmt.Errorf("no replacement pod was observed")
+	}
+	if err == nil && replacement.DeploymentUID != chain.DeploymentUID {
+		err = fmt.Errorf("deployment %s was replaced during the run", deployment)
 	}
 	if err != nil {
 		result["status"], result["error"] = "recovery_unverified", err.Error()
 		return result, nil
 	}
-	result["replacement_pod"], result["status"] = replacement, "recovered"
+	result["replacement_pod"], result["replacement_pod_uid"], result["status"] = replacement.Name, replacement.UID, "recovered"
 	result["phase"] = "deployment_recovered"
 	return result, nil
 }

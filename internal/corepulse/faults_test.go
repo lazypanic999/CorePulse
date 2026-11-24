@@ -3,6 +3,7 @@ package corepulse
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -69,11 +70,30 @@ type fakeKubectl struct {
 	commands     [][]string
 	podReads     int
 	failedAction string
+	failure      string
+	// tweak edits each returned object ("deployment", "pod" or "replicaset")
+	// after the podReads-th pod read, so tests can break one chain link.
+	tweak        func(kind string, metadata map[string]any, podReads int)
+	deleteBodies []string
 }
 
 func (f *fakeKubectl) Run(_ time.Duration, args ...string) (string, error) {
 	f.commands = append(f.commands, args)
+	if args[0] == "delete" {
+		for i, arg := range args {
+			if arg == "--filename" && i+1 < len(args) {
+				body, err := os.ReadFile(args[i+1])
+				if err != nil {
+					return "", err
+				}
+				f.deleteBodies = append(f.deleteBodies, string(body))
+			}
+		}
+	}
 	if args[0] == f.failedAction {
+		if f.failure != "" {
+			return "", errors.New(f.failure)
+		}
 		return "", fmt.Errorf("simulated failure")
 	}
 	if len(args) == 2 && args[0] == "config" {
@@ -82,10 +102,34 @@ func (f *fakeKubectl) Run(_ time.Duration, args ...string) (string, error) {
 	return "ok", nil
 }
 
+func ref(kind, name, uid string) map[string]any {
+	return map[string]any{"apiVersion": "apps/v1", "kind": kind, "name": name, "uid": uid, "controller": true}
+}
+
 func (f *fakeKubectl) GetJSON(args ...string) (map[string]any, error) {
 	f.commands = append(f.commands, args)
-	if args[1] == "deployment/open5gs-amf" {
-		return map[string]any{"spec": map[string]any{"replicas": float64(1), "selector": map[string]any{"matchLabels": map[string]any{"app": "amf"}}}, "status": map[string]any{"readyReplicas": float64(1)}}, nil
+	edit := func(kind string, metadata map[string]any) map[string]any {
+		if f.tweak != nil {
+			f.tweak(kind, metadata, f.podReads)
+		}
+		return metadata
+	}
+	switch {
+	case args[1] == "deployment/open5gs-amf":
+		return map[string]any{
+			"metadata": edit("deployment", map[string]any{"name": "open5gs-amf", "namespace": LabNamespace, "uid": "deploy-uid"}),
+			"spec":     map[string]any{"replicas": float64(1), "selector": map[string]any{"matchLabels": map[string]any{"app": "amf"}}},
+			"status":   map[string]any{"readyReplicas": float64(1)},
+		}, nil
+	case strings.HasPrefix(args[1], "replicaset/"):
+		name := strings.TrimPrefix(args[1], "replicaset/")
+		if name != "open5gs-amf-abc" && name != "open5gs-amf-def" {
+			return nil, fmt.Errorf("replicaset %s not found", name)
+		}
+		return map[string]any{"metadata": edit("replicaset", map[string]any{
+			"name": name, "namespace": LabNamespace, "uid": name + "-uid",
+			"ownerReferences": []any{ref("Deployment", "open5gs-amf", "deploy-uid")},
+		})}, nil
 	}
 	f.podReads++
 	name, owner := "open5gs-amf-abc-123", f.owner
@@ -93,8 +137,11 @@ func (f *fakeKubectl) GetJSON(args ...string) (map[string]any, error) {
 		name, owner = "open5gs-amf-def-456", "open5gs-amf-def"
 	}
 	return map[string]any{"items": []any{map[string]any{
-		"metadata": map[string]any{"name": name, "ownerReferences": []any{map[string]any{"kind": "ReplicaSet", "name": owner}}},
-		"status":   map[string]any{"phase": "Running", "conditions": []any{map[string]any{"type": "Ready", "status": "True"}}},
+		"metadata": edit("pod", map[string]any{
+			"name": name, "namespace": LabNamespace, "uid": name + "-uid",
+			"ownerReferences": []any{ref("ReplicaSet", owner, owner+"-uid")},
+		}),
+		"status": map[string]any{"phase": "Running", "conditions": []any{map[string]any{"type": "Ready", "status": "True"}}},
 	}}}, nil
 }
 
