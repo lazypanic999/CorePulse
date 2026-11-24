@@ -42,6 +42,23 @@ The resource panel distinguishes capture times from source intervals, shows how 
 
 ![Live resource panel with source interval coverage and all six experiment gates](../assets/dashboard-source-intervals.jpg)
 
+### Source-frame diagnostic
+
+`corepulse source-frames --telemetry data/telemetry.jsonl --output reports/source-frames.json` reads raw telemetry and reports, per pod name, how captures relate to Metrics API source frames. It never changes telemetry, labels, CSVs or splits.
+
+A frame is the exact source `timestamp` and `window` pair. For each pod name the report gives:
+
+- `known` and `unknown` captures. Legacy rows without `measurement` stay unknown: they get no age, window or frame, and are not dropped.
+- `unique_frames` and `repeated_captures`. A repeated capture re-read a frame already seen for that name. Polling every 10 seconds against a one-minute source window repeats frames by design, so a repeat is not by itself a fault.
+- `equal_value_frames`: distinct frames whose CPU and memory equal the previous frame's. Equal values do not make two frames the same.
+- `conflicting_frames`: one frame read again with different values. It is counted, and neither value is preferred.
+- `age_seconds` (min, median, max of capture time minus source timestamp), `future_source` for source timestamps after the capture time, and `regressing_source` for source timestamps earlier than one already seen. Negative ages come from clock skew between CorePulse and the metrics pipeline and are left out of `age_seconds`.
+- `windows` (distinct source windows) and `reappearances` (a name that returns after at least one row without it). Pods are keyed by name only.
+
+The report also counts capture timestamps that repeat or go backwards between rows, records the input's SHA-256 and states these rules in a `policy` block. It contains no wall-clock time, so the same input gives the same bytes. Any malformed row, wrong provenance, partial measurement, duplicate or unnamed pod, or empty input rejects the whole file, and a failed run leaves an earlier report in place.
+
+This diagnostic does not deduplicate samples, enforce freshness or show that training and test intervals are independent. Any freshness cutoff, deduplication or measurement-time split needs its own documented decision and tests.
+
 ## Missing component metrics in CSV
 
 `amf_cpu_millicores`, `amf_memory_bytes`, `upf_cpu_millicores` and `upf_memory_bytes`
