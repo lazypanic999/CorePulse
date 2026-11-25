@@ -96,7 +96,7 @@ class ContextPinning(unittest.TestCase):
         self.scripts = self.root / 'scripts'
         self.scripts.mkdir()
         source = Path(__file__).resolve().parents[1]
-        for name in ['recover-service.sh', 'repair-populate.sh', 'configure-gnb-n3.sh', 'configure-pfcp.py', 'populate-subscriber.sh', 'gnb-dynamic-ip-patch.json', 'ownership.sh', 'corepulse_ownership.py']:
+        for name in ['recover-service.sh', 'repair-populate.sh', 'configure-gnb-n3.sh', 'configure-pfcp.py', 'populate-subscriber.sh', 'gnb-dynamic-ip-patch.json', 'ownership.sh', 'corepulse_ownership.py', 'reset_record.py']:
             shutil.copy2(source / name, self.scripts / name)
         tools = self.root / 'bin'
         tools.mkdir()
@@ -109,8 +109,9 @@ class ContextPinning(unittest.TestCase):
         self.state = self.root / 'state.json'
         self.lock = self.root / 'lock'
         self.env = dict(os.environ, PATH=str(tools) + os.pathsep + os.environ['PATH'], FAKE_KUBE_STATE=str(self.state), FAKE_CONTEXT_DRIFT='1',
-                        COREPULSE_BIN=str(self.binary), COREPULSE_LOCK_DIR=str(self.lock))
-        for name in ['COREPULSE_OWNERSHIP_TOKEN', 'COREPULSE_OWNERSHIP_OPERATION']:
+                        COREPULSE_BIN=str(self.binary), COREPULSE_LOCK_DIR=str(self.lock),
+                        COREPULSE_RESET_LOG=str(self.root / 'resets.jsonl'))
+        for name in ['COREPULSE_OWNERSHIP_TOKEN', 'COREPULSE_OWNERSHIP_OPERATION', 'COREPULSE_SESSION_ID']:
             self.env.pop(name, None)
 
     def run_script(self, name, context='open5gs-lab', fail_scale=False):
@@ -217,6 +218,8 @@ class ContextPinning(unittest.TestCase):
         self.assertTrue(all(state['locked']), 'a restore ran without ownership')
         self.assertFalse(state['unsafe'])
         self.assertFalse(self.lock.exists())
+        [record] = self.resets()
+        self.assertEqual((record['outcome'], record['exit_code'], record['last_phase']), ('interrupted', 130, 'scaling_down'))
 
     def test_binary_without_hold_refuses_with_rebuild_hint(self):
         self.state.write_text(json.dumps({'context': 'open5gs-lab', 'operations': [], 'unsafe': False}))
@@ -242,6 +245,54 @@ class ContextPinning(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn('CorePulse binary', result.stderr)
                 self.assertEqual(json.loads(self.state.read_text())['operations'], [])
+
+    # Reset log
+    def resets(self):
+        path = self.root / 'resets.jsonl'
+        return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+
+    def test_verified_reset_is_recorded_with_session(self):
+        self.env['COREPULSE_SESSION_ID'] = 'prospective-2026-A'
+        result, _ = self.run_script('recover-service.sh')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        [record] = self.resets()
+        self.assertEqual(record['outcome'], 'service_verified')
+        self.assertEqual(record['exit_code'], 0)
+        self.assertEqual(record['last_phase'], 'service_check')
+        self.assertEqual(record['healthy_packet_checks'], 2)
+        self.assertEqual(record['session_id'], 'prospective-2026-A')
+        self.assertEqual(record['ownership_operation'], 'recover-service')
+        self.assertTrue(record['started_at'] <= record['ended_at'])
+
+    def test_failed_reset_is_recorded_without_changing_exit_code(self):
+        result, _ = self.run_script('recover-service.sh', fail_scale=True)
+        self.assertNotEqual(result.returncode, 0)
+        [record] = self.resets()
+        self.assertEqual(record['outcome'], 'failed')
+        self.assertEqual(record['exit_code'], result.returncode)
+        self.assertEqual(record['last_phase'], 'scaling_down')
+        self.assertEqual(record['healthy_packet_checks'], 0)
+
+    def test_refused_context_writes_no_record(self):
+        result, _ = self.run_script('recover-service.sh', context='production')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.resets(), [])
+
+    def test_invalid_session_is_not_recorded_as_a_session(self):
+        self.env['COREPULSE_SESSION_ID'] = 'bad id/../x'
+        result, _ = self.run_script('recover-service.sh')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        [record] = self.resets()
+        self.assertIsNone(record['session_id'])
+        self.assertIn('session_error', record)
+
+    def test_unwritable_log_keeps_the_reset_outcome(self):
+        blocker = self.root / 'not-a-dir'
+        blocker.write_text('x')
+        self.env['COREPULSE_RESET_LOG'] = str(blocker / 'resets.jsonl')
+        result, _ = self.run_script('recover-service.sh')
+        self.assertEqual(result.returncode, 0, result.stderr)
+
 
 if __name__ == '__main__':
     unittest.main()

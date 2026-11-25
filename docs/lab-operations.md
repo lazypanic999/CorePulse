@@ -40,6 +40,15 @@ This resets the lab's UE, gNB, SMF and UPF session state. It takes [shared colle
 
 It then scales down UE, gNB, SMF and UPF, waiting for old pods to disappear, and starts UPF, SMF, gNB and UE in that order. Other core functions and the subscriber database are preserved. A failure during scaling attempts to restore all four replica counts to one. A replacement UPF has a new pod address: run recovery to restart SMF and resolve the current headless endpoint.
 
+Each attempt that gets past the context check appends one JSON line to `reports/resets.jsonl` (Git-ignored; override with `COREPULSE_RESET_LOG`). A line records:
+
+- start and end times, exit code and outcome: `service_verified`, `service_unverified`, `failed` or `interrupted`
+- the last phase reached: `preflight`, `scaling_down`, `scaling_up` or `service_check`
+- the number of healthy packet checks, the host and the ownership operation
+- the declared session, when `COREPULSE_SESSION_ID` holds a valid session ID; an invalid value is noted and not recorded as a session
+
+Writing the line never changes the reset's own exit code. The log shows which faults needed a reset and whether it worked; it does not prove what state the lab was in before the reset.
+
 Readiness alone does not complete recovery. The script checks the current ready UE pod's registration and PDU-session log events and requires two consecutive 2/2 gateway packet checks. It exits 2 if workloads are ready but service health is not verified. This resets active demo sessions and belongs outside a recorded normal baseline or fault interval.
 
 To roll back direct PFCP routing, replace `corepulse-upf-pfcp` with `open5gs-upf-pfcp` in the `open5gs-smf` ConfigMap, then restart SMF and the UE/gNB sessions. The original chart service remains available. The additive headless service can be removed after no workload uses it.
