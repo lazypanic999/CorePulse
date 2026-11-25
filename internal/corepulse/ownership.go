@@ -110,6 +110,18 @@ func verifiedTargetPod(client Client, deployment string) (podIdentity, error) {
 	return id, nil
 }
 
+// VerifyFaultTargets resolves the exact UID chain for every allowlisted fault
+// target, read-only, so a report can show the same ownership the delete path
+// will require. It does not pin anything: apply re-verifies before deleting.
+func VerifyFaultTargets(client Client) error {
+	for _, target := range []string{"amf", "upf"} {
+		if _, err := verifiedTargetPod(client, allowedTargets[target]); err != nil {
+			return fmt.Errorf("%s fault target: %w", target, err)
+		}
+	}
+	return nil
+}
+
 // deletePodWithUID deletes the pod only if its UID still matches. kubectl has
 // no flag for DeleteOptions preconditions, so the request goes through
 // `kubectl delete --raw` with a DeleteOptions body; the API server rejects it

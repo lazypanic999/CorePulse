@@ -80,7 +80,11 @@ func Diagnose(ctx context.Context, client corepulse.Client) (report DiagnosticRe
 		set("workloads", "fail", err.Error())
 		return report
 	}
-	set("workloads", "pass", "All six essential deployment-owned pods are ready with one replica each.")
+	if err := corepulse.VerifyFaultTargets(client); err != nil {
+		set("workloads", "fail", err.Error())
+		return report
+	}
+	set("workloads", "pass", "All six essential deployment-owned pods are ready with one replica each; the AMF and UPF fault targets resolve by UID to their Deployments.")
 	if err := ctx.Err(); err != nil {
 		set("packet_path", "unavailable", err.Error())
 		return report
