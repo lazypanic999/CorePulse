@@ -6,11 +6,27 @@ corepulse_hold recover-service "${BASH_SOURCE[0]}" "$@"
 [[ "$(kubectl config current-context)" == open5gs-lab ]] || { echo 'Requires open5gs-lab context' >&2; exit 1; }
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 names=(ueransim-ue ueransim-gnb open5gs-smf open5gs-upf)
+# Append one JSON line per reset attempt to a local, Git-ignored log. Writing
+# the record never changes the reset's own exit code.
+reset_log="${COREPULSE_RESET_LOG:-reports/resets.jsonl}"
+reset_started="$(date -u +%Y-%m-%dT%H:%M:%S.%NZ)"
+reset_phase=preflight
+healthy_checks=0
+record_reset() {
+  local code=$?
+  # The script is exiting: never run the ERR restore again from here.
+  trap - ERR
+  RESET_LOG="$reset_log" RESET_STARTED="$reset_started" RESET_PHASE="$reset_phase" RESET_CODE="$code" \
+    RESET_HEALTHY="$healthy_checks" RESET_ENDED="$(date -u +%Y-%m-%dT%H:%M:%S.%NZ)" \
+    python3 scripts/reset_record.py || true
+}
+trap record_reset EXIT
 for name in "${names[@]}"; do
   replicas="$(kubectl --context open5gs-lab get deployment/"$name" -n open5gs -o jsonpath='{.spec.replicas}')"
   [[ "$replicas" == 1 ]] || { echo "$name must have exactly one replica" >&2; exit 1; }
 done
 python3 scripts/configure-pfcp.py
+reset_phase=scaling_down
 # Stop traffic producers before rebuilding PFCP peers. Do not overlap old/new UE pods.
 restore() { for name in "${names[@]}"; do kubectl --context open5gs-lab scale deployment/"$name" -n open5gs --replicas=1 >/dev/null || true; done; }
 trap restore ERR
@@ -23,11 +39,13 @@ for name in "${names[@]}"; do
   kubectl --context open5gs-lab scale deployment/"$name" -n open5gs --replicas=0
   kubectl --context open5gs-lab wait pod -n open5gs -l "$selector" --for=delete --timeout=180s
 done
+reset_phase=scaling_up
 for name in open5gs-upf open5gs-smf ueransim-gnb ueransim-ue; do
   kubectl --context open5gs-lab scale deployment/"$name" -n open5gs --replicas=1
   kubectl --context open5gs-lab rollout status deployment/"$name" -n open5gs --timeout=180s
 done
 trap - ERR INT TERM HUP
+reset_phase=service_check
 streak=0
 for attempt in {1..12}; do
   pod="$(kubectl --context open5gs-lab get pods -n open5gs -l app=ueransim,component=ue -o json | python3 -c 'import json,sys; p=[p for p in json.load(sys.stdin)["items"] if not p["metadata"].get("deletionTimestamp") and any(c["type"]=="Ready" and c["status"]=="True" for c in p["status"].get("conditions",[]))]; assert len(p)==1; print(p[0]["metadata"]["name"])')"
@@ -36,6 +54,7 @@ for attempt in {1..12}; do
      grep -Eqi 'pdu session.*successful|pdu session establishment accept' <<<"$logs" &&
      kubectl --context open5gs-lab exec -n open5gs "$pod" -- ping -I uesimtun0 10.45.0.1 -c 2 -W 2; then
     streak=$((streak+1))
+    healthy_checks=$((healthy_checks+1))
     if [[ "$streak" == 2 ]]; then echo 'Service recovery verified by consecutive packet checks.'; exit 0; fi
   else streak=0; fi
   sleep 5
