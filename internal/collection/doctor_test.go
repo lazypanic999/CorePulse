@@ -67,6 +67,10 @@ func (c *diagnosticClient) GetJSON(args ...string) (map[string]any, error) {
 		return nil, errors.New("workload is not ready")
 	}
 	d, err := c.labClient.GetJSON(args...)
+	if c.mode == "foreign-replicaset" && args[1] == "replicaset/open5gs-upf-abc" {
+		meta := d["metadata"].(map[string]any)
+		meta["ownerReferences"] = []any{map[string]any{"apiVersion": "apps/v1", "kind": "Deployment", "name": "open5gs-upf-canary", "uid": "canary-uid", "controller": true}}
+	}
 	if c.mode == "pod-changed" && c.metricsSeen && args[1] == "pods" {
 		for _, item := range d["items"].([]any) {
 			meta := item.(map[string]any)["metadata"].(map[string]any)
@@ -90,6 +94,7 @@ func TestDiagnosticSeparatesPacketProtocolMetricsAndIdentityFailures(t *testing.
 		{"healthy", "resource_metrics", "pass"},
 		{"wrong-context", "context", "fail"},
 		{"unready", "workloads", "fail"},
+		{"foreign-replicaset", "workloads", "fail"},
 		{"unavailable-probe", "packet_path", "unavailable"},
 		{"n2-down", "n2", "fail"},
 		{"missing-metrics", "resource_metrics", "fail"},

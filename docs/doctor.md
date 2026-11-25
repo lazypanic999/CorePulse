@@ -8,7 +8,7 @@ Run the native binary inside the environment that can reach the lab (Ubuntu WSL 
 corepulse doctor
 ```
 
-It prints one JSON report with eight separate checks: shared collection ownership, allowlisted current context, six essential ready deployment-owned pods, UE-to-UPF gateway packet delivery, N2, N4/PFCP, resource-metric coverage for the current essential pod names, and unchanged pod names across the observations. A packet pass cannot hide an N2 failure; unknown packet evidence cannot become measured loss. Zero resource use counts as observed when a reporting pod supplies it, while an absent pod does not.
+It prints one JSON report with eight separate checks: shared collection ownership, allowlisted current context, six essential ready deployment-owned pods (with the AMF and UPF fault targets resolved by UID through their ReplicaSet to the Deployment, as the delete path requires), UE-to-UPF gateway packet delivery, N2, N4/PFCP, resource-metric coverage for the current essential pod names, and unchanged pod names across the observations. A packet pass cannot hide an N2 failure; unknown packet evidence cannot become measured loss. Zero resource use counts as observed when a reporting pod supplies it, while an absent pod does not.
 
 Exit **0** means every observed prerequisite passed; **2** means blocked, failed, unavailable or skipped checks remain. Invalid command arguments or output errors use **1**. Interruptions and a three-minute overall deadline stop further CLI observations; individual Kubernetes calls retain their shorter timeouts.
 
