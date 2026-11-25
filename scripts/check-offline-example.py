@@ -4,10 +4,10 @@ import csv
 import hashlib
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -24,7 +24,7 @@ def main():
         env = dict(os.environ, PATH=str(temp / 'no-executables'))
 
         def run(*arguments):
-            completed = subprocess.run([str(binary), *map(str, arguments)], cwd=ROOT,
+            completed = subprocess.run([str(binary), *map(str, arguments)], check=False, cwd=ROOT,
                 env=env, capture_output=True, text=True, timeout=30)
             if completed.returncode:
                 raise RuntimeError(f'Offline command failed: {arguments}\n{completed.stderr}')

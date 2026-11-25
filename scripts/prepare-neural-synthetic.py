@@ -3,8 +3,8 @@
 import argparse
 import json
 import os
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 EXAMPLE_MARKER = 'SYNTHETIC — not lab evidence'

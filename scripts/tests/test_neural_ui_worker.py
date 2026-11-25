@@ -1,8 +1,8 @@
 import importlib.util
-from pathlib import Path
 import tempfile
 import unittest
 import unittest.mock
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('ui_worker', ROOT / 'scripts/neural-ui-worker.py')
