@@ -2,13 +2,13 @@
 """Execute a trusted release archive on its matching native runner before publish."""
 import argparse
 import os
-from pathlib import Path
 import platform
 import subprocess
 import sys
 import tarfile
 import tempfile
 import zipfile
+from pathlib import Path
 
 
 def main():

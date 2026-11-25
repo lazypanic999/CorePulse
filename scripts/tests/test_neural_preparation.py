@@ -1,9 +1,9 @@
 """Test preparation argument safety; these tests never execute a cluster CLI."""
 import importlib.util
 import json
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 SPEC = importlib.util.spec_from_file_location('neural_prepare', Path(__file__).parents[1] / 'prepare-neural-synthetic.py')
@@ -32,13 +32,19 @@ class NeuralPreparation(unittest.TestCase):
 
     def test_missing_example_marker_refuses_before_any_process(self):
         (self.root / 'examples/offline/telemetry.jsonl').write_text('{}\n')
-        with patch.object(MODULE, 'ROOT', self.root), patch.object(MODULE.subprocess, 'run') as run:
-            with self.assertRaises(ValueError):
-                MODULE.prepare(self.root / 'corepulse', self.root / 'reports/smoke')
+        with (
+            patch.object(MODULE, 'ROOT', self.root),
+            patch.object(MODULE.subprocess, 'run') as run,
+            self.assertRaises(ValueError),
+        ):
+            MODULE.prepare(self.root / 'corepulse', self.root / 'reports/smoke')
         run.assert_not_called()
 
     def test_source_output_refuses_before_any_process(self):
-        with patch.object(MODULE, 'ROOT', self.root), patch.object(MODULE.subprocess, 'run') as run:
-            with self.assertRaises(ValueError):
-                MODULE.prepare(self.root / 'corepulse', self.root / 'ml')
+        with (
+            patch.object(MODULE, 'ROOT', self.root),
+            patch.object(MODULE.subprocess, 'run') as run,
+            self.assertRaises(ValueError),
+        ):
+            MODULE.prepare(self.root / 'corepulse', self.root / 'ml')
         run.assert_not_called()

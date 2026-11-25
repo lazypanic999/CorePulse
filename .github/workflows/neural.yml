@@ -32,6 +32,8 @@ jobs:
         run: uv sync --project ml --locked --python 3.12
       - name: Lint
         run: uv run --project ml --locked ruff check ml
+      - name: Lint repository scripts
+        run: uv run --project ml --locked ruff check --isolated scripts
       - name: Test only invented offline fixtures
         run: uv run --project ml --locked pytest ml
       - name: CPU tensor smoke
